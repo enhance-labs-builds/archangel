@@ -33,8 +33,8 @@ fn with_team_plugin(schema_version: u32, rules: &Value) -> Value {
     json!({
         "elements": declared_elements(),
         "plugins": { "team": { "schemaVersion": schema_version, "conditions": {
-            "one-store-per-entity": { "description": "", "reads": ["imports"], "options": max },
-            "no-barrels": { "description": "", "reads": ["exports"], "options": null },
+            "one-store-per-entity": { "description": "", "reads": ["imports"], "optionsSchema": max },
+            "no-barrels": { "description": "", "reads": ["exports"], "optionsSchema": null },
         } } },
         "rules": rules,
     })

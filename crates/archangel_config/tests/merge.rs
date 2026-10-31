@@ -391,7 +391,7 @@ fn a_name_off_cannot_find_gets_the_rules_there_are() {
 fn a_preset_brings_its_plugins_and_the_configs_plugin_of_the_same_name_replaces_its_own() {
     let plugin = |condition: &str| {
         json!({ "schemaVersion": 1, "conditions": {
-            condition: { "description": "", "reads": [], "options": null },
+            condition: { "description": "", "reads": [], "optionsSchema": null },
         } })
     };
     let mut team = preset("team", "", &json!({ "views": "src/views/**" }), &json!([]));
