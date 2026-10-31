@@ -384,7 +384,12 @@ fn accepted_cycle_example_whose_own_files_import_nothing_proves_nothing() {
     let (outcomes, _) = examples(&rules, &repo);
     assert_eq!(
         failures(&outcomes),
-        [Some(proves_nothing("cycles"))],
+        [Some((
+            Code::ExampleProvesNothing,
+            "\"cycles\" never looked at an import of this example, so accepting it proves \
+             nothing; give the example an import between files in the rule's files"
+                .to_owned()
+        ))],
         "only the repository's b.ts has an import the search looked at"
     );
 }
@@ -658,4 +663,101 @@ fn an_example_manifest_replaces_the_repository_manifest_at_its_path_and_the_near
         )],
         "the example's src/package.json is nearer than the repository's package.json"
     );
+}
+
+/// The end of the message for an accepted example that a rule never looked at.
+fn looked_at(what: &str, add: &str) -> String {
+    format!("never looked at {what} of this example, so accepting it proves nothing; {add}")
+}
+
+/// For `mustNotExist`, which every file or folder it looks at breaks.
+fn cannot_accept(what: &str) -> String {
+    format!(
+        "never looked at a {what} of this example, and every {what} it looks at breaks it, so no \
+         accepted example can prove it; keep only rejected examples"
+    )
+}
+
+const ADD_A_FILE: &str = "give the example a file in the rule's files";
+
+/// A rule about files, folders or instances of each kind that does not cover `src/app/a.ts`, and
+/// the end of the message that an accepted example of only that file gets.
+fn structure_rules_that_never_look_at_src_app() -> Vec<(Value, String)> {
+    let folder = "give the example a file in a folder the rule names";
+    let instance = "give the example a file in an instance of the element the rule names";
+    vec![
+        (
+            json!({ "files": "src/legacy/**", "mustNotExist": true }),
+            cannot_accept("file"),
+        ),
+        (
+            json!({ "folders": "src/legacy/*", "mustNotExist": true }),
+            cannot_accept("folder"),
+        ),
+        (
+            json!({ "files": "src/shared/**", "mustBeNamed": "kebab-case" }),
+            looked_at("a file", ADD_A_FILE),
+        ),
+        (
+            json!({ "folders": "src/shared/*", "mustBeNamed": "kebab-case" }),
+            looked_at("a folder", folder),
+        ),
+        (
+            json!({ "folders": "src/shared/*", "mustContain": "index.ts" }),
+            looked_at("a folder", folder),
+        ),
+        (
+            json!({ "files": "feature", "mustContain": "index.ts" }),
+            looked_at("an instance", instance),
+        ),
+    ]
+}
+
+/// An export or import rule of each kind that does not cover `src/app/a.ts`, and the end of the
+/// message that an accepted example of only that file gets.
+fn other_rules_that_never_look_at_src_app() -> Vec<(Value, String)> {
+    let between_files = "give the example an import between files in the rule's files";
+    let between_elements = "give the example an import between the elements the rule names";
+    vec![
+        (
+            json!({ "files": "src/shared/**", "mustExport": "{FileName}" }),
+            looked_at("a file", ADD_A_FILE),
+        ),
+        (
+            json!({ "files": "src/shared/**", "mayNotExport": "default" }),
+            looked_at("a file", ADD_A_FILE),
+        ),
+        (
+            json!({ "files": "src/shared/**", "mustOnlyReExport": true }),
+            looked_at("a file", ADD_A_FILE),
+        ),
+        (
+            json!({ "files": "src/shared/**", "noCycles": true }),
+            looked_at("an import", between_files),
+        ),
+        (
+            json!({ "files": "shared", "mayNotImport": "app" }),
+            looked_at("an import", between_elements),
+        ),
+    ]
+}
+
+#[test]
+fn an_accepted_example_its_rule_never_checks_is_told_what_the_rule_looks_at() {
+    let cases = structure_rules_that_never_look_at_src_app()
+        .into_iter()
+        .chain(other_rules_that_never_look_at_src_app());
+    for (mut rule, expected) in cases {
+        rule["name"] = json!("r");
+        rule["examples"] = json!({ "accepted": [{ "src/app/a.ts": "export const a = 1;\n" }] });
+        let (outcomes, _) = examples(&json!([rule]), &login());
+        assert_eq!(
+            failures(&outcomes),
+            [Some((
+                Code::ExampleProvesNothing,
+                format!("\"r\" {expected}")
+            ))],
+            "{rule}"
+        );
+    }
 }

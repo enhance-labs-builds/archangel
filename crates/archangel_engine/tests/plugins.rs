@@ -760,6 +760,35 @@ fn an_example_files_importers_are_the_example_files_that_import_it() {
 }
 
 #[test]
+fn an_accepted_example_outside_a_plugin_rules_files_proves_nothing_about_files() {
+    let _faults = faults();
+    let repo = shared(&[json!({ "name": "no-s", "files": "entity",
+        "plugin": "fixture/report-imports", "options": { "specifier": "../../shared/s" },
+        "examples": { "accepted": [{ "src/shared/u.ts": "export const u = 1;\n" }] } })]);
+    let report = open(&repo).run_examples();
+    let failures: Vec<Option<(Code, String)>> = report
+        .runs
+        .iter()
+        .map(|run| {
+            run.outcome
+                .failure
+                .as_ref()
+                .map(|d| (d.code, d.message.clone()))
+        })
+        .collect();
+    assert_eq!(
+        failures,
+        [Some((
+            Code::ExampleProvesNothing,
+            "\"no-s\" never saw a file of this example, so accepting it proves nothing; give the \
+             example a file in the rule's files"
+                .to_owned()
+        ))],
+        "src/shared is outside the rule's files"
+    );
+}
+
+#[test]
 fn an_example_may_be_rejected_for_the_folder_that_holds_its_file() {
     let _faults = faults();
     let repo = shared(&[json!({ "name": "folder", "files": "entity",

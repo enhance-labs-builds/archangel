@@ -180,6 +180,25 @@ An accepted example MUST pass only when its rule gives no violation that involve
 - **THEN** the example passes, and `README.md` is not parsed
 - **TEST** `crates/archangel_rules/tests/examples.rs` › "an_accepted_structure_example_passes_and_non_source_files_are_not_parsed"
 
+### Requirement: An example that proves nothing is told what its rule looks at
+
+The `example-proves-nothing` message MUST name what the rule looks at: imports, files, folders, instances, or the files of a plugin rule's view. For a `mustNotExist` rule it MUST say that no accepted example can prove the rule.
+
+#### Scenario: What each kind of rule never looked at
+
+- **GIVEN** an accepted example whose only file is `src/app/a.ts`, for each kind of rule: `mustNotExist` on files and on folders, `mustBeNamed` on files and on folders, `mustContain` on folders and on an element, `mustExport`, `mayNotExport`, `mustOnlyReExport`, `noCycles` and `mayNotImport`, none of which covers that file
+- **WHEN** the developer runs `archangel test`
+- **THEN** each example fails with `example-proves-nothing`, and its message names what the rule looks at and what to give the example
+- **AND** the message for a `mustNotExist` rule says that every file or folder it looks at breaks it, so the rule keeps only rejected examples
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "an_accepted_example_its_rule_never_checks_is_told_what_the_rule_looks_at"
+
+#### Scenario: A plugin rule never saw the example
+
+- **GIVEN** an accepted example of a plugin rule on "entity", whose only file is in "shared"
+- **WHEN** the developer runs `archangel test`
+- **THEN** the example fails with `example-proves-nothing`, saying the rule never saw a file of the example and to give it a file in the rule's files
+- **TEST** `crates/archangel_engine/tests/plugins.rs` › "an_accepted_example_outside_a_plugin_rules_files_proves_nothing_about_files"
+
 ### Requirement: Every rule proves that it can reject
 
 `archangel test` MUST fail when a rule has no rejected example, with a `rule-unproven` diagnostic that names the rule. A rule without a rejected example has no proof that it can find a violation.
