@@ -19,8 +19,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  versions:
+    name: Every version is the tag's
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Check the versions against the tag, or against each other in a dry run
+        env:
+          TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
+        run: node scripts/release-version.mjs "$TAG"
+
   build:
     name: Build ${{ matrix.package }}
+    needs: versions
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     permissions:
@@ -124,7 +144,8 @@ jobs:
     needs: checksums-match
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    environment: release
+    # Only a tag publishes; a dry run from a dispatch needs neither the approval nor the identity.
+    environment: ${{ github.event_name == 'push' && 'release' || '' }}
     permissions:
       # To check out the crates it publishes.
       contents: read
@@ -153,7 +174,8 @@ jobs:
     needs: checksums-match
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    environment: release
+    # Only a tag publishes; a dry run from a dispatch needs neither the approval nor the identity.
+    environment: ${{ github.event_name == 'push' && 'release' || '' }}
     permissions:
       # To check out the packages it publishes.
       contents: read

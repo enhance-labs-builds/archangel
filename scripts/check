@@ -16,6 +16,9 @@ run cargo test --locked
 # Again with the fail points compiled in, so every fault control runs.
 run cargo test --locked --workspace --features failpoints
 run node --test 'npm/archangel/test/*.test.mjs'
+# Every version a release publishes is the same, so a tag can name it.
+run node --test 'scripts/*.test.mjs'
+run node scripts/release-version.mjs
 run npx --no-install tsd npm/archangel --files test/types.test-d.ts
 # archangel checks the TypeScript of its own npm package, and proves its rules with their examples.
 run cargo run --quiet --locked -p archangel -- check --config npm/archangel.config.json
