@@ -80,6 +80,9 @@ Each rule has one condition.
 | `mayOnlyBeImportedBy` | `rule({ files: 'db', mayOnlyBeImportedBy: 'api' })` | an import of `db` by a file that is not in `api` or `db` |
 | `noCycles` | `rule({ files: 'src/**', noCycles: true })` | files that import each other in a cycle |
 
+`noCycles` counts only runtime imports. The compiler removes an `import type`, so a cycle of type
+imports cannot break when the code runs. To report type cycles too, add `imports: 'all'`.
+
 ### Structure conditions
 
 | Condition | Example | Archangel reports |
@@ -190,7 +193,7 @@ rule({
 | `name` | The name in each report. Without a name, archangel uses the rule itself, for example `isolate(feature)`. |
 | `reason` | The reason, which each report shows. Tell the reader why the rule exists. |
 | `link` | A link, which each report shows. |
-| `imports` | `'all'`, `'runtime'` or `'types'`. The kind of imports that the rule counts. |
+| `imports` | `'all'`, `'runtime'` or `'types'`. The kind of imports that the rule counts. The default is `'all'`, but `'runtime'` for `noCycles` and for a rule with `transitively`. |
 | `examples` | Code that the rule must accept, and code that it must reject. |
 
 ## Prove each rule with examples

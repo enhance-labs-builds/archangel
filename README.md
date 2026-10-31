@@ -129,6 +129,7 @@ Archangel checks structure only. Use ESLint for code style and the TypeScript co
 | [docs/commands.md](docs/commands.md) | Each command and option, the output formats, and the exit codes |
 | [docs/exceptions-and-baselines.md](docs/exceptions-and-baselines.md) | How to permit a problem, and how to start on an old codebase |
 | [docs/editors.md](docs/editors.md) | VS Code, Neovim and other editors |
+| [docs/migrating.md](docs/migrating.md) | What changes when you move from dependency-cruiser, eslint-plugin-boundaries, check-file or Steiger |
 | [docs/principles.md](docs/principles.md) | What archangel believes about architecture, and why |
 | [Diagnostic codes](crates/archangel_rules/docs/) | What each error means, and how to fix it |
 

@@ -342,6 +342,33 @@ fn an_inline_pattern_only_inside_not_may_match_nothing() {
 }
 
 #[test]
+fn a_plugin_rule_treats_patterns_inside_not_as_every_other_rule_does() {
+    let repo = FixtureRepo::new().file("src/app/a.ts", "");
+    let files = json!({ "all": ["src/**", { "not": ["src/generated/**", "src/vendor/**"] }] });
+    let config = json!({
+        "elements": { "app": "src/app/**" },
+        "plugins": { "team": { "schemaVersion": 1, "conditions": {
+            "no-barrels": { "description": "", "reads": ["exports"], "optionsSchema": null },
+        } } },
+        "rules": [
+            { "name": "by-plugin", "files": files, "plugin": "team/no-barrels" },
+            { "name": "by-structure", "files": files, "mustNotExist": true },
+        ],
+    });
+    // A plugin rule needs the loader's description of its plugin, which a JSON config cannot carry.
+    let architecture =
+        Architecture::compile(archangel_config::from_value(&config).expect("a valid config"));
+    let graph = ImportGraph::build(repo.path(), &GraphOptions::default(), &mut Work::default());
+    let found = architecture.check(&graph, None, &mut Work::default());
+    assert_eq!(
+        empty_selectors(&found),
+        Vec::<String>::new(),
+        "src/generated/** and src/vendor/** match nothing, but only inside not, for a plugin rule \
+         as for a structure rule"
+    );
+}
+
+#[test]
 fn an_empty_must_not_exist_selector_passes() {
     let repo = FixtureRepo::new().file("src/app/a.ts", "");
     let config = json!({
