@@ -15,8 +15,8 @@ For your editor, your CI and your coding agents.
 <br>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/benchmark-dark.svg">
-  <img alt="Seconds to check the same 400 architecture rules on a 9,800-file TypeScript monorepo: archangel 1.9 s; dependency-cruiser, ESLint and Steiger together 67.7 s" src="docs/assets/benchmark-light.svg" width="760">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/speed-dark.svg">
+  <img alt="Seconds to check the same 400 architecture rules on a 9,800-file TypeScript monorepo: archangel 1.9 s; dependency-cruiser, ESLint and Steiger together 67.7 s" src="docs/assets/speed-light.svg" width="760">
 </picture>
 
 <sub>Time to check the same 400 architecture rules on a 9,800-file TypeScript monorepo, on a
