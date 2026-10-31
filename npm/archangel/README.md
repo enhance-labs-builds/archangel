@@ -4,7 +4,7 @@
 
 ![Seconds to check the same 400 architecture rules on a 9,800-file TypeScript monorepo: archangel 1.9 s; dependency-cruiser, ESLint and Steiger together 67.7 s](https://raw.githubusercontent.com/enhance-labs-builds/archangel/main/docs/assets/speed-light.svg)
 
-Archangel checks the architecture rules of a TypeScript codebase. You write down how your code is
+Architecture tests for TypeScript, checked in milliseconds. You write down how your code is
 organized. Archangel tells you when the code breaks those rules, and what to do about it. It checks
 a large repository in about a second, so it can run in your editor as you type.
 
