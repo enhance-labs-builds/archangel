@@ -1,163 +1,100 @@
-# Archangel
+<div align="center">
 
-[![CI](https://github.com/enhance-labs-builds/archangel/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/enhance-labs-builds/archangel/actions/workflows/ci.yml)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
+# Archangel
 
 **Make architecture verifiable.**
 
-Archangel checks the architecture rules of a TypeScript codebase. You write down how your code is
-organized. Archangel tells you when the code breaks those rules, and what to do about it. It checks
-a large repository in about a second, so it can run in your editor as you type.
+Architecture rules for TypeScript, checked in milliseconds.<br>
+For your editor, your CI and your coding agents.
 
-```text
-error[layers]: "shared" may not import "feature", an earlier layer, through "../features/cart"
- --> src/shared/price.ts:1:22
-  |
-1 | import { cart } from '../features/cart';
-  |                      ^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
-  |
-  = note: rule: layers(feature, shared)
-  = note: reason: Shared code must not depend on features
-```
+[![npm](https://img.shields.io/npm/v/@enhance-eng/archangel?color=8250df&label=npm)](https://www.npmjs.com/package/@enhance-eng/archangel)
+[![crates.io](https://img.shields.io/crates/v/archangel?color=8250df)](https://crates.io/crates/archangel)
+[![CI](https://github.com/enhance-labs-builds/archangel/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/enhance-labs-builds/archangel/actions/workflows/ci.yml)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
 
-## How to think about archangel
+<br>
 
-**Part of your architecture is written in the code itself.** It is the decisions about which code
-may depend on which code, where code lives, and what each part shows to the other parts. "Features
-do not import each other." "The UI does not talk to the database." "Shared code knows nothing about
-the app." These decisions keep a large codebase easy to change. Archangel checks this part of your
-architecture.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/benchmark-dark.svg">
+  <img alt="Seconds to check a 9,800-file TypeScript monorepo: archangel 1.9 s for all 400 rules; ESLint 29.2 s, Steiger 21.4 s and dependency-cruiser 17.0 s for their own rules" src="docs/assets/benchmark-light.svg" width="760">
+</picture>
 
-**A decision that nobody checks is a wish.** Each day, code moves a little away from it. A reviewer
-can stop some of it. But coding agents now write more code than a person can read, so an unchecked
-architecture decays faster than before.
+<sub>Time to check the architecture rules of a 9,800-file TypeScript monorepo, on a laptop.
+Each other tool checks only its own rules. Archangel checks all 400 rules of all of them.</sub>
 
-**Archangel makes each decision a check that a machine can do.** Tests verify behavior. The type
-checker verifies types. Archangel verifies architecture. It is fast enough to run on each change. The
-person or the agent that writes the code knows immediately when it breaks a decision, and what to do
-instead.
+</div>
 
-```mermaid
-flowchart LR
-  code["Your code"] --> map["A map of your code<br/>each file: its part,<br/>its imports, its exports"]
-  config["Your decisions<br/>as rules"] --> rules{"Each rule asks<br/>a question<br/>about the map"}
-  map --> rules
-  rules --> problems["Problems<br/>file, line, rule,<br/>reason, what to do"]
-```
+<br>
 
-### Three words
+Archangel checks the structure of your TypeScript code: which code imports which code, where files
+are, and what they export. You write each architecture decision as a rule. When the code breaks a
+rule, archangel tells you, or your coding agent, where, why, and what to do.
 
-| Word | What it is | Example |
-| --- | --- | --- |
-| **Element** | A part of your code, named by a path pattern. | `feature: 'src/features/{feature}/**'` |
-| **Rule** | One decision, written as a sentence: some files, and one condition. | `rule({ files: 'shared', mayNotImport: 'feature' })` |
-| **Example** | A small piece of code that proves a rule works. | see below |
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/check-dark.svg">
+  <img alt="archangel check reports that src/shared/price.ts imports a feature, with the rule, the reason and what to do" src="docs/assets/check-light.svg">
+</picture>
 
-**Why examples?** A rule can be wrong and still pass. For example, if you type `src/feature/**`
-instead of `src/features/**`, the rule finds no files, and it shows "no problems" each time. An
-example is a small imaginary repository of two or three files, which you write in the rule. A
-`rejected` example is code that the rule must report. An `accepted` example is code that the rule
-must permit. `npx archangel test` makes each example in memory and checks it against its rule. If a
-rule cannot find the problem in its own rejected example, the rule is broken, and you know
-immediately. Examples test your rules, not your application. They also show a reader exactly what a
-rule forbids.
+## Highlights
 
-```ts
-isolate('feature', {
-  examples: {
-    // A feature that imports a different feature: the rule must report this.
-    rejected: [{ 'src/features/cart/a.ts': "import '../login/b';", 'src/features/login/b.ts': '' }],
-  },
-}),
-```
+- **Fast.** A Rust core reads each file one time. It checks 9,800 files in 1.9 seconds, and your
+  editor shows the result of a change in 13 milliseconds.
+- **One tool, one config.** It holds the rules of dependency-cruiser, eslint-plugin-boundaries,
+  eslint-plugin-check-file and Steiger.
+- **Errors that say what to do.** Each error shows the line, the rule, your reason for the rule,
+  and the permitted alternative.
+- **Rules that cannot lie.** Each rule has an example of code that it must reject. If a rule cannot
+  find a problem in its own example, `archangel test` fails.
+- **Made for coding agents.** Watch mode, a language server, and JSON output give an agent the
+  answer while it writes the code.
+- **Presets and plugins.** Use the Feature-Sliced Design and Next.js presets, or write your own
+  conditions in TypeScript.
 
-### Our opinions
+## Get started
 
-- **A rule that cannot fail is a defect.** So each rule needs a rejected example, a set of files
-  that is empty is an error, and archangel never skips a file without saying so.
-- **There are no warnings.** A rule is on or off. People ignore warnings, and an agent cannot know
-  which warnings matter.
-- **Each problem says what to do.** A message is an instruction for the next reader, which is often
-  an agent.
-- **Exceptions are visible.** An exception is a comment above one import, with a reason. A baseline
-  of old problems can only get smaller.
-- **Fast enough for each keystroke.** A check that runs only in CI comes too late to change how the
-  code is written.
-- **Structure, not style.** Archangel checks where code is and what it depends on. ESLint and the
-  type checker check the rest.
-
-[docs/principles.md](docs/principles.md) gives the reasons for each opinion, and the ideas that
-archangel comes from.
-
-## Quick start
-
-These steps take about five minutes. You need Node 22.18 or later.
-
-**1. Install archangel** in your project:
+You need Node 22.18 or later.
 
 ```sh
 npm install --save-dev @enhance-eng/archangel
-```
-
-**2. Make a config.** This command writes `archangel.config.ts`, with one element for each folder of
-source code, and a rule against import cycles:
-
-```sh
 npx archangel init --typescript
-```
-
-**3. Run a check:**
-
-```sh
 npx archangel check
 ```
 
-**4. Write your rules.** Open `archangel.config.ts`. This example has features in
-`src/features/<name>/` and shared code in `src/shared/`:
+`init` writes `archangel.config.ts`. Change it to state your architecture:
 
 ```ts
 import { defineConfig } from '@enhance-eng/archangel';
 
 export default defineConfig({
-  // Give a name to each part of your code.
   elements: {
     feature: 'src/features/{feature}/**', // each folder in src/features is one feature
     shared: 'src/shared/**',
   },
   rules: ({ layers, isolate, entry }) => [
-    // Code in a later layer may not import an earlier layer.
     layers(['feature', 'shared'], { reason: 'Shared code must not depend on features' }),
-    // One feature may not import a different feature.
     isolate('feature', { reason: 'Features must not depend on each other' }),
-    // Other code may import a feature only through its index.ts.
     entry('feature', 'index.ts', { reason: 'Other code uses a feature only through its index.ts' }),
   ],
 });
 ```
 
-**5. Run the check again.** Archangel shows each problem, the rule, your reason, and what to do:
+Then prove that each rule works. Give each rule an `examples.rejected` entry: two or three files of
+code that the rule must report. `npx archangel test` checks each example in memory. A rule with a
+wrong path finds no files and cannot report its example, so the test fails.
+[docs/rules.md](docs/rules.md#prove-each-rule-with-examples) shows how.
 
-```text
-error[isolate]: "cart" of "feature" imports "login" of "feature" through "../login/session", and instances of "feature" may not import each other
- --> src/features/cart/index.ts:1:25
-  |
-1 | import { session } from '../login/session';
-  |                         ^^^^^^^^^^^^^^^^^^ move what both need into an element that instances of "feature" may share
-  |
-  = note: rule: isolate(feature)
-  = note: reason: Features must not depend on each other
+## Why archangel
 
-checked 6 files and 5 imports: 3 problems
-```
+Part of your architecture is in the source code: which code depends on which code, where files are,
+and what each part exports. A reviewer sees a diff, not the graph of imports, so this part decays a
+little with each change. Coding agents write code faster than people can review it, so it now
+decays faster.
 
-**6. Prove your rules.** A rule with a typing error can find no files and pass silently. To prevent
-this, give each rule an example that it must reject, then run:
+Archangel makes this part of your architecture a check. Tests check behavior. The type checker
+checks types. Archangel checks architecture.
 
-```sh
-npx archangel test
-```
-
-[docs/rules.md](docs/rules.md#prove-each-rule-with-examples) shows how to write examples.
+Archangel checks structure only. Use ESLint for code style and the TypeScript compiler for types.
+[docs/principles.md](docs/principles.md) gives our opinions, and the ideas that archangel comes from.
 
 ## Use it every day
 
@@ -180,60 +117,27 @@ npx archangel test
 - **Names:** the style of file and folder names, for example `kebab-case` or `PascalCase`.
 - **Exports:** what a file must export, or must not export.
 
-Archangel does not check code style or types. ESLint and the TypeScript compiler do that well.
-
-There is more:
-
-- **Presets** give you a set of rules in one line. Archangel has presets for
-  [Feature-Sliced Design](https://feature-sliced.design) and for Next.js. Read
-  [docs/presets.md](docs/presets.md).
-- **Plugins** let you write your own conditions in TypeScript. Read
-  [docs/plugins.md](docs/plugins.md).
-
-## Why archangel
-
-Many teams use several tools for architecture rules: dependency-cruiser or an ESLint plugin for
-imports, another plugin for file names, and Steiger for Feature-Sliced Design. Each tool reads the
-whole repository again. The checks are slow, so they usually run only in CI. And a rule with a wrong
-path can find no files and still pass.
-
-Archangel puts these rules in one config. A Rust core reads each file one time, and the editor, the
-watcher and the command line use the same results.
-
-On a 9,800-file monorepo, archangel checks 400 rules in 1.9 seconds. dependency-cruiser, two ESLint
-plugins and Steiger take about 68 seconds for the same rules. In the editor, archangel shows the
-result of an edit in 13 milliseconds.
-
-| Repository | Files | dependency-cruiser | archangel |
-| --- | --- | --- | --- |
-| [VS Code](https://github.com/microsoft/vscode) 1.144.0: layers and no cycles | 7,652 | 38.7 s | 0.36 s |
-| A TypeScript monorepo with 257 import rules | 9,704 | 19.7 s | 1.26 s |
-
-These numbers are from a 14-core laptop with a warm file cache. `scripts/bench` reproduces the
-archangel numbers.
-
-## Learn more
+## Documentation
 
 | Page | What it tells you |
 | --- | --- |
-| [docs/principles.md](docs/principles.md) | What archangel believes about architecture, why, and where the ideas come from |
-| [docs/rules.md](docs/rules.md) | Elements, selectors, every condition, and how to prove a rule |
-| [docs/presets.md](docs/presets.md) | The Feature-Sliced Design and Next.js presets, and how to change them |
+| [docs/rules.md](docs/rules.md) | Elements, selectors, each condition, and how to prove a rule |
+| [docs/presets.md](docs/presets.md) | The Feature-Sliced Design and Next.js presets |
 | [docs/plugins.md](docs/plugins.md) | How to write your own conditions in TypeScript |
-| [docs/commands.md](docs/commands.md) | Every command and option, the output formats, and the exit codes |
+| [docs/commands.md](docs/commands.md) | Each command and option, the output formats, and the exit codes |
 | [docs/exceptions-and-baselines.md](docs/exceptions-and-baselines.md) | How to permit a problem, and how to start on an old codebase |
-| [docs/editors.md](docs/editors.md) | How to use archangel in VS Code, Neovim and other editors |
-| [Diagnostic codes](crates/archangel_rules/docs/) | What each error means, and how to fix it (`archangel docs <code>` shows the same text) |
+| [docs/editors.md](docs/editors.md) | VS Code, Neovim and other editors |
+| [docs/principles.md](docs/principles.md) | What archangel believes about architecture, and why |
+| [Diagnostic codes](crates/archangel_rules/docs/) | What each error means, and how to fix it |
 
-## Install from source
-
-With Rust 1.93 or later, from a clone of this repository:
+## Install with Rust
 
 ```sh
-cargo install --path crates/archangel
+cargo install archangel
 ```
 
-To install a release with Rust, run `cargo install archangel`.
+To build from a clone of this repository, run `cargo install --path crates/archangel`. You need
+Rust 1.93 or later.
 
 ## Contributing
 
