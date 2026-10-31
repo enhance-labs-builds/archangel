@@ -1,0 +1,28 @@
+{
+  "name": "@enhance-eng/archangel-linux-arm64-gnu",
+  "version": "0.0.0",
+  "description": "The archangel binary for linux-arm64-gnu, built for aarch64-unknown-linux-gnu. Install @enhance-eng/archangel, which depends on it.",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enhance-labs-builds/archangel.git",
+    "directory": "npm/platforms/linux-arm64-gnu"
+  },
+  "homepage": "https://github.com/enhance-labs-builds/archangel#readme",
+  "bugs": {
+    "url": "https://github.com/enhance-labs-builds/archangel/issues"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "files": [
+    "bin/"
+  ],
+  "preferUnplugged": true
+}

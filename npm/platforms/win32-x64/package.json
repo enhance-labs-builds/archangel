@@ -1,0 +1,25 @@
+{
+  "name": "@enhance-eng/archangel-win32-x64",
+  "version": "0.0.0",
+  "description": "The archangel binary for win32-x64, built for x86_64-pc-windows-msvc. Install @enhance-eng/archangel, which depends on it.",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enhance-labs-builds/archangel.git",
+    "directory": "npm/platforms/win32-x64"
+  },
+  "homepage": "https://github.com/enhance-labs-builds/archangel#readme",
+  "bugs": {
+    "url": "https://github.com/enhance-labs-builds/archangel/issues"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/"
+  ],
+  "preferUnplugged": true
+}

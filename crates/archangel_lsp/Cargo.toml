@@ -1,0 +1,33 @@
+[package]
+name = "archangel_lsp"
+description = "Archangel's language server: editor messages in, diagnostics and quick fixes out."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[features]
+# Turns on the fail points that the fault-control tests use. Release builds never enable it.
+failpoints = ["archangel_engine/failpoints"]
+
+[lints]
+workspace = true
+
+[dependencies]
+archangel_engine.workspace = true
+archangel_graph.workspace = true
+archangel_rules.workspace = true
+crossbeam-channel = "0.5.17"
+dunce = "1.0.5"
+lsp-server = "0.10.0"
+lsp-types = "0.97.0"
+serde_json = "1.0.154"
+url = "2.5.8"
+
+[dev-dependencies]
+archangel_testkit.workspace = true
+fail = "0.5.1"

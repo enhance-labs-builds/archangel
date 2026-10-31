@@ -1,0 +1,85 @@
+{
+  "name": "archangel-vscode",
+  "displayName": "Archangel",
+  "description": "Architecture rules for TypeScript, checked as you type: layers, isolated features, entry files and no cycles.",
+  "version": "0.0.0",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enhance-labs-builds/archangel.git",
+    "directory": "editors/vscode"
+  },
+  "homepage": "https://github.com/enhance-labs-builds/archangel#readme",
+  "bugs": {
+    "url": "https://github.com/enhance-labs-builds/archangel/issues"
+  },
+  "categories": [
+    "Linters"
+  ],
+  "keywords": [
+    "architecture",
+    "typescript",
+    "imports",
+    "layers",
+    "lint"
+  ],
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:archangel.config.ts",
+    "workspaceContains:archangel.config.mts",
+    "workspaceContains:archangel.config.js",
+    "workspaceContains:archangel.config.mjs",
+    "workspaceContains:archangel.config.json"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "archangel.restart",
+        "title": "Restart Server",
+        "category": "Archangel"
+      }
+    ],
+    "configuration": {
+      "title": "Archangel",
+      "properties": {
+        "archangel.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "The `archangel` binary to run. A relative path is taken from the workspace folder. When empty, the extension uses the workspace's `node_modules/.bin/archangel`, then `archangel` on `PATH`."
+        },
+        "archangel.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Log the messages between VS Code and the archangel language server to the Archangel output channel."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "bundle": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --target=node20 --sourcemap",
+    "compile": "tsc -p .",
+    "test": "npm run compile && npm run bundle && mocha out/test/unit && node out/test/integration/run.js",
+    "vscode:prepublish": "npm run bundle -- --minify"
+  },
+  "dependencies": {
+    "vscode-languageclient": "10.1.2"
+  },
+  "devDependencies": {
+    "@types/mocha": "10.0.10",
+    "@types/node": "20.19.0",
+    "@types/vscode": "1.91.0",
+    "@vscode/test-electron": "3.1.0",
+    "esbuild": "0.28.2",
+    "mocha": "11.8.0",
+    "typescript": "5.9.3"
+  }
+}

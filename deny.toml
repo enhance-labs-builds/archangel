@@ -1,0 +1,52 @@
+# Dependencies may only use these licences, come from crates.io, and appear in one version each.
+[advisories]
+version = 2
+yanked = "deny"
+
+[licenses]
+version = 2
+allow = [
+  "MIT",
+  "Apache-2.0",
+  # foldhash, through serde_json's ordered maps: a permissive, OSI-approved licence.
+  "Zlib",
+  # The Unicode data and ICU crates that oxc's parser uses for identifiers and segmentation.
+  "Unicode-3.0",
+  # pnp, the Yarn Plug'n'Play reader that oxc's resolver uses.
+  "BSD-2-Clause",
+  # dragonbox_ecma, oxc's number formatting, offers this or Apache-2.0 with the LLVM exception.
+  "BSL-1.0",
+  # inotify and inotify-sys, notify's Linux backend: a permissive, OSI-approved licence.
+  "ISC",
+  # notify itself: a public-domain dedication.
+  "CC0-1.0",
+  # borrow-or-share, through fluent-uri, which jsonschema's referencing uses for schema URIs: a
+  # permissive, OSI-approved licence.
+  "MIT-0",
+]
+
+[bans]
+multiple-versions = "deny"
+wildcards = "deny"
+# Crates inside this workspace refer to each other by path, which is not a wildcard on crates.io.
+allow-wildcard-paths = true
+# Duplicates that come from dependencies, each pinned to the exact version so that a new
+# duplicate still fails. Remove an entry when its upstream moves to the newer version.
+skip = [
+  { crate = "hashbrown@0.14.5", reason = "dashmap, through oxc_resolver" },
+  { crate = "hashbrown@0.16.1", reason = "halfbrown, through oxc's JSON parser" },
+  { crate = "hashbrown@0.15.5", reason = "petgraph 0.8.3, the newest petgraph, pins hashbrown 0.15" },
+  { crate = "foldhash@0.1.5", reason = "hashbrown 0.15, through petgraph" },
+  { crate = "syn@2.0.119", reason = "oxc's and tracing's proc macros, while serde's use syn 3" },
+  { crate = "rand_core@0.6.4", reason = "rand 0.8, through the fail crate" },
+  { crate = "getrandom@0.2.17", reason = "rand_core 0.6, through the fail crate" },
+  { crate = "bitflags@1.3.2", reason = "lsp-types 0.97, the newest lsp-types, and its fluent-uri 0.1 use bitflags 1" },
+  { crate = "fluent-uri@0.1.4", reason = "lsp-types 0.97, the newest lsp-types, while jsonschema's referencing uses fluent-uri 0.4" },
+  { crate = "getrandom@0.3.4", reason = "ahash, through jsonschema, while rand 0.10 uses getrandom 0.4" },
+  { crate = "r-efi@5.3.0", reason = "getrandom 0.3, through ahash and jsonschema" },
+  { crate = "windows-sys@0.60.2", reason = "file-id, through notify-debouncer-full, while notify uses 0.61" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

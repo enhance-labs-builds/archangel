@@ -1,0 +1,28 @@
+{
+  "name": "@enhance-eng/archangel-linux-x64-musl",
+  "version": "0.0.0",
+  "description": "The archangel binary for linux-x64-musl, built for x86_64-unknown-linux-musl. Install @enhance-eng/archangel, which depends on it.",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enhance-labs-builds/archangel.git",
+    "directory": "npm/platforms/linux-x64-musl"
+  },
+  "homepage": "https://github.com/enhance-labs-builds/archangel#readme",
+  "bugs": {
+    "url": "https://github.com/enhance-labs-builds/archangel/issues"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "musl"
+  ],
+  "files": [
+    "bin/"
+  ],
+  "preferUnplugged": true
+}

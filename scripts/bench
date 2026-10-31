@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Times `archangel check` on every repository in benches/repos.toml with hyperfine, and records the
+# duration of each stage from --stats. The results go to target/bench/. Nothing passes or fails on
+# a duration: the job records numbers, and people read them.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+out=target/bench
+mkdir -p "$out"
+cargo build --release --locked --quiet --package archangel
+archangel=$PWD/target/release/archangel
+
+measure() { # name folder config
+  local name=$1 folder=$2 config=$3
+  printf '\n> %s\n' "$name"
+  # A check with violations exits 1, which is a result, not a failure of the benchmark.
+  hyperfine --warmup 2 --runs 10 --ignore-failure --export-json "$out/$name.json" \
+    "$archangel check --config $config --format json"
+  "$archangel" check --config "$config" --format json --stats > "$out/$name.stats.json" || true
+  python3 - "$out/$name.stats.json" <<'PY'
+import json, sys
+summary = json.load(open(sys.argv[1]))["summary"]
+work, durations = summary["work"], summary["durations"]
+print(f"  {work['filesParsed']} files, {work['importsFound']} imports")
+for stage, ms in durations.items():
+    print(f"  {stage}: {ms:.1f}")
+PY
+}
+
+# benches/repos.toml uses only [[tables]] of key = "string" or number lines, so a few lines read it
+# on any Python 3, without tomllib.
+python3 - <<'PY' > "$out/repos.tsv"
+import re
+tables, current = [], None
+for line in open("benches/repos.toml"):
+    line = line.split("#", 1)[0].strip()
+    if header := re.fullmatch(r"\[\[(\w+)\]\]", line):
+        current = {"kind": header.group(1)}
+        tables.append(current)
+    elif current is not None and (pair := re.fullmatch(r'(\w+)\s*=\s*"?([^"]*)"?', line)):
+        current[pair.group(1)] = pair.group(2)
+for t in tables:
+    if t["kind"] == "repo":
+        print("\t".join(["repo", t["name"], t["url"], t["tag"], t["config"]]))
+    else:
+        print("\t".join(["generated", t["name"], t["files"], t["lines"], ""]))
+PY
+test -s "$out/repos.tsv" || { echo "benches/repos.toml lists no repository" >&2; exit 1; }
+
+while IFS=$'\t' read -r kind name first second config; do
+  folder=$out/repos/$name
+  if [[ "$kind" == repo ]]; then
+    [[ -d "$folder" ]] || git clone --quiet --depth 1 --branch "$second" "$first" "$folder"
+    cp "$config" "$folder/archangel.config.json"
+  else
+    # Its own repository, so the .gitignore of the repository it sits in does not apply.
+    [[ -d "$folder" ]] || { node scripts/generate-repo.mjs "$folder" "$first" "$second" && git init --quiet "$folder"; }
+  fi
+  measure "$name" "$folder" "$folder/archangel.config.json"
+done < "$out/repos.tsv"

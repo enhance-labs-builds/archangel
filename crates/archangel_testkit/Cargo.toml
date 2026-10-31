@@ -1,0 +1,20 @@
+[package]
+name = "archangel_testkit"
+description = "Test support for archangel: fixture repositories written to a temporary folder."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+# This crate has no fail points of its own; the feature exists so the workspace can turn fail
+# points on everywhere with one flag.
+failpoints = []
+
+[lints]
+workspace = true
+
+[dependencies]
+serde_json = "1.0.154"
+tempfile = "3.27.0"

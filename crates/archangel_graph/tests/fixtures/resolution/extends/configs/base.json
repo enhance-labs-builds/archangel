@@ -1,0 +1,1 @@
+{ "compilerOptions": { "moduleResolution": "bundler", "module": "esnext", "baseUrl": "..", "paths": { "#lib/*": ["src/lib/*"] } } }

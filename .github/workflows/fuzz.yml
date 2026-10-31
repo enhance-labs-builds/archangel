@@ -1,0 +1,56 @@
+name: Fuzz
+
+# cargo-fuzz needs nightly Rust, so the fuzz targets run on a schedule, not on each pull request.
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+# One run at a time; a run started by hand waits for the scheduled one.
+concurrency:
+  group: fuzz
+  cancel-in-progress: false
+
+jobs:
+  fuzz:
+    name: Fuzz ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [config, pattern, exception]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install nightly Rust, which cargo-fuzz needs
+        run: rustup toolchain install nightly --profile minimal
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-fuzz@0.13.1
+      # The corpus is thousands of small files, so it lives in the cache rather than in Git, and each
+      # run starts from the corpus the last run left.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
+      - name: Fuzz for ten minutes from the last run's corpus and the committed seeds
+        working-directory: fuzz
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          mkdir -p "corpus/$TARGET"
+          cargo +nightly fuzz run "$TARGET" "corpus/$TARGET" "seeds/$TARGET" -- -max_total_time=600
+      - name: Keep what crashed it
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: crash-${{ matrix.target }}
+          path: fuzz/artifacts/
+          if-no-files-found: ignore

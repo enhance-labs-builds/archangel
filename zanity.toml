@@ -1,0 +1,52 @@
+# zanity runs every default rule and every strict rule. A rule that is wrong for this codebase is
+# switched off here, with its reason beside it, never at the call site.
+[rules]
+select = ["strict"]
+disable = [
+  # archangel builds a graph from a repository of any size, so it allocates as it reads; the
+  # work-count tests hold its cost instead.
+  "dynamic-allocation",
+  # Rust's types state what most functions need and return; an assertion goes where a type cannot
+  # say it, which review checks, not a count per function.
+  "assertion-density",
+  # rustc's dead-code lint covers Rust, and this rule cannot see #[test] functions or functions
+  # that are passed as values, such as the config loader's rule builders.
+  "dead-symbol",
+  # It does not see Rust's inline format arguments, such as {cause} in format!, so it reports
+  # parameters that are used.
+  "dead-parameter",
+  # It counts constructors such as Vec::new() as repeated work.
+  "duplicated-expression",
+  # archangel is a local tool whose job is to read the paths it is given.
+  "parameter-file-path",
+  # Syntax trees and configs are plain data; reading a field of a field is how they are used.
+  "message-chain",
+]
+
+[paths."crates/*/tests/"]
+disable = [
+  # assert_eq! already prints both values; the message states the scenario's expectation.
+  "unconstructive-error",
+  "vague-error",
+  "cryptic-error",
+  # Reference implementations in property tests are recursive on purpose, to be obviously correct.
+  "recursion",
+  # Each test is named after its spec scenario, and each file names its spec.
+  "undocumented-test",
+]
+
+[paths."crates/*/src/**/tests.rs"]
+disable = [
+  # Unit tests of private code, which tests/ cannot reach: as there, assert! states the expectation.
+  "unconstructive-error",
+  "vague-error",
+  "cryptic-error",
+]
+
+[paths."crates/archangel_testkit/"]
+disable = [
+  # Test support fails the test when the disk does, so its expect attributes are deliberate.
+  "relaxed-check",
+  # Its assertion messages name the failing test, as the tests' own messages do.
+  "unconstructive-error",
+]

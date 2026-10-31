@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  pull_request:
+    # ready_for_review runs the mutants, which a draft skips.
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+  # Advisories and analysers change without a commit, so main is checked daily as well.
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # rustup on the runner installs the toolchain rust-toolchain.toml pins.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-deny@0.20.2,typos@1.51.1,zizmor@1.31.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install actionlint, lychee and zanity at pinned versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/bin"
+          mkdir -p "$bin"
+          fetch() { # repo tag asset sha256
+            gh release download "$2" -R "$1" -p "$3" -D "$RUNNER_TEMP"
+            echo "$4  $RUNNER_TEMP/$3" | sha256sum --check --strict
+          }
+          fetch rhysd/actionlint v1.7.12 actionlint_1.7.12_linux_amd64.tar.gz \
+            8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+          tar -xzf "$RUNNER_TEMP/actionlint_1.7.12_linux_amd64.tar.gz" -C "$bin" actionlint
+          fetch lycheeverse/lychee lychee-v0.24.2 lychee-x86_64-unknown-linux-gnu.tar.gz \
+            1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a
+          tar -xzf "$RUNNER_TEMP/lychee-x86_64-unknown-linux-gnu.tar.gz" -C "$bin" --strip-components=1 \
+            lychee-x86_64-unknown-linux-gnu/lychee
+          fetch benomahony/zanity v0.1.33 zanity-linux-x86_64 \
+            59239486904d0a3766f6781e4e7534427c860b31b6eb2c857309389d6719d67f
+          install -m 755 "$RUNNER_TEMP/zanity-linux-x86_64" "$bin/zanity"
+          echo "$bin" >> "$GITHUB_PATH"
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: scripts/check
+        env:
+          # zizmor uses the token for its online audits, such as impostor commits behind a pinned SHA.
+          GH_TOKEN: ${{ github.token }}
+      # Designs are OpenSpec changes. A change stays active while it is reviewed and built, and
+      # /implement archives it as the PR's last commit. Until then this fails, so code cannot
+      # merge with its design unarchived.
+      - name: The design is archived
+        if: github.event_name == 'pull_request'
+        run: |
+          active=$(find openspec/changes -mindepth 1 -maxdepth 1 -type d ! -name archive -printf '%f\n')
+          if [ -n "$active" ]; then
+            echo "::error::Archive the design before merging: openspec archive <change> --yes. Active: $active"
+            exit 1
+          fi
+
+  # scripts/check runs on Linux, with every checker. These run the tests where paths, line
+  # endings and file watching differ, on each platform a release ships to.
+  tests:
+    name: Tests on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      # The resolution differential test asks the TypeScript compiler, from node_modules.
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      # Every test binary runs, so one push shows every platform failure, not just the first.
+      - run: cargo test --workspace --locked --no-fail-fast
+
+  vscode:
+    name: VS Code extension
+    runs-on: macos-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: cargo build --locked -p archangel
+      # The integration tests start VS Code itself, the oldest version the extension supports and
+      # the newest, against the binary just built.
+      - run: npm ci --ignore-scripts --no-audit --no-fund && npm test
+        working-directory: editors/vscode
+
+  mutants:
+    name: Mutants of the diff
+    # A draft changes many times before review, so its mutants run once, when it is ready.
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    permissions:
+      contents: read
+    uses: ./.github/workflows/mutants.yml
+    with:
+      base: ${{ github.event.pull_request.base.sha }}

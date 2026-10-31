@@ -1,0 +1,7 @@
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+disallowed-methods = [
+  { path = "std::fs::canonicalize", reason = "on Windows it returns `\\\\?\\C:\\…`, which no resolved path matches; use dunce::canonicalize" },
+  { path = "std::path::Path::canonicalize", reason = "on Windows it returns `\\\\?\\C:\\…`, which no resolved path matches; use dunce::canonicalize" },
+]

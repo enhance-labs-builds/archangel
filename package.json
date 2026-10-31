@@ -1,0 +1,17 @@
+{
+  "name": "archangel-repository",
+  "private": true,
+  "description": "Development tools for the archangel repository. The published npm package is not here yet.",
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@feature-sliced/steiger-plugin": "0.8.1",
+    "@fission-ai/openspec": "1.14.3",
+    "ajv": "8.20.0",
+    "pluralize": "8.0.0",
+    "steiger": "0.8.1",
+    "tsd": "0.33.0",
+    "typescript": "5.9.3"
+  }
+}

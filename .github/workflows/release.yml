@@ -1,0 +1,284 @@
+name: Release
+
+# A release starts from a version tag. Run it by hand with dry-run on to build, publish to the
+# registries' dry runs, and check everything that does not need a published package.
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Build and check without publishing
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.package }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { package: darwin-arm64, runner: macos-14, target: aarch64-apple-darwin }
+          - { package: darwin-x64, runner: macos-15-intel, target: x86_64-apple-darwin }
+          - { package: linux-arm64-gnu, runner: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
+          - { package: linux-arm64-musl, runner: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
+          - { package: linux-x64-gnu, runner: ubuntu-24.04, target: x86_64-unknown-linux-gnu }
+          - { package: linux-x64-musl, runner: ubuntu-24.04, target: x86_64-unknown-linux-musl }
+          - { package: win32-x64, runner: windows-2022, target: x86_64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Add the target
+        run: rustup target add "$TARGET"
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+      - name: Install the musl linker
+        if: endsWith(matrix.target, '-musl')
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+      - name: Build
+        run: cargo build --release --locked --package archangel --target "$TARGET"
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+      - name: Stage the binary and its checksum
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          set -euo pipefail
+          name=archangel
+          [[ "$TARGET" == *windows* ]] && name=archangel.exe
+          mkdir -p "staged/$PACKAGE"
+          cp "target/$TARGET/release/$name" "staged/$PACKAGE/$name"
+          cd staged
+          if command -v sha256sum > /dev/null; then sum=sha256sum; else sum="shasum -a 256"; fi
+          $sum "$PACKAGE/$name" > "$PACKAGE.sha256"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: binary-${{ matrix.package }}
+          path: staged/
+          if-no-files-found: error
+      # The manual and the completion scripts are the same on every platform, so one build writes them.
+      - name: Write the manual page and the shell completions
+        if: matrix.package == 'linux-x64-gnu'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          mkdir extras
+          bin="target/$TARGET/release/archangel"
+          "$bin" man > extras/archangel.1
+          "$bin" completions bash > extras/archangel.bash
+          "$bin" completions zsh > extras/_archangel
+          "$bin" completions fish > extras/archangel.fish
+          "$bin" completions powershell > extras/archangel.ps1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: matrix.package == 'linux-x64-gnu'
+        with:
+          name: extras
+          path: extras/
+          if-no-files-found: error
+
+  checksums-match:
+    name: Checksums match
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: binary-*
+          path: staged
+          merge-multiple: true
+      - name: Check every binary against the list the release publishes
+        working-directory: staged
+        run: |
+          set -euo pipefail
+          cat ./*.sha256 > SHA256SUMS
+          test "$(wc -l < SHA256SUMS)" -eq 7
+          sha256sum --check --strict SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: checksums
+          path: staged/SHA256SUMS
+          if-no-files-found: error
+
+  publish-crates:
+    name: Publish to crates.io
+    needs: checksums-match
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      # To check out the crates it publishes.
+      contents: read
+      id-token: write # Trusted publishing: crates.io trades the workflow's identity for a token.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+        id: auth
+        if: ${{ github.event_name == 'push' }}
+      - name: Publish every crate, in dependency order
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          DRY_RUN: ${{ github.event_name != 'push' }}
+        run: |
+          set -euo pipefail
+          if [[ "$DRY_RUN" == true ]]; then
+            cargo publish --workspace --locked --dry-run
+          else
+            cargo publish --workspace --locked
+          fi
+
+  publish-npm:
+    name: Publish to npm
+    needs: checksums-match
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      # To check out the packages it publishes.
+      contents: read
+      id-token: write # Trusted publishing and provenance: npm signs with the workflow's identity.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: binary-*
+          path: staged
+          merge-multiple: true
+      - name: Publish each platform package, then the main package
+        env:
+          DRY_RUN: ${{ github.event_name != 'push' }}
+        run: |
+          set -euo pipefail
+          # Provenance signs a real publish; a dry run publishes nothing to sign.
+          flags=(--access public)
+          if [[ "$DRY_RUN" == true ]]; then flags+=(--dry-run); else flags+=(--provenance); fi
+          for folder in npm/platforms/*/; do
+            package=$(basename "$folder")
+            mkdir -p "$folder/bin"
+            cp "staged/$package/"* "$folder/bin/"
+            chmod +x "$folder/bin/"*
+            npm publish "$folder" "${flags[@]}"
+          done
+          npm publish ./npm/archangel "${flags[@]}"
+
+  install-from-npm:
+    name: Install from npm on ${{ matrix.runner }}
+    needs: publish-npm
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    permissions: {}
+    strategy:
+      matrix:
+        runner: [macos-14, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm, windows-2022]
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install the release and run it
+        shell: bash
+        env:
+          VERSION: ${{ github.ref_name }}
+        # Installing the published release from the registry is what this job checks.
+        run: | # zizmor: ignore[adhoc-packages]
+          set -euo pipefail
+          mkdir try && cd try
+          npm init --yes > /dev/null
+          npm install --save-dev "@enhance-eng/archangel@${VERSION#v}"
+          npx archangel --version | grep --fixed-strings "${VERSION#v}"
+
+  provenance-verified:
+    name: Provenance verified
+    needs: publish-npm
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Check the signatures of the main package and its platform package
+        env:
+          VERSION: ${{ github.ref_name }}
+        # Installing the published release from the registry is what this job checks.
+        run: | # zizmor: ignore[adhoc-packages]
+          set -euo pipefail
+          mkdir try && cd try
+          npm init --yes > /dev/null
+          npm install --save-dev "@enhance-eng/archangel@${VERSION#v}"
+          npm audit signatures
+
+  install-from-crates-io:
+    name: Install from crates.io
+    needs: publish-crates
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions: {}
+    steps:
+      - name: Install the release and run it
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cargo install archangel --locked --version "${VERSION#v}"
+          archangel --version | grep --fixed-strings "${VERSION#v}"
+
+  github-release:
+    name: GitHub release with checksums
+    needs: [publish-crates, publish-npm]
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # To create the GitHub release with the binaries and the checksum list.
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: staged
+          merge-multiple: true
+      - name: Create the release with each binary, the checksum list, the manual and the completions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cd staged
+          for folder in */; do
+            package=$(basename "$folder")
+            for file in "$folder"*; do cp "$file" "archangel-$package${file##*/archangel}"; done
+          done
+          gh release create "$TAG" --repo "$REPOSITORY" --verify-tag --title "$TAG" --generate-notes \
+            SHA256SUMS archangel-* archangel.* _archangel

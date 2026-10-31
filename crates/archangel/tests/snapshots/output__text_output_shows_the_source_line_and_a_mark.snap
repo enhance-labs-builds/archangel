@@ -1,0 +1,14 @@
+---
+source: crates/archangel/tests/output.rs
+expression: found.stdout
+---
+error[entry]: "../../entities/canvas/model/store" reaches inside "canvas" of "entity" past its entry files
+ --> src/features/login/a.ts:1:23
+  |
+1 | import { store } from '../../entities/canvas/model/store';
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ import it through "../../entities/canvas"
+  |
+  = note: rule: entry(entity)
+
+checked 6 files and 2 imports: 1 problem
+For what a code means, run `archangel docs entry`.

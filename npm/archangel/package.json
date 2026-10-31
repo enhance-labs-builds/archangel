@@ -1,0 +1,51 @@
+{
+  "name": "@enhance-eng/archangel",
+  "version": "0.0.0",
+  "description": "Architecture rules for TypeScript, checked in milliseconds: layers, isolated features, entry files and no cycles.",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enhance-labs-builds/archangel.git",
+    "directory": "npm/archangel"
+  },
+  "homepage": "https://github.com/enhance-labs-builds/archangel#readme",
+  "bugs": {
+    "url": "https://github.com/enhance-labs-builds/archangel/issues"
+  },
+  "type": "module",
+  "types": "index.d.ts",
+  "bin": {
+    "archangel": "bin/archangel.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "index.js",
+    "index.d.ts",
+    "plugin.js",
+    "plugin.d.ts",
+    "presets/",
+    "archangel.schema.json"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "pluralize": "8.0.0"
+  },
+  "optionalDependencies": {
+    "@enhance-eng/archangel-darwin-arm64": "0.0.0",
+    "@enhance-eng/archangel-darwin-x64": "0.0.0",
+    "@enhance-eng/archangel-linux-arm64-gnu": "0.0.0",
+    "@enhance-eng/archangel-linux-arm64-musl": "0.0.0",
+    "@enhance-eng/archangel-linux-x64-gnu": "0.0.0",
+    "@enhance-eng/archangel-linux-x64-musl": "0.0.0",
+    "@enhance-eng/archangel-win32-x64": "0.0.0"
+  }
+}

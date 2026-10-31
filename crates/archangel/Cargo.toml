@@ -1,0 +1,45 @@
+[package]
+name = "archangel"
+description = "Architecture rules for TypeScript, checked in milliseconds: layers, isolated features, entry files, and no cycles."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "../../README.md"
+
+[features]
+# Turns on the fail points that the fault-control tests use. Release builds never enable it.
+failpoints = ["fail/failpoints", "archangel_engine/failpoints", "archangel_lsp/failpoints"]
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "archangel"
+path = "src/main.rs"
+
+[dependencies]
+annotate-snippets = "0.12.17"
+archangel_config.workspace = true
+archangel_engine.workspace = true
+archangel_graph.workspace = true
+archangel_lsp.workspace = true
+archangel_rules.workspace = true
+clap = { version = "4.6.7", features = ["derive"] }
+clap_complete = "4.6.11"
+clap_mangen = "0.3.3"
+dunce = "1.0.5"
+fail = "0.5.1"
+ignore = "0.4.34"
+lsp-server = "0.10.0"
+serde_json = "1.0.154"
+strsim = "0.11.1"
+
+[dev-dependencies]
+archangel_testkit.workspace = true
+assert_cmd = "2.2.2"
+insta = "1.49.0"
