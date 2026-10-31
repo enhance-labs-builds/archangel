@@ -49,7 +49,7 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - { package: darwin-arm64, runner: macos-14, target: aarch64-apple-darwin }
+          - { package: darwin-arm64, runner: macos-15, target: aarch64-apple-darwin }
           - { package: darwin-x64, runner: macos-15-intel, target: x86_64-apple-darwin }
           - { package: linux-arm64-gnu, runner: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
           - { package: linux-arm64-musl, runner: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
@@ -220,7 +220,7 @@ jobs:
     permissions: {}
     strategy:
       matrix:
-        runner: [macos-14, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm, windows-2022]
+        runner: [macos-15, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm, windows-2022]
     steps:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
