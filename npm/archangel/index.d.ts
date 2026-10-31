@@ -116,6 +116,21 @@ export interface RuleOptions {
   };
 }
 
+/**
+ * A rule name `N` that the config writes itself. A slash separates a preset's name from the names
+ * it declares, so the config's own name has one only after the name of a preset in `X`, the
+ * presets the config extends, and then replaces that preset's rule of the name. Any other name
+ * with a slash becomes the text of the type error.
+ */
+export type OwnRuleName<N extends string, X extends string> = N extends `${infer Prefix}/${string}`
+  ? Prefix extends X
+    ? N
+    : "a rule's own name has no slash, except after the name of a preset the config extends, to replace its rule"
+  : N;
+
+/** A rule's `name`, checked by {@link OwnRuleName}. */
+type Named<N extends string, X extends string> = { readonly name?: OwnRuleName<N, X> };
+
 /** What limits an import condition to some imports. */
 export interface ImportLimits {
   /** Only imports of these names. */
@@ -292,21 +307,36 @@ export type Rule<E extends Elements, S extends Selectors = {}, P extends Plugins
   | SeveralSentences<E, S>
   | PluginRule<E, S, P>;
 
-/** The rule builders that a `rules` function receives. */
-export interface RuleBuilders<E extends Elements, S extends Selectors = {}, P extends Plugins = {}> {
+/**
+ * The rule builders that a `rules` function receives, for a config that extends the presets
+ * named in `X`.
+ */
+export interface RuleBuilders<
+  E extends Elements,
+  S extends Selectors = {},
+  P extends Plugins = {},
+  X extends string = string,
+> {
   /** Each listed element may import only itself and later listed elements. */
-  layers(order: readonly NoInfer<ElementName<E>>[], options?: RuleOptions): Rule<E, S, P>;
+  layers<const N extends string = string>(
+    order: readonly NoInfer<ElementName<E>>[],
+    options?: RuleOptions & Named<N, X>,
+  ): Rule<E, S, P>;
   /** The instances of the element may not import each other. */
-  isolate(element: NoInfer<CapturedElement<E>>, options?: RuleOptions): Rule<E, S, P>;
+  isolate<const N extends string = string>(
+    element: NoInfer<CapturedElement<E>>,
+    options?: RuleOptions & Named<N, X>,
+  ): Rule<E, S, P>;
   /** Code outside an instance of the element may import it only through these files. */
-  entry(
+  entry<const N extends string = string>(
     element: NoInfer<ElementName<E>>,
     files: string | readonly string[],
-    options?: RuleOptions,
+    options?: RuleOptions & Named<N, X>,
   ): Rule<E, S, P>;
   /** A rule as a sentence: `files`, or `folders`, and exactly one condition or plugin condition. */
-  rule(
-    sentence: Sentence<E, S> | FolderSentence | SeveralSentences<E, S> | PluginRule<E, S, P>,
+  rule<const N extends string = string>(
+    sentence: (Sentence<E, S> | FolderSentence | SeveralSentences<E, S> | PluginRule<E, S, P>) &
+      Named<N, X>,
   ): Rule<E, S, P>;
 }
 
@@ -314,9 +344,9 @@ export interface RuleBuilders<E extends Elements, S extends Selectors = {}, P ex
  * What a preset returns: part of a config, which `extends` puts under the config. Archangel names
  * each element, selector and rule `<name>/<its name>`, and reads paths relative to `root`.
  */
-export interface Preset {
+export interface Preset<X extends string = string> {
   /** The prefix of everything the preset declares, such as `fsd`. */
-  readonly name: string;
+  readonly name: X;
   /** The package the preset comes from, which a problem its user cannot fix names. */
   readonly package?: string;
   /** The folder the preset applies to, relative to the config folder. */
@@ -329,23 +359,35 @@ export interface Preset {
 }
 
 /** The options of the Feature-Sliced Design preset. */
-export interface FsdOptions {
+export interface FsdOptions<X extends string = string> {
   /** The folder that holds the layers, such as `src`. */
   readonly root: string;
   /** Turn on Steiger's four opt-in rules too. */
   readonly strict?: boolean;
   /** The prefix, for a second use in one repository; `fsd` by default. */
-  readonly name?: string;
+  readonly name?: X;
 }
 
 /** The Feature-Sliced Design preset: Steiger's rules for the layers under `root`. */
-export declare function fsd(options: FsdOptions): Preset;
+export declare function fsd<const X extends string = 'fsd'>(options: FsdOptions<X>): Preset<X>;
 
 /** The Next.js preset: code a client component reaches stays out of server-only code. */
-export declare function nextjs(options?: { readonly name?: string; readonly root?: string }): Preset;
+export declare function nextjs<const X extends string = 'nextjs'>(options?: {
+  readonly name?: X;
+  readonly root?: string;
+}): Preset<X>;
 
-/** An archangel config. */
-export interface Config<E extends Elements, S extends Selectors = {}, P extends Plugins = {}> {
+/**
+ * An archangel config, which extends the presets named in `X` and names its own rules with the
+ * names in `N`.
+ */
+export interface Config<
+  E extends Elements,
+  S extends Selectors = {},
+  P extends Plugins = {},
+  X extends string = string,
+  N extends string = string,
+> {
   /** The elements: parts of the code by file pattern, or packages; a config that extends a preset may have none. */
   readonly elements?: E;
   /** Named sets of files, which rules and other selectors use by name. */
@@ -357,13 +399,13 @@ export interface Config<E extends Elements, S extends Selectors = {}, P extends 
   /** The plugins, by the name the rules use them by, as `plugin: '<name>/<condition>'`. */
   readonly plugins?: P;
   /** The presets the config extends; the config's own rules replace preset rules of one name. */
-  readonly extends?: readonly Preset[];
+  readonly extends?: readonly Preset<X>[];
   /** Rule names to turn off after the presets are merged, such as `fsd/insignificant-slice`. */
   readonly off?: readonly string[];
   /** The rules, or a function that builds them. */
   readonly rules:
-    | readonly Rule<E, S, P>[]
-    | ((builders: RuleBuilders<E, S, P>) => readonly Rule<E, S, P>[]);
+    | readonly (Rule<E, S, P> & Named<N, X>)[]
+    | ((builders: RuleBuilders<E, S, P, X>) => readonly (Rule<E, S, P> & Named<N, X>)[]);
 }
 
 /** Declares an archangel config, with types that check its names as it is written. */
@@ -371,4 +413,6 @@ export declare function defineConfig<
   const E extends Elements,
   const S extends Selectors = {},
   const P extends Plugins = {},
->(config: Config<E, S, P>): Config<E, S, P>;
+  const X extends string = never,
+  const N extends string = string,
+>(config: Config<E, S, P, X, N>): Config<E, S, P>;
