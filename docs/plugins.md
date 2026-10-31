@@ -34,6 +34,105 @@ A plugin has one or more **conditions**. A condition is an object with these fie
 
 `check` returns a list of problems. Each problem is `{ file, message }`.
 
+## What `check` receives
+
+Archangel calls `check(view, options)`. This is a real call, from a repository with two features,
+`cart` and `login`.
+
+The config has this rule:
+
+```ts
+rule({ name: 'show', files: 'feature', plugin: 'dump/show', options: { max: 2 } })
+```
+
+The condition reads `imports`, `importers` and `exports`. Archangel calls `check` with these two
+values:
+
+```json
+{
+  "options": { "max": 2 },
+  "view": {
+    "schemaVersion": 1,
+    "files": [
+      {
+        "path": "src/features/cart/cart.ts",
+        "element": "feature",
+        "captures": { "feature": "cart" },
+        "selectors": [],
+        "imports": [
+          {
+            "specifier": "react", "occurrence": 0, "line": 1, "column": 26,
+            "kind": "runtime", "names": ["useState"], "file": null, "package": "react"
+          },
+          {
+            "specifier": "../login", "occurrence": 0, "line": 2, "column": 25,
+            "kind": "runtime", "names": ["session"], "file": "src/features/login/index.ts", "package": null
+          }
+        ],
+        "importers": [],
+        "exports": { "names": ["cart"], "default": false, "star": false }
+      },
+      {
+        "path": "src/features/login/index.ts",
+        "element": "feature",
+        "captures": { "feature": "login" },
+        "selectors": [],
+        "imports": [],
+        "importers": ["src/features/cart/cart.ts"],
+        "exports": { "names": ["session"], "default": false, "star": false }
+      }
+    ]
+  }
+}
+```
+
+- `options` is the `options` object of the rule, without changes.
+- `view.files` has one entry for each file in the rule's `files`, sorted by path.
+
+### A file
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `path` | `string` | The path from the config folder. |
+| `element` | `string` or `null` | The element of the file. `null` if the file is in no element. |
+| `captures` | object | The values of the element's captures. For `src/features/{feature}/**`, this is `{ "feature": "cart" }`. |
+| `selectors` | `string[]` | The selectors that contain the file. |
+| `imports` | list of imports | Only if the condition reads `'imports'`. |
+| `importers` | `string[]` | Only if the condition reads `'importers'`. The paths of the files that import this file. |
+| `exports` | object | Only if the condition reads `'exports'`. |
+
+### An import
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `specifier` | `string` | The text in the quotes, for example `'../login'`. |
+| `occurrence` | `number` | 0 for the first import of this specifier in the file, 1 for the second, and so on. |
+| `line`, `column` | `number` | The position of the specifier. Both start at 1. |
+| `kind` | `'runtime'` or `'type'` | `'type'` for an import that the compiler removes, for example `import type`. |
+| `names` | `string[]` | The names that the import brings in: a name, `default` or `*`. |
+| `file` | `string` or `null` | The file that the import goes to. `null` for a package, or if the import does not resolve. |
+| `package` | `string` or `null` | The package that the import goes to. `null` for a file in the repository. |
+
+### The exports of a file
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `names` | `string[]` | The names that the file exports, `default` included. |
+| `default` | `boolean` | `true` if the file has a default export. |
+| `star` | `boolean` | `true` if the file has an `export *`. |
+
+### What `check` returns
+
+`check` returns a list of problems. It can also return a promise of a list. An empty list means that
+there are no problems.
+
+```ts
+[{ file: 'src/features/cart/cart.ts', message: 'cart.ts has 2 imports, and the limit is 1' }]
+```
+
+The TypeScript types of all these values are in `@enhance-eng/archangel`: `View`, `FileRecord`,
+`ImportRecord`, `ExportsRecord` and `Violation`.
+
 ## A first plugin
 
 This plugin reports a file that imports more than `max` other files.
