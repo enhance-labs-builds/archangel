@@ -1,7 +1,7 @@
 //! The words of each diagnostic: what is wrong, what to do instead, and where.
 
 use archangel_config::{Classification, Condition, ElementId, Pattern, Rule, RuleKind, Sentence};
-use archangel_graph::{Import, ImportGraph};
+use archangel_graph::{Import, ImportGraph, Manifests};
 
 use crate::architecture::Architecture;
 use crate::diagnostic::{Code, Diagnostic, ViolationId};
@@ -141,6 +141,7 @@ pub(crate) fn import_diagnostic(
 pub(crate) struct Texts<'a> {
     pub(crate) architecture: &'a Architecture,
     pub(crate) graph: &'a ImportGraph,
+    pub(crate) manifests: Manifests<'a>,
 }
 
 impl Texts<'_> {
@@ -243,7 +244,7 @@ impl Texts<'_> {
 
     /// How the importing file's nearest manifest lists the package.
     fn manifest(&self, file: &str, kind: archangel_config::DependencyKind) -> String {
-        match (self.graph.nearest_manifest(file), kind) {
+        match (self.manifests.nearest(file), kind) {
             (Some(manifest), archangel_config::DependencyKind::Dev) => {
                 format!(" that {} lists only under devDependencies", manifest.path)
             }

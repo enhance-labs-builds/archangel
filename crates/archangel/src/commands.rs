@@ -208,7 +208,8 @@ fn examples_text(session: &Session, report: &ExampleReport, options: &Options) -
                 .filter(|d| d.file.as_ref().is_some_and(|f| run.files.contains(f)))
                 .cloned()
                 .collect();
-            out.push_str(&text::diagnostics(session.config_dir(), &shown, false));
+            let dir = session.config_dir();
+            out.push_str(&text::diagnostics_over(dir, &run.texts, &shown, false));
         }
     }
     if !report.unproven.is_empty() {

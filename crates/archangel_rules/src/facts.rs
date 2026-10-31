@@ -42,7 +42,7 @@ fn declared_as(edge: &Edge<'_>, kind: DependencyKind) -> bool {
     let Some(package) = edge.to.package.filter(|p| !p.starts_with("node:")) else {
         return false;
     };
-    let manifest = edge.graph.and_then(|g| g.nearest_manifest(edge.file));
+    let manifest = edge.manifests.and_then(|m| m.nearest(edge.file));
     let production = manifest.is_some_and(|m| m.dependencies.contains(package));
     let development = manifest.is_some_and(|m| m.development.contains(package));
     match kind {
@@ -101,8 +101,8 @@ fn is_package(edge: &Edge<'_>, relative: bool) -> bool {
             !relative
                 && !specifier.starts_with('#')
                 && edge
-                    .graph
-                    .is_some_and(|graph| graph.is_workspace_package(&package_of(specifier)))
+                    .manifests
+                    .is_some_and(|m| m.is_workspace_package(&package_of(specifier)))
         }
         Resolution::Unresolved(_) => false,
     }

@@ -27,7 +27,7 @@ config author.
 
 ### Requirement: The npm package gives types for the config
 
-The npm package MUST export `defineConfig` and the types of the config. With these types, the TypeScript compiler MUST report an error for a rule that names an undeclared element or selector, for an isolate rule on an element without a capture, and for a sentence with more than one condition.
+The npm package MUST export `defineConfig` and the types of the config. With these types, the TypeScript compiler MUST report an error for a rule that names an undeclared element or selector, for an isolate rule on an element without a capture, for a sentence with more than one condition, and for a rule name the config writes with a slash that does not follow the name of a preset it extends.
 
 #### Scenario: A rule names an undeclared element
 
@@ -56,6 +56,14 @@ The npm package MUST export `defineConfig` and the types of the config. With the
 - **WHEN** the TypeScript compiler checks the config
 - **THEN** the compiler reports an error on the rule
 - **TEST** `npm/archangel/test/types.test-d.ts` › "a sentence with two conditions is a type error"
+
+#### Scenario: A rule name with a slash
+
+- **GIVEN** a config that uses `defineConfig` and names a rule `team/no-legacy`, in a rule object or through `rule`, `layers`, `isolate` or `entry`, and extends no preset named "team"
+- **WHEN** the TypeScript compiler checks the config
+- **THEN** the compiler reports an error on the name, which says a rule's own name has no slash except after the name of a preset the config extends
+- **AND** a rule named `fsd-admin/public-api` in a config that extends `fsd({ root: 'src', name: 'fsd-admin' })` has no error, and the rules inside the preset are not checked
+- **TEST** `npm/archangel/test/types.test-d.ts` › "a config's own rule name cannot contain a slash, which separates a preset's name from its rule's"
 
 ### Requirement: The crate installs from source
 

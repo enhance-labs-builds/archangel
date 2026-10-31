@@ -25,6 +25,14 @@ command proves each rule with its examples, quickly and without a change to the 
 - **AND** archangel exits with status 1
 - **TEST** `crates/archangel/tests/test_command.rs` › "failed_example_gives_status_one"
 
+#### Scenario: A failed example shows its own text
+
+- **GIVEN** an empty repository file `src/shared/s.ts`
+- **AND** a rejected example that replaces it with a file whose import another rule rejects
+- **WHEN** the developer runs `archangel test` with the text format
+- **THEN** the failed example's diagnostic shows the example's import line with a mark under its specifier, not the repository file's text
+- **TEST** `crates/archangel/tests/test_command.rs` › "failed_example_shows_its_own_text_where_it_replaces_a_repository_file"
+
 ### Requirement: Examples never change the repository
 
 Archangel MUST put the files of an example into a check in memory. It MUST NOT write, change or delete a file on disk for an example. A file of an example MAY import files of the repository. A file of an example at the path of a repository file MUST replace that file for that example only.
@@ -59,6 +67,43 @@ Archangel MUST put the files of an example into a check in memory. It MUST NOT w
 - **THEN** the example uses the example file, and its rule rejects the import
 - **AND** the next example sees the repository file again
 - **TEST** `crates/archangel_rules/tests/examples.rs` › "example_file_replaces_a_repository_file_for_that_example_only"
+
+### Requirement: An example sees its own package manifests first
+
+A `package.json` among an example's files, outside `node_modules`, MUST be a package manifest for that example. It replaces the repository's manifest at its path, and a file's nearest manifest MUST be found among the example's manifests laid over the repository's, as its files are laid over the repository's tsconfigs. An example without a manifest MUST see the repository's. An example MUST NOT add a workspace package, which is reached through its link on disk.
+
+#### Scenario: An example with its own manifest
+
+- **GIVEN** a repository whose `package.json` lists no dependency
+- **AND** a rejected example of a `dependency: 'dev'` rule whose files are a `package.json`, at the example's root or in `src`, that lists `vitest` under `devDependencies`, the installed package in `node_modules/vitest`, and `src/a.ts`, which imports `vitest`
+- **WHEN** the developer runs `archangel test`
+- **THEN** the `dependency: 'dev'` rule rejects the import and names the example's manifest, and a `dependency: 'undeclared'` rule does not
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "an_example_sees_its_own_manifest"
+
+#### Scenario: An example without a manifest
+
+- **GIVEN** a repository whose `package.json` lists `vitest` under `devDependencies`, with `vitest` installed
+- **AND** a rejected example of a `dependency: 'dev'` rule whose only file imports `vitest`
+- **WHEN** the developer runs `archangel test`
+- **THEN** the rule rejects the import and names the repository's `package.json`
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "an_example_without_a_manifest_sees_the_repository_manifest"
+
+#### Scenario: An example manifest replaces the repository's, and the nearest wins
+
+- **GIVEN** a repository whose `package.json` lists `vitest` under `dependencies`
+- **WHEN** an example's own `package.json` lists `vitest` under `devDependencies`
+- **THEN** the `dependency: 'dev'` rule rejects the example's import of `vitest`
+- **AND WHEN** an example instead has `src/package.json`, which lists nothing
+- **THEN** the `dependency: 'undeclared'` rule rejects the import and names `src/package.json`
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "an_example_manifest_replaces_the_repository_manifest_at_its_path_and_the_nearest_wins"
+
+#### Scenario: Which files of an example are manifests
+
+- **GIVEN** an example with a `package.json` at its root, a `src/package.json` that is not JSON, and `node_modules/vitest/package.json`
+- **WHEN** archangel lays the example over the repository
+- **THEN** the example's manifests are the two outside `node_modules`, and the one that is not JSON lists nothing
+- **AND** the nearest manifest of `src/a.ts` is `src/package.json`
+- **TEST** `crates/archangel_graph/tests/overlay.rs` › "an_overlays_manifests_are_those_the_walk_would_visit"
 
 ### Requirement: An example that does not parse fails
 
@@ -134,6 +179,25 @@ An accepted example MUST pass only when its rule gives no violation that involve
 - **WHEN** the developer runs `archangel test`
 - **THEN** the example passes, and `README.md` is not parsed
 - **TEST** `crates/archangel_rules/tests/examples.rs` › "an_accepted_structure_example_passes_and_non_source_files_are_not_parsed"
+
+### Requirement: An example that proves nothing is told what its rule looks at
+
+The `example-proves-nothing` message MUST name what the rule looks at: imports, files, folders, instances, or the files of a plugin rule's view. For a `mustNotExist` rule it MUST say that no accepted example can prove the rule.
+
+#### Scenario: What each kind of rule never looked at
+
+- **GIVEN** an accepted example whose only file is `src/app/a.ts`, for each kind of rule: `mustNotExist` on files and on folders, `mustBeNamed` on files and on folders, `mustContain` on folders and on an element, `mustExport`, `mayNotExport`, `mustOnlyReExport`, `noCycles` and `mayNotImport`, none of which covers that file
+- **WHEN** the developer runs `archangel test`
+- **THEN** each example fails with `example-proves-nothing`, and its message names what the rule looks at and what to give the example
+- **AND** the message for a `mustNotExist` rule says that every file or folder it looks at breaks it, so the rule keeps only rejected examples
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "an_accepted_example_its_rule_never_checks_is_told_what_the_rule_looks_at"
+
+#### Scenario: A plugin rule never saw the example
+
+- **GIVEN** an accepted example of a plugin rule on "entity", whose only file is in "shared"
+- **WHEN** the developer runs `archangel test`
+- **THEN** the example fails with `example-proves-nothing`, saying the rule never saw a file of the example and to give it a file in the rule's files
+- **TEST** `crates/archangel_engine/tests/plugins.rs` › "an_accepted_example_outside_a_plugin_rules_files_proves_nothing_about_files"
 
 ### Requirement: Every rule proves that it can reject
 

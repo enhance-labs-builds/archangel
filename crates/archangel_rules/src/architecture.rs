@@ -6,7 +6,7 @@ use archangel_config::{
     Classification, Condition, Config, ElementId, ElementMatcher, FileSet, ImportKinds, Pattern,
     RuleKind, Sentence, Term, package_matches,
 };
-use archangel_graph::{Import, ImportGraph, ImportKind, Resolution, Work};
+use archangel_graph::{Import, ImportGraph, ImportKind, Manifests, Resolution, Work};
 
 use crate::classes::{ClassKey, Classes, Lookup};
 
@@ -89,7 +89,8 @@ pub(crate) struct Edge<'a> {
     pub(crate) file: &'a str,
     pub(crate) import: &'a Import,
     pub(crate) resolution: &'a Resolution,
-    pub(crate) graph: Option<&'a ImportGraph>,
+    /// The package manifests the importing file sees, or `None` without the facts of a graph.
+    pub(crate) manifests: Option<Manifests<'a>>,
 }
 
 impl Architecture {
@@ -136,7 +137,8 @@ impl Architecture {
     }
 
     /// Each pattern a sentence writes inline must match a file, except in the files of a
-    /// `mustNotExist` rule, which pass by matching nothing.
+    /// `mustNotExist` rule, which pass by matching nothing, and inside a `not`, where leaving out
+    /// nothing changes nothing.
     fn report_inline(&mut self, rule: &str, sentence: &Sentence) {
         let side = sentence.condition.side().cloned().unwrap_or_default();
         let own =
@@ -145,7 +147,7 @@ impl Architecture {
             .into_iter()
             .chain(&side.files)
             .chain(sentence.options.stop_at.as_ref());
-        let patterns: Vec<_> = sets.flat_map(FileSet::patterns).collect();
+        let patterns: Vec<_> = sets.flat_map(FileSet::included_patterns).collect();
         for pattern in patterns {
             let set = self.set(&FileSet::of(Term::Pattern(pattern)));
             let origin = Origin::Inline(rule.to_owned());
@@ -286,7 +288,7 @@ impl Architecture {
             file: from,
             import,
             resolution: &resolution,
-            graph,
+            manifests: graph.map(|graph| graph.manifests_with(None)),
         };
         let (broken, _) = self.evaluate(&mut classes, &edge);
         let mut rules: Vec<usize> = broken

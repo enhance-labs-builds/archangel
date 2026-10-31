@@ -124,7 +124,7 @@ A selector MUST select files only. A rule side MUST name packages with a package
 
 ### Requirement: A selector that selects nothing is an error where emptiness means a mistake
 
-A selector that the config declares, and an inline pattern in one of its rules, that matches no file MUST give a `selector-empty` diagnostic, except the files of a `mustNotExist` rule. What a preset declares is exempt, as the presets spec says. A selector that refers to itself through other selectors MUST be refused with `config-invalid` and the chain of names.
+A selector that the config declares, and an inline pattern in one of its rules, that matches no file MUST give a `selector-empty` diagnostic, except the files of a `mustNotExist` rule and an inline pattern that a rule writes only inside a `not`, because leaving out nothing changes nothing. What a preset declares is exempt, as the presets spec says. A selector that refers to itself through other selectors MUST be refused with `config-invalid` and the chain of names.
 
 #### Scenario: A misspelt pattern
 
@@ -139,6 +139,15 @@ A selector that the config declares, and an inline pattern in one of its rules, 
 - **WHEN** archangel makes a check
 - **THEN** archangel gives a `selector-empty` diagnostic that names the rule "legacy" and the pattern
 - **TEST** `crates/archangel_rules/tests/selectors.rs` › "an_inline_pattern_that_matches_nothing_is_an_error"
+
+#### Scenario: An inline pattern only inside not
+
+- **GIVEN** a rule whose files are `{ all: ['src/**', { not: ['src/generated/**', { any: ['src/vendor/**', 'src/app/**'] }] }] }` and whose side leaves out `src/legacy/**` with a `not`
+- **AND** another rule whose side names `src/vendor/**` both inside and outside a `not`
+- **AND** no file under `src/generated`, `src/vendor` or `src/legacy`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one `selector-empty` diagnostic, for `src/vendor/**` in the second rule
+- **TEST** `crates/archangel_rules/tests/selectors.rs` › "an_inline_pattern_only_inside_not_may_match_nothing"
 
 #### Scenario: A mustNotExist rule on a clean repository
 

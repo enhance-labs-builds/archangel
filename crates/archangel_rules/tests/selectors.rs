@@ -315,6 +315,33 @@ fn an_inline_pattern_that_matches_nothing_is_an_error() {
 }
 
 #[test]
+fn an_inline_pattern_only_inside_not_may_match_nothing() {
+    let repo = FixtureRepo::new()
+        .file("src/app/a.ts", "")
+        .file("src/next/b.ts", "");
+    let exempt = json!({ "not": ["src/generated/**", { "any": ["src/vendor/**", "src/app/**"] }] });
+    let config = json!({
+        "elements": { "src": "src/**" },
+        "rules": [
+            { "name": "shared-exemptions", "files": { "all": ["src/**", exempt] },
+              "mayNotImport": { "all": ["src/next/**", { "not": "src/legacy/**" }] } },
+            { "name": "also-outside", "files": "src/**",
+              "mayNotImport": { "any": ["src/vendor/**", { "not": "src/vendor/**" }] } },
+        ],
+    });
+    let found = empty_selectors(&report(&config, &repo));
+    assert_eq!(
+        found,
+        [
+            "the rule \"also-outside\" names the pattern src/vendor/**, which matches no file, so \
+          the rule cannot fire there; fix the pattern"
+        ],
+        "src/generated/**, src/vendor/** and src/legacy/** appear only inside not in the first \
+         rule, and the second rule also names src/vendor/** outside not"
+    );
+}
+
+#[test]
 fn an_empty_must_not_exist_selector_passes() {
     let repo = FixtureRepo::new().file("src/app/a.ts", "");
     let config = json!({

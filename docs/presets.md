@@ -58,7 +58,8 @@ export default defineConfig({
 - **Remove a rule.** Put its name in `off`.
 - **Typing errors stop the check.** A name in `off` must match a preset rule, and so must a
   replacement rule. If it does not, archangel stops and shows the nearest correct name.
-- **Your names cannot have a slash.** Only preset names have a prefix.
+- **Your names cannot have a slash.** Only preset names have a prefix. With `defineConfig`, the
+  editor already marks a rule name with a slash that does not start with a preset you extend.
 
 ## Empty parts of a preset
 

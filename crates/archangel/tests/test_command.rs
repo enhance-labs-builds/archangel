@@ -177,6 +177,39 @@ fn failed_example_gives_status_one() {
 }
 
 #[test]
+fn failed_example_shows_its_own_text_where_it_replaces_a_repository_file() {
+    let rules = json!([
+        { "kind": "layers", "name": "layers", "order": ["app", "shared"] },
+        { "name": "forbid", "files": "shared", "mayNotImport": "shared", "examples": {
+            "rejected": [{ "src/shared/s.ts": "import { main } from '../app/main';\n" }],
+        } },
+    ]);
+    let found = run(&repo(&rules), &["test"]);
+    assert_eq!(
+        (found.status, found.stdout.as_str()),
+        (
+            1,
+            "fail  forbid  rejected #1  src/shared/s.ts\n      \
+             \"layers\" rejected the example, but \"forbid\" did not; make the example break \
+             \"forbid\" alone\n\
+             error[layers]: \"shared\" may not import \"app\", an earlier layer, through \
+             \"../app/main\"\n \
+             --> src/shared/s.ts:1:22\n  \
+             |\n\
+             1 | import { main } from '../app/main';\n  \
+             |                      ^^^^^^^^^^^^^ \"shared\" may import only \"shared\"\n\n\
+             error[rule-unproven]: the rule \"layers\" has no rejected example, so nothing shows \
+             that it can find a violation; add one under examples.rejected\n \
+             |\n \
+             = note: rule: layers\n\n\
+             1 examples, 1 failed; 1 rules without a rejected example\n"
+        ),
+        "the mark is under the example's import, not the empty repository file it replaces: {}",
+        found.stderr
+    );
+}
+
+#[test]
 fn rule_without_a_rejected_example_is_rule_unproven() {
     let rules = json!([{ "name": "forbid", "files": "app", "mayNotImport": "app", "examples": {
         "accepted": [{ "src/app/y.ts": "import '../shared/s';\n" }],

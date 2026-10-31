@@ -135,3 +135,46 @@ fn reaching_lists_every_file_that_imports_a_path_through_other_files() {
         "b imports a, and c imports b; d imports nothing"
     );
 }
+
+#[test]
+fn an_overlays_manifests_are_those_the_walk_would_visit() {
+    let repo = FixtureRepo::new().file("src/a.ts", "export const a = 1;\n");
+    let graph = graph(&repo);
+    let overlay = graph.overlay(
+        &files(&[
+            (
+                "package.json",
+                r#"{ "name": "app", "devDependencies": { "vitest": "1" } }"#,
+            ),
+            ("src/package.json", "not json"),
+            (
+                "node_modules/vitest/package.json",
+                r#"{ "name": "vitest" }"#,
+            ),
+        ]),
+        &mut Work::default(),
+    );
+    let mut found: Vec<(&str, &str, Vec<&str>)> = overlay
+        .manifests
+        .iter()
+        .map(|(folder, manifest)| {
+            let development = manifest.development.iter().map(String::as_str).collect();
+            (folder.as_str(), manifest.path.as_str(), development)
+        })
+        .collect();
+    found.sort();
+    assert_eq!(
+        found,
+        [
+            ("", "package.json", vec!["vitest"]),
+            ("src", "src/package.json", vec![]),
+        ],
+        "a manifest that does not parse lists nothing, and one in node_modules is not a manifest"
+    );
+    let manifests = graph.manifests_with(Some(&overlay));
+    assert_eq!(
+        manifests.nearest("src/a.ts").map(|m| m.path.as_str()),
+        Some("src/package.json"),
+        "the nearest manifest of a file in src is the overlay's src/package.json"
+    );
+}
