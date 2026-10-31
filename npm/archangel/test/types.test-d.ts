@@ -131,13 +131,23 @@ expectType<Config<
 const oneStore = defineCondition({
   name: 'one-store',
   description: 'Each entity has at most `max` stores.',
-  options: { type: 'object', properties: { max: { type: 'number' } } },
+  optionsSchema: { type: 'object', properties: { max: { type: 'number' } } },
   reads: ['imports'],
   check: (view, options: { max: number }) =>
     view.files
       .filter((file) => file.imports.length > options.max)
       .map((file) => ({ file: file.path, message: `${file.imports.length} imports` })),
 });
+// A condition's JSON Schema is `optionsSchema`; `options` are what a rule passes to `check`.
+expectError(
+  defineCondition({
+    name: 'old-name',
+    description: 'Uses the schema field under the name of the values.',
+    options: { type: 'object' },
+    reads: [],
+    check: () => [],
+  }),
+);
 const team = definePlugin({ name: 'team', schemaVersion: 1, conditions: [oneStore] });
 defineConfig({
   elements: { entity: 'src/entities/{entity}/**' },

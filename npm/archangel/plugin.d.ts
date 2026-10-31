@@ -89,7 +89,7 @@ export type Condition<N extends string = string, O = unknown, R extends Fact = F
   /** Where to read more. */
   readonly docs?: string;
   /** The JSON Schema of the options, which archangel checks each rule's options against. */
-  readonly options?: object | null;
+  readonly optionsSchema?: object | null;
   /** The facts of each file the condition reads; the view holds only these. */
   readonly reads: readonly R[];
   /** The violations in the view, given the rule's options. */

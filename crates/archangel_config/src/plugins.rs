@@ -13,6 +13,16 @@ pub const VIEW_SCHEMA_VERSION: u64 = 1;
 /// The facts a condition may read, as the loader names them.
 const FACTS: [&str; 3] = ["imports", "importers", "exports"];
 
+/// The fields of a condition, as `definePlugin` declares them.
+const CONDITION_FIELDS: [&str; 6] = [
+    "name",
+    "description",
+    "docs",
+    "reads",
+    "optionsSchema",
+    "check",
+];
+
 /// The plugins of the loader's description, `{ name: { schemaVersion, conditions } }`.
 pub(crate) fn parse_plugins(
     value: Option<&Value>,
@@ -93,7 +103,6 @@ fn parse_condition(
     value: &Value,
     problems: &mut Vec<ConfigProblem>,
 ) -> Option<PluginCondition> {
-    let field = format!("plugins.{plugin}.conditions.{name}");
     let object = value.as_object()?;
     let description = object
         .get("description")
@@ -104,6 +113,37 @@ fn parse_condition(
         .get("docs")
         .and_then(Value::as_str)
         .map(str::to_owned);
+    let reads = condition_reads(plugin, name, object, problems);
+    refuse_unknown_fields(plugin, name, object, problems);
+    if let Some(schema) = object
+        .get("optionsSchema")
+        .filter(|schema| !schema.is_null())
+        && let Err(error) = jsonschema::validator_for(schema)
+    {
+        problems.push(invalid(
+            &format!("plugins.{plugin}.conditions.{name}.optionsSchema"),
+            &author(
+                plugin,
+                &format!("gives its condition `{name}` an options schema that is not valid JSON Schema: {error}"),
+            ),
+        ));
+    }
+    Some(PluginCondition {
+        name: name.to_owned(),
+        description,
+        docs,
+        reads,
+    })
+}
+
+/// The facts a condition reads, with a problem for each fact archangel does not know.
+fn condition_reads(
+    plugin: &str,
+    name: &str,
+    object: &Map<String, Value>,
+    problems: &mut Vec<ConfigProblem>,
+) -> Reads {
+    let field = format!("plugins.{plugin}.conditions.{name}");
     let mut reads = Reads::default();
     for fact in object
         .get("reads")
@@ -127,23 +167,38 @@ fn parse_condition(
             )),
         }
     }
-    if let Some(schema) = object.get("options").filter(|schema| !schema.is_null())
-        && let Err(error) = jsonschema::validator_for(schema)
+    reads
+}
+
+/// A problem for each field of a condition that `definePlugin` does not declare, which the loader
+/// lists as `unknown`.
+fn refuse_unknown_fields(
+    plugin: &str,
+    name: &str,
+    object: &Map<String, Value>,
+    problems: &mut Vec<ConfigProblem>,
+) {
+    let field = format!("plugins.{plugin}.conditions.{name}");
+    for key in object
+        .get("unknown")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
     {
+        let instead = if key == "options" {
+            "; the JSON Schema of its options is `optionsSchema`".to_owned()
+        } else {
+            format!("; a condition has {}", CONDITION_FIELDS.join(", "))
+        };
         problems.push(invalid(
-            &format!("{field}.options"),
+            &format!("{field}.{key}"),
             &author(
                 plugin,
-                &format!("gives its condition `{name}` an options schema that is not valid JSON Schema: {error}"),
+                &format!("gives its condition `{name}` the field `{key}`, which conditions do not have{instead}"),
             ),
         ));
     }
-    Some(PluginCondition {
-        name: name.to_owned(),
-        description,
-        docs,
-        reads,
-    })
 }
 
 /// The plugins a config loads, and the loader's description of them, which holds each
@@ -188,7 +243,7 @@ pub(crate) fn plugin_use(
         .and_then(|plugins| plugins.get(&plugin.name))
         .and_then(|plugin| plugin.get("conditions"))
         .and_then(|conditions| conditions.get(&condition.name))
-        .and_then(|condition| condition.get("options"))
+        .and_then(|condition| condition.get("optionsSchema"))
         .filter(|schema| !schema.is_null());
     let wrong = match schema {
         None => rule
