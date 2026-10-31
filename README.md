@@ -16,11 +16,11 @@ For your editor, your CI and your coding agents.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/benchmark-dark.svg">
-  <img alt="Seconds to check a 9,800-file TypeScript monorepo: archangel 1.9 s for all 400 rules; ESLint 29.2 s, Steiger 21.4 s and dependency-cruiser 17.0 s for their own rules" src="docs/assets/benchmark-light.svg" width="760">
+  <img alt="Seconds to check the same 400 architecture rules on a 9,800-file TypeScript monorepo: archangel 1.9 s; dependency-cruiser, ESLint and Steiger together 67.7 s" src="docs/assets/benchmark-light.svg" width="760">
 </picture>
 
-<sub>Time to check the architecture rules of a 9,800-file TypeScript monorepo, on a laptop.
-Each other tool checks only its own rules. Archangel checks all 400 rules of all of them.</sub>
+<sub>Time to check the same 400 architecture rules on a 9,800-file TypeScript monorepo, on a
+laptop. Without archangel, these rules need three tools.</sub>
 
 </div>
 
@@ -37,8 +37,9 @@ rule, archangel tells you, or your coding agent, where, why, and what to do.
 
 ## Highlights
 
-- **Fast.** A Rust core reads each file one time. It checks 9,800 files in 1.9 seconds, and your
-  editor shows the result of a change in 13 milliseconds.
+- **Fast.** A Rust core reads each file one time. It checks 9,800 files in 1.9 seconds, 35 times
+  faster than the three tools it replaces. Your editor shows the result of a change in 13
+  milliseconds.
 - **One tool, one config.** It holds the rules of dependency-cruiser, eslint-plugin-boundaries,
   eslint-plugin-check-file and Steiger.
 - **Errors that say what to do.** Each error shows the line, the rule, your reason for the rule,
