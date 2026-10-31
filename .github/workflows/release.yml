@@ -233,9 +233,23 @@ jobs:
         # Installing the published release from the registry is what this job checks.
         run: | # zizmor: ignore[adhoc-packages]
           set -euo pipefail
+          # npm serves a version some seconds after it accepts it, so wait for the main package
+          # and every platform package it names before installing.
+          served() { npm view "$1" version > /dev/null 2>&1; }
+          main="@enhance-eng/archangel@${VERSION#v}"
+          for attempt in $(seq 1 30); do
+            if served "$main"; then
+              platforms=$(npm view "$main" optionalDependencies --json | node -e \
+                'const d = JSON.parse(require("fs").readFileSync(0, "utf8")); for (const [n, v] of Object.entries(d)) console.log(n + "@" + v)')
+              missing=$(for p in $platforms; do served "$p" || echo "$p"; done)
+              [[ -z "$missing" ]] && break
+            fi
+            [[ "$attempt" == 30 ]] && { echo "npm does not serve $main and its platform packages after 5 minutes" >&2; exit 1; }
+            sleep 10
+          done
           mkdir try && cd try
           npm init --yes > /dev/null
-          npm install --save-dev "@enhance-eng/archangel@${VERSION#v}"
+          npm install --save-dev "$main"
           npx archangel --version | grep --fixed-strings "${VERSION#v}"
 
   provenance-verified:
@@ -256,9 +270,23 @@ jobs:
         # Installing the published release from the registry is what this job checks.
         run: | # zizmor: ignore[adhoc-packages]
           set -euo pipefail
+          # npm serves a version some seconds after it accepts it, so wait for the main package
+          # and every platform package it names before installing.
+          served() { npm view "$1" version > /dev/null 2>&1; }
+          main="@enhance-eng/archangel@${VERSION#v}"
+          for attempt in $(seq 1 30); do
+            if served "$main"; then
+              platforms=$(npm view "$main" optionalDependencies --json | node -e \
+                'const d = JSON.parse(require("fs").readFileSync(0, "utf8")); for (const [n, v] of Object.entries(d)) console.log(n + "@" + v)')
+              missing=$(for p in $platforms; do served "$p" || echo "$p"; done)
+              [[ -z "$missing" ]] && break
+            fi
+            [[ "$attempt" == 30 ]] && { echo "npm does not serve $main and its platform packages after 5 minutes" >&2; exit 1; }
+            sleep 10
+          done
           mkdir try && cd try
           npm init --yes > /dev/null
-          npm install --save-dev "@enhance-eng/archangel@${VERSION#v}"
+          npm install --save-dev "$main"
           npm audit signatures
 
   install-from-crates-io:
