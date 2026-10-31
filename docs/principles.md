@@ -3,10 +3,17 @@
 This page tells you what archangel believes about architecture, and why. Read it to understand the
 decisions behind the tool. The [README](../README.md) tells you how to use it.
 
-## What architecture is
+## The part of architecture that archangel checks
 
-Architecture is a set of decisions. They say which code may depend on which code, where code lives,
-and what each part shows to the other parts. Some examples:
+Architecture is more than one thing. It includes how the system runs (services, processes, how
+they communicate), where data lives, how the system is deployed, and qualities such as speed and
+security. Archangel does not check these.
+
+One part of architecture is written in the code itself. It is the decisions about which code may
+depend on which code, where code lives, what each part shows to the other parts, and what things are
+called. Software architects call this the development view, or the module view. Archangel checks this
+part, because a machine can read it from the source code, and because it decays and nobody sees it.
+Some examples:
 
 - Features do not import each other.
 - The UI does not import the database client.
@@ -116,6 +123,7 @@ Archangel adds speed, examples and agents to old ideas.
 
 | Idea | Where it comes from |
 | --- | --- |
+| Architecture has several views, and one of them is the structure of the code | Philippe Kruchten, "The 4+1 View Model of Architecture" (1995), which calls it the development view |
 | A module hides a decision, and other modules depend only on what it shows | David Parnas, "On the Criteria To Be Used in Decomposing Systems into Modules" (1972) |
 | Layers, and no cycles between parts of the code | John Lakos, *Large-Scale C++ Software Design* (1996), which calls it levelization; Robert C. Martin's Acyclic Dependencies Principle |
 | Dependencies point inward, toward the core of the application | Robert C. Martin's Dependency Rule, in *Clean Architecture* (2017); Alistair Cockburn's hexagonal architecture, or ports and adapters (2005) |
@@ -133,5 +141,7 @@ Archangel adds speed, examples and agents to old ideas.
 - **Not a linter for code style.** Use ESLint or Biome.
 - **Not a type checker.** Rules that need types, for example "only the repository calls `save`",
   stay in ESLint with type information.
+- **Not a check of the whole architecture.** Archangel checks the decisions that are in the source
+  code. How services run, where data lives and how the system is deployed need different tools.
 - **Not a diagram tool.** Archangel can explain a file and show a chain of imports, but it does not
   draw your architecture. It checks it.

@@ -22,9 +22,11 @@ error[layers]: "shared" may not import "feature", an earlier layer, through "../
 
 ## How to think about archangel
 
-**Architecture is a set of decisions about which code may depend on which code.** "Features do not
-import each other." "The UI does not talk to the database." "Shared code knows nothing about the
-app." These decisions are what keep a large codebase changeable.
+**Part of your architecture is written in the code itself.** It is the decisions about which code
+may depend on which code, where code lives, and what each part shows to the other parts. "Features
+do not import each other." "The UI does not talk to the database." "Shared code knows nothing about
+the app." These decisions keep a large codebase easy to change. Archangel checks this part of your
+architecture.
 
 **A decision that nobody checks is a wish.** Each day, code moves a little away from it. A reviewer
 can stop some of it. But coding agents now write more code than a person can read, so an unchecked
