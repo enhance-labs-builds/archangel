@@ -102,7 +102,7 @@ Archangel MUST offer a fix only when it applied the fix in memory and the fix re
 
 ### Requirement: Text output is for people and JSON output is for programs
 
-The text format MUST show each diagnostic with the line of source code and a mark under the specifier. It MUST use color only when the output is a terminal and `NO_COLOR` is not set. The JSON format MUST be one document with a schema version, the diagnostics and the summary.
+The text format MUST show each diagnostic with the line of source code and a mark under the specifier. When the span does not mark a part of the text read, as when the file changed after the check, the text format MUST show the diagnostic's place without the source line, and MUST NOT stop. It MUST use color only when the output is a terminal and `NO_COLOR` is not set. The JSON format MUST be one document with a schema version, the diagnostics and the summary.
 
 #### Scenario: The source line and the mark
 
@@ -110,6 +110,20 @@ The text format MUST show each diagnostic with the line of source code and a mar
 - **WHEN** the developer runs `archangel check`
 - **THEN** the output shows the line of source code and a mark under the specifier, as in the recorded example output
 - **TEST** `crates/archangel/tests/output.rs` › "text_output_shows_the_source_line_and_a_mark"
+
+#### Scenario: A span past the end of its text
+
+- **GIVEN** a diagnostic with the span `18..26` in a file whose text is `export {}` and a line break
+- **WHEN** archangel shows it as text
+- **THEN** the output is its title and its place, without a source line
+- **TEST** `crates/archangel/src/render/text/tests.rs` › "a_span_beyond_the_end_of_its_text_is_shown_without_the_snippet"
+
+#### Scenario: A span that starts inside a character
+
+- **GIVEN** a diagnostic whose span starts at the second byte of `é`
+- **WHEN** archangel shows it as text
+- **THEN** the output is its title and its place, without a source line
+- **TEST** `crates/archangel/src/render/text/tests.rs` › "a_span_inside_a_character_is_shown_without_the_snippet"
 
 #### Scenario: A terminal with NO_COLOR
 

@@ -18,6 +18,8 @@ pub struct ExampleRun {
     pub number: usize,
     /// The paths of its files.
     pub files: Vec<String>,
+    /// Its files, with their text, by path.
+    pub texts: ExampleFiles,
     /// The judgement.
     pub outcome: ExampleOutcome,
 }
@@ -68,6 +70,7 @@ impl Session {
                         kind,
                         number: number + 1,
                         files: files.keys().cloned().collect(),
+                        texts: files.clone(),
                         outcome,
                     });
                 }

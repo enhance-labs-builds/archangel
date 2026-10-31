@@ -1,6 +1,8 @@
 //! Text output, drawn by annotate-snippets as rustc draws its errors: the source line, and a mark
 //! under the specifier.
 
+use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::path::Path;
 
@@ -11,6 +13,17 @@ use archangel_rules::{Diagnostic, Summary};
 
 /// Every diagnostic, each with its source line when the file can be read from `dir`.
 pub(crate) fn diagnostics(dir: &Path, diagnostics: &[Diagnostic], color: bool) -> String {
+    diagnostics_over(dir, &BTreeMap::new(), diagnostics, color)
+}
+
+/// Every diagnostic, each with its source line from `own`, the files held in memory by their
+/// path, or else from the file read from `dir`.
+pub(crate) fn diagnostics_over(
+    dir: &Path,
+    own: &BTreeMap<String, String>,
+    diagnostics: &[Diagnostic],
+    color: bool,
+) -> String {
     let renderer = if color {
         Renderer::styled()
     } else {
@@ -22,7 +35,10 @@ pub(crate) fn diagnostics(dir: &Path, diagnostics: &[Diagnostic], color: bool) -
             .file
             .as_ref()
             .filter(|_| diagnostic.span.is_some())
-            .and_then(|file| std::fs::read_to_string(dir.join(file)).ok());
+            .and_then(|file| match own.get(file) {
+                Some(text) => Some(Cow::Borrowed(text.as_str())),
+                None => std::fs::read_to_string(dir.join(file)).ok().map(Cow::Owned),
+            });
         out.push_str(&renderer.render(&[group(diagnostic, source.as_deref())]));
         out.push_str("\n\n");
     }
@@ -33,8 +49,14 @@ fn group<'a>(diagnostic: &'a Diagnostic, source: Option<&'a str>) -> Group<'a> {
     let title = Level::ERROR
         .primary_title(diagnostic.message.as_str())
         .id(diagnostic.code.as_str());
+    // @justified warning
+    // annotate-snippets panics on a span outside its text, so a span that does not mark a part of
+    // the text read, as when the file changed after the check, is shown without the snippet.
+    let marked =
+        |text: &str, (start, end): (u32, u32)| text.get(start as usize..end as usize).is_some();
     let mut group = match (&diagnostic.file, diagnostic.span, source) {
-        (Some(file), Some((start, end)), Some(text)) => {
+        (Some(file), Some(span), Some(text)) if marked(text, span) => {
+            let (start, end) = span;
             let mut annotation = AnnotationKind::Primary.span(start as usize..end as usize);
             if let Some(help) = &diagnostic.help {
                 annotation = annotation.label(help.as_str());
@@ -204,3 +226,6 @@ fn words(name: &str) -> String {
     }
     out
 }
+
+#[cfg(test)]
+mod tests;

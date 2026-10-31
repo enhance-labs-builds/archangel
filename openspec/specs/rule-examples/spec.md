@@ -25,6 +25,14 @@ command proves each rule with its examples, quickly and without a change to the 
 - **AND** archangel exits with status 1
 - **TEST** `crates/archangel/tests/test_command.rs` › "failed_example_gives_status_one"
 
+#### Scenario: A failed example shows its own text
+
+- **GIVEN** an empty repository file `src/shared/s.ts`
+- **AND** a rejected example that replaces it with a file whose import another rule rejects
+- **WHEN** the developer runs `archangel test` with the text format
+- **THEN** the failed example's diagnostic shows the example's import line with a mark under its specifier, not the repository file's text
+- **TEST** `crates/archangel/tests/test_command.rs` › "failed_example_shows_its_own_text_where_it_replaces_a_repository_file"
+
 ### Requirement: Examples never change the repository
 
 Archangel MUST put the files of an example into a check in memory. It MUST NOT write, change or delete a file on disk for an example. A file of an example MAY import files of the repository. A file of an example at the path of a repository file MUST replace that file for that example only.
