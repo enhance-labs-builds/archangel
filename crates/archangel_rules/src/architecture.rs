@@ -6,7 +6,7 @@ use archangel_config::{
     Classification, Condition, Config, ElementId, ElementMatcher, FileSet, ImportKinds, Pattern,
     RuleKind, Sentence, Term, package_matches,
 };
-use archangel_graph::{Import, ImportGraph, ImportKind, Resolution, Work};
+use archangel_graph::{Import, ImportGraph, ImportKind, Manifests, Resolution, Work};
 
 use crate::classes::{ClassKey, Classes, Lookup};
 
@@ -89,7 +89,8 @@ pub(crate) struct Edge<'a> {
     pub(crate) file: &'a str,
     pub(crate) import: &'a Import,
     pub(crate) resolution: &'a Resolution,
-    pub(crate) graph: Option<&'a ImportGraph>,
+    /// The package manifests the importing file sees, or `None` without the facts of a graph.
+    pub(crate) manifests: Option<Manifests<'a>>,
 }
 
 impl Architecture {
@@ -286,7 +287,7 @@ impl Architecture {
             file: from,
             import,
             resolution: &resolution,
-            graph,
+            manifests: graph.map(|graph| graph.manifests_with(None)),
         };
         let (broken, _) = self.evaluate(&mut classes, &edge);
         let mut rules: Vec<usize> = broken

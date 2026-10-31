@@ -60,6 +60,7 @@ impl Architecture {
     ) -> ExampleOutcome {
         let mut classes = Classes::new();
         let mut run = Run::new(self, graph, &mut classes, example_scope(graph, overlay));
+        run.manifests = graph.manifests_with(Some(overlay));
         run.watched = Some((rule, false));
         run.imports(work);
         let checks = std::mem::take(&mut run.checks);

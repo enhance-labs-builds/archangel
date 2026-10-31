@@ -60,6 +60,43 @@ Archangel MUST put the files of an example into a check in memory. It MUST NOT w
 - **AND** the next example sees the repository file again
 - **TEST** `crates/archangel_rules/tests/examples.rs` › "example_file_replaces_a_repository_file_for_that_example_only"
 
+### Requirement: An example sees its own package manifests first
+
+A `package.json` among an example's files, outside `node_modules`, MUST be a package manifest for that example. It replaces the repository's manifest at its path, and a file's nearest manifest MUST be found among the example's manifests laid over the repository's, as its files are laid over the repository's tsconfigs. An example without a manifest MUST see the repository's. An example MUST NOT add a workspace package, which is reached through its link on disk.
+
+#### Scenario: An example with its own manifest
+
+- **GIVEN** a repository whose `package.json` lists no dependency
+- **AND** a rejected example of a `dependency: 'dev'` rule whose files are a `package.json`, at the example's root or in `src`, that lists `vitest` under `devDependencies`, the installed package in `node_modules/vitest`, and `src/a.ts`, which imports `vitest`
+- **WHEN** the developer runs `archangel test`
+- **THEN** the `dependency: 'dev'` rule rejects the import and names the example's manifest, and a `dependency: 'undeclared'` rule does not
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "an_example_sees_its_own_manifest"
+
+#### Scenario: An example without a manifest
+
+- **GIVEN** a repository whose `package.json` lists `vitest` under `devDependencies`, with `vitest` installed
+- **AND** a rejected example of a `dependency: 'dev'` rule whose only file imports `vitest`
+- **WHEN** the developer runs `archangel test`
+- **THEN** the rule rejects the import and names the repository's `package.json`
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "an_example_without_a_manifest_sees_the_repository_manifest"
+
+#### Scenario: An example manifest replaces the repository's, and the nearest wins
+
+- **GIVEN** a repository whose `package.json` lists `vitest` under `dependencies`
+- **WHEN** an example's own `package.json` lists `vitest` under `devDependencies`
+- **THEN** the `dependency: 'dev'` rule rejects the example's import of `vitest`
+- **AND WHEN** an example instead has `src/package.json`, which lists nothing
+- **THEN** the `dependency: 'undeclared'` rule rejects the import and names `src/package.json`
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "an_example_manifest_replaces_the_repository_manifest_at_its_path_and_the_nearest_wins"
+
+#### Scenario: Which files of an example are manifests
+
+- **GIVEN** an example with a `package.json` at its root, a `src/package.json` that is not JSON, and `node_modules/vitest/package.json`
+- **WHEN** archangel lays the example over the repository
+- **THEN** the example's manifests are the two outside `node_modules`, and the one that is not JSON lists nothing
+- **AND** the nearest manifest of `src/a.ts` is `src/package.json`
+- **TEST** `crates/archangel_graph/tests/overlay.rs` › "an_overlays_manifests_are_those_the_walk_would_visit"
+
 ### Requirement: An example that does not parse fails
 
 When a file of an example has a syntax error, the example MUST fail with a `parse-failed` diagnostic for that file. A syntax error MUST NOT make a rejected example pass.

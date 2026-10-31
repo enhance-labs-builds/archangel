@@ -540,3 +540,122 @@ fn accepted_transitive_example_with_an_import_its_rule_counts_passes() {
         "the walk follows the example's import, and it reaches no database"
     );
 }
+
+/// The package `vitest`, installed, as files of a repository or of an example.
+fn vitest() -> [(&'static str, &'static str); 2] {
+    [
+        (
+            "node_modules/vitest/package.json",
+            r#"{ "name": "vitest", "main": "index.js" }"#,
+        ),
+        ("node_modules/vitest/index.js", ""),
+    ]
+}
+
+/// A manifest that lists `vitest` under `devDependencies`.
+const VITEST_FOR_DEVELOPMENT: &str = r#"{ "name": "app", "devDependencies": { "vitest": "1" } }"#;
+
+/// For a rejected example of a `dependency: 'dev'` rule beside a `dependency: 'undeclared'` rule,
+/// each violation the example gives, as (rule, message).
+fn dependency_violations(repo: &FixtureRepo, example: &Value) -> Vec<(String, String)> {
+    let forbid = |name: &str, kind: &str, examples: Value| {
+        json!({ "name": name, "files": "src", "mayNotImport": { "packages": ["*"] },
+                "dependency": kind, "examples": examples })
+    };
+    let config = json!({
+        "elements": { "src": "src/**" },
+        "rules": [
+            forbid("dev", "dev", json!({ "rejected": [example] })),
+            forbid("undeclared", "undeclared", json!({})),
+        ],
+    });
+    let (outcomes, _) = examples_of(&config, repo);
+    outcomes
+        .iter()
+        .flat_map(|o| &o.diagnostics)
+        .map(|d| (d.rule.clone().unwrap_or_default(), d.message.clone()))
+        .collect()
+}
+
+fn imports_vitest(manifests: &[(&str, &str)]) -> Value {
+    let installed = vitest();
+    let files = manifests
+        .iter()
+        .chain(&installed)
+        .map(|(path, text)| ((*path).to_owned(), Value::from(*text)))
+        .chain([(
+            "src/a.ts".to_owned(),
+            Value::from("import { x } from 'vitest';\n"),
+        )]);
+    Value::Object(files.collect())
+}
+
+fn listed_only_for_development(manifest: &str) -> Vec<(String, String)> {
+    vec![(
+        "dev".to_owned(),
+        format!(
+            "src/a.ts may not import \"vitest\", because files in \"src\" may not import the \
+             package `*` that {manifest} lists only under devDependencies"
+        ),
+    )]
+}
+
+#[test]
+fn an_example_sees_its_own_manifest() {
+    let repo = FixtureRepo::new()
+        .file("package.json", r#"{ "name": "app" }"#)
+        .file("src/b.ts", "export {};\n");
+    for manifest in ["package.json", "src/package.json"] {
+        let example = imports_vitest(&[(manifest, VITEST_FOR_DEVELOPMENT)]);
+        assert_eq!(
+            dependency_violations(&repo, &example),
+            listed_only_for_development(manifest),
+            "the example's own {manifest} lists vitest for development"
+        );
+    }
+}
+
+#[test]
+fn an_example_without_a_manifest_sees_the_repository_manifest() {
+    let repo = vitest()
+        .into_iter()
+        .fold(FixtureRepo::new(), |repo, (path, text)| {
+            repo.file(path, text)
+        })
+        .file(".gitignore", "node_modules/\n")
+        .file("package.json", VITEST_FOR_DEVELOPMENT)
+        .file("src/b.ts", "export {};\n");
+    let example = json!({ "src/a.ts": "import { x } from 'vitest';\n" });
+    assert_eq!(
+        dependency_violations(&repo, &example),
+        listed_only_for_development("package.json"),
+        "the repository's package.json lists vitest for development"
+    );
+}
+
+#[test]
+fn an_example_manifest_replaces_the_repository_manifest_at_its_path_and_the_nearest_wins() {
+    let repo = FixtureRepo::new()
+        .file(
+            "package.json",
+            r#"{ "name": "app", "dependencies": { "vitest": "1" } }"#,
+        )
+        .file("src/b.ts", "export {};\n");
+    let replaced = imports_vitest(&[("package.json", VITEST_FOR_DEVELOPMENT)]);
+    assert_eq!(
+        dependency_violations(&repo, &replaced),
+        listed_only_for_development("package.json"),
+        "the example's package.json replaces the repository's, which lists vitest for production"
+    );
+    let nearer = imports_vitest(&[("src/package.json", r#"{ "name": "src" }"#)]);
+    assert_eq!(
+        dependency_violations(&repo, &nearer),
+        [(
+            "undeclared".to_owned(),
+            "src/a.ts may not import \"vitest\", because files in \"src\" may not import the \
+             package `*` that src/package.json does not list"
+                .to_owned()
+        )],
+        "the example's src/package.json is nearer than the repository's package.json"
+    );
+}

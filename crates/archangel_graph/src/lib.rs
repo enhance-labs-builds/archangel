@@ -18,7 +18,7 @@ mod work;
 
 pub use files::{SOURCE_EXTENSIONS, is_source};
 pub use graph::{
-    GraphOptions, GraphProblem, GraphTimings, ImportGraph, Manifest, OverlayFiles,
+    GraphOptions, GraphProblem, GraphTimings, ImportGraph, Manifest, Manifests, OverlayFiles,
     PARSE_STACK_BYTES, SourceFile,
 };
 pub use imports::{

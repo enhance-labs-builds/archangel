@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use archangel_config::{Classification, Condition, ElementId, ElementKind, ImportKinds, Pattern};
 use archangel_graph::{
-    GraphProblem, Import, ImportGraph, Resolution, SourceFile, UnresolvedReason, Work,
+    GraphProblem, Import, ImportGraph, Manifests, Resolution, SourceFile, UnresolvedReason, Work,
 };
 
 use crate::architecture::{Architecture, Edge, End, Origin, covers};
@@ -204,6 +204,8 @@ impl<'a> Scope<'a> {
 pub(crate) struct Run<'a> {
     pub(crate) architecture: &'a Architecture,
     pub(crate) graph: &'a ImportGraph,
+    /// The package manifests the evaluated files see.
+    pub(crate) manifests: Manifests<'a>,
     pub(crate) classes: &'a mut Classes,
     pub(crate) scope: Scope<'a>,
     /// The rule whose example this run checks, and whether it considered an import of it.
@@ -237,6 +239,7 @@ impl<'a> Run<'a> {
         Self {
             architecture,
             graph,
+            manifests: graph.manifests_with(None),
             classes,
             scope,
             watched: None,
@@ -380,7 +383,7 @@ impl<'a> Run<'a> {
             file: site.file,
             import: site.import,
             resolution,
-            graph: Some(self.graph),
+            manifests: Some(self.manifests),
         };
         let (broken, evaluations) = self.architecture.evaluate(self.classes, &edge);
         work.rule_evaluations += evaluations;
@@ -443,6 +446,7 @@ impl<'a> Run<'a> {
         let texts = Texts {
             architecture: self.architecture,
             graph: self.graph,
+            manifests: self.manifests,
         };
         let parties = Parties {
             from,

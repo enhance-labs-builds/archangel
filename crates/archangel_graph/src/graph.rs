@@ -81,6 +81,9 @@ pub struct OverlayFiles {
     pub problems: Vec<GraphProblem>,
     /// The paths of the files that are not source, which are not parsed, in path order.
     pub others: Vec<String>,
+    /// What each package manifest among the files lists, by the folder that holds it: those the
+    /// walk would visit, so none in `node_modules`.
+    pub manifests: HashMap<String, Manifest>,
 }
 
 impl OverlayFiles {
@@ -469,18 +472,22 @@ impl ImportGraph {
     /// folder, among the manifests below the config folder.
     #[must_use]
     pub fn nearest_manifest(&self, file: &str) -> Option<&Manifest> {
-        let folders = file.match_indices('/').map(|(end, _)| &file[..end]).rev();
-        folders
-            .chain(std::iter::once(""))
-            .find_map(|folder| self.manifest_lists.get(folder))
+        self.manifests_with(None).nearest(file)
     }
 
     /// Whether a package of this name is a manifest of the repository, as in a workspace.
     #[must_use]
     pub fn is_workspace_package(&self, name: &str) -> bool {
-        self.manifest_lists
-            .values()
-            .any(|manifest| manifest.name.as_deref() == Some(name))
+        self.manifests_with(None).is_workspace_package(name)
+    }
+
+    /// The repository's package manifests, with the manifests of `overlay` laid over them.
+    #[must_use]
+    pub fn manifests_with<'a>(&'a self, overlay: Option<&'a OverlayFiles>) -> Manifests<'a> {
+        Manifests {
+            repository: &self.manifest_lists,
+            over: overlay.map(|overlay| &overlay.manifests),
+        }
     }
 
     /// Whether the walk would find the path, absolute or relative to the config folder, as a
@@ -665,8 +672,15 @@ impl ImportGraph {
         let mut allocator = Allocator::default();
         let mut collected = Collected::default();
         let mut others = Vec::new();
+        let mut manifests = HashMap::new();
         for (path, text) in files {
             if !files::is_source(Path::new(path)) {
+                if Path::new(path).file_name() == Some("package.json".as_ref())
+                    && self.would_visit(Path::new(path))
+                {
+                    let (folder, manifest) = manifest_of(path, text);
+                    manifests.insert(folder, manifest);
+                }
                 others.push(path.clone());
                 continue;
             }
@@ -680,7 +694,45 @@ impl ImportGraph {
             resolutions,
             problems,
             others,
+            manifests,
         }
+    }
+}
+
+/// The package manifests that the files of a check see: the repository's, and over them, those
+/// of an example, which replace the repository's manifest at their path.
+#[derive(Debug, Clone, Copy)]
+pub struct Manifests<'a> {
+    repository: &'a HashMap<String, Manifest>,
+    over: Option<&'a HashMap<String, Manifest>>,
+}
+
+impl<'a> Manifests<'a> {
+    /// The manifest in a folder, relative to the config folder.
+    fn in_folder(&self, folder: &str) -> Option<&'a Manifest> {
+        self.over
+            .and_then(|over| over.get(folder))
+            .or_else(|| self.repository.get(folder))
+    }
+
+    /// The nearest package manifest at or above the folder of a file, relative to the config
+    /// folder.
+    #[must_use]
+    pub fn nearest(&self, file: &str) -> Option<&'a Manifest> {
+        let folders = file.match_indices('/').map(|(end, _)| &file[..end]).rev();
+        folders
+            .chain(std::iter::once(""))
+            .find_map(|folder| self.in_folder(folder))
+    }
+
+    /// Whether a package of this name is a manifest of the repository, as in a workspace. An
+    /// example's manifests are not among them: a workspace package is reached through its link
+    /// in `node_modules`, which only the repository on disk has.
+    #[must_use]
+    pub fn is_workspace_package(&self, name: &str) -> bool {
+        self.repository
+            .values()
+            .any(|manifest| manifest.name.as_deref() == Some(name))
     }
 }
 
@@ -970,30 +1022,34 @@ fn read_manifests(root: &Path, manifests: &[String]) -> HashMap<String, Manifest
     manifests
         .iter()
         .map(|path| {
-            let value = std::fs::read_to_string(root.join(path))
-                .ok()
-                .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
-                .unwrap_or_default();
-            let names = |fields: &[&str]| -> BTreeSet<String> {
-                fields
-                    .iter()
-                    .filter_map(|field| value.get(field).and_then(serde_json::Value::as_object))
-                    .flat_map(|names| names.keys().cloned())
-                    .collect()
-            };
-            let folder = path.rfind('/').map_or("", |end| &path[..end]).to_owned();
-            let manifest = Manifest {
-                path: path.clone(),
-                name: value
-                    .get("name")
-                    .and_then(serde_json::Value::as_str)
-                    .map(str::to_owned),
-                dependencies: names(&["dependencies", "peerDependencies", "optionalDependencies"]),
-                development: names(&["devDependencies"]),
-            };
-            (folder, manifest)
+            let text = std::fs::read_to_string(root.join(path)).unwrap_or_default();
+            manifest_of(path, &text)
         })
         .collect()
+}
+
+/// What the manifest at `path`, relative to the config folder, lists, and the folder that holds
+/// it. A manifest that does not parse lists none.
+fn manifest_of(path: &str, text: &str) -> (String, Manifest) {
+    let value = serde_json::from_str::<serde_json::Value>(text).unwrap_or_default();
+    let names = |fields: &[&str]| -> BTreeSet<String> {
+        fields
+            .iter()
+            .filter_map(|field| value.get(field).and_then(serde_json::Value::as_object))
+            .flat_map(|names| names.keys().cloned())
+            .collect()
+    };
+    let folder = path.rfind('/').map_or("", |end| &path[..end]).to_owned();
+    let manifest = Manifest {
+        path: path.to_owned(),
+        name: value
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned),
+        dependencies: names(&["dependencies", "peerDependencies", "optionalDependencies"]),
+        development: names(&["devDependencies"]),
+    };
+    (folder, manifest)
 }
 
 #[cfg(test)]
