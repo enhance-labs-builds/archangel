@@ -1,6 +1,6 @@
 [package]
 name = "archangel"
-description = "Make architecture verifiable. Architecture rules for TypeScript, checked in milliseconds: imports, cycles, names, folder structure and exports."
+description = "Make architecture verifiable. Architecture tests for TypeScript, checked in milliseconds: imports, cycles, names, folder structure and exports."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

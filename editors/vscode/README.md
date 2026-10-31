@@ -1,6 +1,6 @@
 # Archangel for VS Code
 
-[Archangel](https://github.com/enhance-labs-builds/archangel) checks the architecture rules of a
+[Archangel](https://github.com/enhance-labs-builds/archangel) runs the architecture tests of a
 TypeScript or JavaScript repository: imports, import cycles, file and folder names, folder contents,
 and exports. This extension shows its diagnostics in the editor as you type, before you save, and offers
 each fix that archangel has checked as a quick fix.

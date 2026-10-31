@@ -4,7 +4,7 @@
 
 **Make architecture verifiable.**
 
-Architecture rules for TypeScript, checked in milliseconds.<br>
+Architecture tests for TypeScript, checked in milliseconds.<br>
 For your editor, your CI and your coding agents.
 
 [![npm](https://img.shields.io/npm/v/@enhance-eng/archangel?color=8250df&label=npm)](https://www.npmjs.com/package/@enhance-eng/archangel)
@@ -26,9 +26,10 @@ laptop. Without archangel, these rules need three tools.</sub>
 
 <br>
 
-Archangel checks the structure of your TypeScript code: which code imports which code, where files
-are, and what they export. You write each architecture decision as a rule. When the code breaks a
-rule, archangel tells you, or your coding agent, where, why, and what to do.
+Archangel tests the structure of your TypeScript code: which code imports which code, where files
+are, and what they export. You write each architecture decision as a test. Each test is a rule: some
+files, and one condition. When the code breaks a rule, archangel tells you, or your coding agent,
+where, why, and what to do.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/check-dark.svg">
@@ -91,8 +92,8 @@ and what each part exports. A reviewer sees a diff, not the graph of imports, so
 little with each change. Coding agents write code faster than people can review it, so it now
 decays faster.
 
-Archangel makes this part of your architecture a check. Tests check behavior. The type checker
-checks types. Archangel checks architecture.
+Archangel makes this part of your architecture testable. Unit tests check behavior. The type
+checker checks types. Archangel tests architecture.
 
 Archangel checks structure only. Use ESLint for code style and the TypeScript compiler for types.
 [docs/principles.md](docs/principles.md) gives our opinions, and the ideas that archangel comes from.

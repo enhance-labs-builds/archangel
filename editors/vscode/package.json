@@ -1,7 +1,7 @@
 {
   "name": "archangel-vscode",
   "displayName": "Archangel",
-  "description": "Make architecture verifiable. Architecture rules for TypeScript, checked as you type.",
+  "description": "Make architecture verifiable. Architecture tests for TypeScript, checked as you type.",
   "version": "0.1.0",
   "license": "MIT OR Apache-2.0",
   "repository": {
