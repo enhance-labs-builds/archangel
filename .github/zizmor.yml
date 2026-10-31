@@ -1,0 +1,3 @@
+rules:
+  self-repository:
+    disable: true # GitHub's `uses: $/…` form is newer than the pinned actionlint 1.7.12, which refuses it; turn this back on when actionlint reads it.

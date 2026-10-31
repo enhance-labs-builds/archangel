@@ -1,0 +1,19 @@
+{
+  "elements": {
+    "code": "src/vs/code/**",
+    "workbench": "src/vs/workbench/**",
+    "editor": "src/vs/editor/**",
+    "platform": "src/vs/platform/**",
+    "base": "src/vs/base/**"
+  },
+  "ignore": ["/*", "!/src/", "/src/*", "!/src/vs/", "**/test/"],
+  "rules": [
+    {
+      "kind": "layers",
+      "name": "layers",
+      "order": ["code", "workbench", "editor", "platform", "base"],
+      "reason": "VS Code's layering: base knows nothing above it, and each layer only those below"
+    },
+    { "files": "**", "noCycles": true }
+  ]
+}

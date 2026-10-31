@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Every check CI runs, in the same order and with the same settings. CI runs this script, so a
+# green run here is a green run there.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+export OPENSPEC_TELEMETRY=0
+
+run() {
+  printf '\n> %s\n' "$*"
+  "$@"
+}
+
+run cargo fmt --check
+run cargo clippy --all-targets --locked -- -D warnings
+run cargo test --locked
+# Again with the fail points compiled in, so every fault control runs.
+run cargo test --locked --workspace --features failpoints
+run node --test 'npm/archangel/test/*.test.mjs'
+run npx --no-install tsd npm/archangel --files test/types.test-d.ts
+# archangel checks the TypeScript of its own npm package, and proves its rules with their examples.
+run cargo run --quiet --locked -p archangel -- check --config npm/archangel.config.json
+run cargo run --quiet --locked -p archangel -- test --config npm/archangel.config.json
+run cargo deny check
+run zanity check . --fail-on warning
+run typos
+run actionlint
+run zizmor --pedantic .
+# Every Markdown file Git tracks or would track, so ignored folders such as node_modules stay out.
+git ls-files --cached --others --exclude-standard '*.md' > "${TMPDIR:-/tmp}/archangel-markdown"
+run lychee --offline --include-fragments --no-progress --files-from "${TMPDIR:-/tmp}/archangel-markdown"
+run npx --no-install openspec validate --all --strict --no-interactive

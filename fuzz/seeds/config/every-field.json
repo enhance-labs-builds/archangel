@@ -1,0 +1,7 @@
+{
+  "$schema": "x",
+  "elements": { "react": { "packages": ["react", "@types/*"] }, "a": ["src/a/**", "src/{x,y}/**"] },
+  "ignore": ["dist/"],
+  "allowUnresolved": { "virtual:*": "vite" },
+  "rules": [{ "files": ["a"], "mayNotImport": ["react"], "imports": "types", "examples": { "accepted": [{}], "rejected": [{ "src/a/x.ts": "import \"react\";" }] } }, { "kind": "entry", "element": "a", "files": ["index.ts"] }, { "files": "a", "mayOnlyBeImportedBy": [] }, { "files": "**", "noCycles": true, "reasn": 1 }]
+}

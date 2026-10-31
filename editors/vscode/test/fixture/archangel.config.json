@@ -1,0 +1,17 @@
+{
+  "elements": {
+    "app": "src/app/**",
+    "shared": "src/shared/**"
+  },
+  "rules": [
+    {
+      "kind": "layers",
+      "order": ["app", "shared"],
+      "reason": "Shared code must not know about the app",
+      "examples": {
+        "accepted": [{ "src/app/a.ts": "import '../shared/b';\n", "src/shared/b.ts": "" }],
+        "rejected": [{ "src/shared/a.ts": "import '../app/b';\n", "src/app/b.ts": "" }]
+      }
+    }
+  ]
+}

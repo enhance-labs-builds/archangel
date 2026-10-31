@@ -1,0 +1,18 @@
+# Deliberate misspellings: scenarios and tests use them to prove that archangel catches a typo in
+# a command, a field, an element or a package name.
+[default.extend-words]
+# A misspelled field in a config test, which the config fuzz target found.
+elemen = "elemen"
+chekc = "chekc"
+reasn = "reasn"
+shraed = "shraed"
+recat = "recat"
+reactt = "reactt"
+entitty = "entitty"
+entiy = "entiy"
+elemnts = "elemnts"
+lyers = "lyers"
+
+# The fuzz corpus is arbitrary input, not prose.
+[files]
+extend-exclude = ["fuzz/corpus/"]

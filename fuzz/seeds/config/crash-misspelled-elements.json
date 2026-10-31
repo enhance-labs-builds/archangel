@@ -1,0 +1,1 @@
+{"elemen1s":{"app":"src/app/**","feature":"src/features/{feature}/**"},"rules":[{"kind":"layers","order":["app","feature"]},{"kind":"isolate","element":"feature"}]}

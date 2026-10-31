@@ -1,0 +1,20 @@
+/target
+.claude/worktrees/
+.claude/settings.local.json
+.DS_Store
+node_modules/
+# The differential resolution fixture links a workspace package into node_modules, as a package
+# manager would.
+!crates/archangel_graph/tests/fixtures/resolution/workspace/node_modules/
+
+# cargo-fuzz writes its build, its corpus, its findings and its coverage here. The scheduled fuzz
+# job keeps the corpus in the Actions cache; the hand-written seeds, and each input that once
+# crashed a target, are committed in /fuzz/seeds/.
+/fuzz/corpus/
+/fuzz/target/
+/fuzz/artifacts/
+/fuzz/coverage/
+
+# cargo-mutants writes its results here.
+/mutants.out/
+/mutants.out.old/

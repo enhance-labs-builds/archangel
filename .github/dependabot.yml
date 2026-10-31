@@ -1,0 +1,22 @@
+# Actions, crates and npm packages are pinned to exact versions, so Dependabot proposes each update as a
+# reviewed PR instead of a tag moving underneath CI.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: npm
+    directories: [/, /editors/vscode]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7

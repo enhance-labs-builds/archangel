@@ -1,0 +1,37 @@
+{
+  "elements": {
+    "launcher": "archangel/bin/**",
+    "library": "archangel/lib/**",
+    "helper": "archangel/index.js",
+    "tests": "archangel/test/**"
+  },
+  "rules": [
+    {
+      "kind": "layers",
+      "name": "layers",
+      "order": ["tests", "launcher", "library"],
+      "reason": "The library knows nothing of the launcher that uses it, so the tests can import it alone",
+      "examples": {
+        "accepted": [{ "archangel/bin/x.js": "import '../lib/platform.js';\n" }],
+        "rejected": [{ "archangel/lib/x.js": "import '../bin/archangel.js';\n" }]
+      }
+    },
+    {
+      "name": "only-tests-import-the-helper",
+      "files": "helper",
+      "mayOnlyBeImportedBy": ["tests"],
+      "reason": "The launcher runs the binary and needs no config helper",
+      "examples": {
+        "accepted": [{ "archangel/test/x.test-d.ts": "import { defineConfig } from '../index.js';\n" }],
+        "rejected": [{ "archangel/bin/x.js": "import { defineConfig } from '../index.js';\n" }]
+      }
+    },
+    {
+      "files": "**",
+      "noCycles": true,
+      "examples": {
+        "rejected": [{ "archangel/lib/a.js": "import './b.js';\n", "archangel/lib/b.js": "import './a.js';\n" }]
+      }
+    }
+  ]
+}

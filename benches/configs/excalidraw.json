@@ -1,0 +1,15 @@
+{
+  "elements": {
+    "app": "excalidraw-app/**",
+    "excalidraw": "packages/excalidraw/**",
+    "element": "packages/element/**",
+    "math": "packages/math/**",
+    "common": "packages/common/**",
+    "utils": "packages/utils/**"
+  },
+  "ignore": ["examples/", "**/tests/", "**/*.test.*"],
+  "rules": [
+    { "kind": "layers", "name": "layers", "order": ["app", "excalidraw", "utils", "element", "math", "common"] },
+    { "files": "**", "noCycles": true }
+  ]
+}

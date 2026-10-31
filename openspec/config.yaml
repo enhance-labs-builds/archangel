@@ -1,0 +1,79 @@
+schema: archangel
+
+# Constraints that shape every artifact. They guide the writer and are never copied into a file.
+context: |
+  Where to learn the system before planning:
+  - README.md says what archangel is for and how a developer uses it.
+  - openspec/specs describes current behaviour, one capability per folder. openspec/glossary.md
+    defines the terms the specs use. Each scenario names the tests that prove it. When code or
+    tests disagree with a spec, name the conflict instead of choosing silently.
+  - Before the first change is archived there are no specs and no code. The brief is then the
+    only source, so state every requirement it gives in the change itself.
+
+  Project rules that every change obeys:
+  - Tests are the executable spec. Every requirement has scenarios, and every scenario becomes a test.
+  - Speed is what archangel is for. A change on the check path states the work it adds, as a
+    count that grows with files, imports, rules or edits, and a test holds that count. Wall-clock
+    time is never a test verdict. Benchmarks report it; tests count work.
+  - No silent gaps. Archangel never skips a file, drops an import, truncates output or stops at a
+    size or count without telling the developer. A file it cannot parse and an import it cannot
+    resolve are results the developer sees, not omissions.
+  - No plausible wrong answers. When archangel cannot decide something, it reports that as a named
+    outcome. It never guesses an element, a resolution or a fix, and it checks a suggested fix
+    before it offers it.
+  - A rule that cannot fire is a defect. Archangel reports a pattern that matches nothing and a
+    rule example that proves nothing, because a guard that checks nothing looks like one that works.
+  - Every artifact stands alone. No chat links, thread references or "as discussed". State the
+    brief's requirement in the text, and reference code by repository path.
+
+  Writing rules for every artifact. The reader knows TypeScript tooling but not this code:
+  - Put the summary first. Each file and each section opens with its point, then the detail.
+  - Start a sentence with what the reader already knows and end it with what is new.
+  - Make people and parts of the system the subjects of sentences, and their actions the verbs.
+    "The resolver finds the file", not "file resolution is performed".
+  - Define a term the first time it appears, in plain words. Then use that one term every time.
+  - Connect sentences. Words such as "because", "so" and "which" carry the reasoning, and
+    cutting them to shorten sentences makes the text harder to follow.
+  - Keep file paths and code identifiers out of explanations. design.md collects them in
+    "Where in the code". The proposal's Impact list and tasks.md may name them.
+  - Keep every hedge at its original strength. Never turn "may" into a fact.
+  - No marketing adjectives: seamless, robust, powerful, effortless, blazing.
+
+rules:
+  proposal:
+    - Name the brief or the GitHub issues the change answers, and state each requirement in plain words.
+    - Write Why and What Changes for a developer who would use archangel, not for one who knows its code.
+    - Keep it under one page. The reader decides from this file whether to read further.
+    - State what is out of scope.
+  specs:
+    - Cover failure and edge scenarios on the paths the change touches, not only the happy path.
+    - Each scenario names a concrete input and an observable outcome. "Works correctly" is not an outcome.
+    - End each scenario with one or more TEST lines that name the test that proves it, as
+      - **TEST** `<repository path>` › "<test name>". A scenario with no test gets
+      - **TEST** none. Name only a test that asserts the THEN outcome.
+    - Write in ASD-STE100 Simplified Technical English. Use MUST for each obligation, not SHALL.
+    - Write one instruction or one statement in each sentence. Use no more than 20 words in a
+      procedural sentence and no more than 25 words in a descriptive sentence.
+    - Use the active voice and the simple tenses (present, past, future). Do not use an -ing word
+      as a noun or adjective, unless it is part of a technical name.
+    - Use the approved STE meaning of each word, and one word for one meaning. Use the terms in
+      openspec/glossary.md, and add a new term there before a spec uses it.
+    - Use simple words. Write "use", not "utilize", and "start", not "initiate". Technical names
+      and product names are permitted.
+    - Do not make noun clusters of more than three words. Keep "the", "a" and "an" where they
+      belong; do not cut words to make a sentence shorter.
+    - Write requirement descriptions for a reader who knows TypeScript tooling but not this code.
+      Keep code identifiers out of them; TEST lines are the only place for repository paths.
+  design:
+    - End the Limits section with every limit on the affected path and why it drops no work
+      silently. If there are none, write "None found" and list the code paths searched.
+    - List every new abstraction (module, type, trait, crate, config option, domain term) and its
+      concrete uses in "Where in the code".
+  tasks:
+    - The first task group writes the tests, one per scenario, named after the scenario.
+    - Name the test file and kind for each test. The kinds are unit (inside a crate, including
+      property tests against a reference), differential (compares archangel with another tool on
+      the same input), fuzz (random input to a parser), integration (runs the archangel binary on
+      a fixture repository), editor (drives the language server), release (runs in the release
+      workflow on built packages) and benchmark (reports time, never decides a verdict).
+    - The last task is to run the tests the change touches, locally.

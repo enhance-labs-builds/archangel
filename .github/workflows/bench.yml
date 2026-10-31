@@ -1,0 +1,41 @@
+name: Benchmark
+
+# The benchmark records the duration of each stage on fixed repositories. It never fails on a
+# duration: a slower run is a number for people to read, not a red build.
+on:
+  schedule:
+    - cron: '7 6 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: bench
+  cancel-in-progress: false
+
+jobs:
+  bench:
+    name: Benchmark
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: hyperfine@2.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: scripts/bench
+      - name: Keep one result per repository
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bench
+          path: |
+            target/bench/*.json
+          if-no-files-found: error

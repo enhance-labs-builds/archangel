@@ -1,0 +1,1 @@
+{ "name": "@acme/lib", "version": "1.0.0", "exports": { ".": { "types": "./src/index.ts", "default": "./dist/index.js" }, "./sub": { "types": "./src/sub.ts", "default": "./dist/sub.js" } } }

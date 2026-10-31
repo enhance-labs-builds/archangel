@@ -1,0 +1,30 @@
+name: Something is wrong
+description: Archangel reports what it should not, misses what it should, crashes, or says something unclear.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: The smallest config and files that show it, and the command you ran.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: The output
+      description: With `--stats` if it is about speed.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: archangel --version, and your OS
+    validations:
+      required: true

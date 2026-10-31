@@ -1,0 +1,38 @@
+# cargo-mutants changes the code, one mutation at a time, and expects a test to fail for each.
+# A mutation no test catches is a gap in the tests. These are the only code it leaves alone.
+
+exclude_re = [
+  # Debug output is for people reading a panic, and no behaviour depends on it.
+  "impl Debug for",
+  "impl std::fmt::Debug for",
+  # Durations appear only in --stats, and no test may assert a duration.
+  "replace ImportGraph::timings -> GraphTimings with Default::default\\(\\)",
+  "replace Session::timings -> Timings with Default::default\\(\\)",
+  # oxc_resolver calls this only when its own walk of a symbolic link fails, which needs a path
+  # that exists but whose link cannot be read.
+  "replace <impl FileSystem for Overlay>::canonicalize -> io::Result<PathBuf> with Ok\\(Default::default\\(\\)\\)",
+  # An empty turn applied anyway changes no output and no work count: with a session, an empty
+  # change set publishes nothing; without one, opening again fails as it did until the disk changes.
+  "replace Turn::is_empty -> bool with false",
+  # The first file below a folder is the first path at or after "folder/", and no source or other
+  # file's path is "folder/" itself, so `<` and `<=` find the same file.
+  "archangel_engine/src/events\\.rs:.*: replace < with <= in folder$",
+  # When a resolve is already planned, or no folder is left to look at, the pass over the
+  # resolution inputs finds nothing to add, so skipping it on either changes nothing counted.
+  "replace \\|\\| with && in moved_folders",
+  # Windows only: cargo-mutants runs on Linux, where `cfg!(windows)` leaves this branch unused.
+  # The Windows CI job runs the folder tests that use it.
+  "archangel_engine/src/events\\.rs:.*: replace == with != in key$",
+  # Every list of choices has at least two, and for two or more `rest` is never empty, so the
+  # guard is always true already.
+  "archangel_config/src/rules\\.rs:.*: replace match guard !rest\\.is_empty\\(\\) with true in or_list$",
+  # Without an export or folder rule, the passes this skips evaluate no sentence and count no work.
+  "archangel_rules/src/structure\\.rs:.*: replace Evaluation<'e, '_>::any -> bool with true$",
+]
+
+# Test support and the fuzz harness are not product code; the tests that use them are the check.
+exclude_globs = ["crates/archangel_testkit/**", "fuzz/**"]
+
+# Run the tests with the fail points compiled in, so the fault controls catch mutations of the
+# work counts.
+additional_cargo_test_args = ["--features", "failpoints"]

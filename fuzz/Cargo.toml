@@ -1,0 +1,40 @@
+[package]
+name = "archangel-fuzz"
+description = "Fuzz targets for archangel's parsers: the config, patterns and exception comments."
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+# Its own workspace, so that the main workspace's stable builds never compile it.
+[workspace]
+
+[dependencies]
+archangel_config = { path = "../crates/archangel_config" }
+archangel_graph = { path = "../crates/archangel_graph" }
+archangel_rules = { path = "../crates/archangel_rules" }
+libfuzzer-sys = "0.4.10"
+
+[[bin]]
+name = "config"
+path = "fuzz_targets/config.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pattern"
+path = "fuzz_targets/pattern.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "exception"
+path = "fuzz_targets/exception.rs"
+test = false
+doc = false
+bench = false

@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc ccda370057df523ee0e6313ac5a74b01d151093e7ab0de37b4aa88fdf5c514b7 # shrinks to rules = [Object {"kind": String("entry"), "element": String("e2"), "files": Array [String("index.ts")], "imports": String("all")}], from = None, to = Some((2, 0, true)), typed = false

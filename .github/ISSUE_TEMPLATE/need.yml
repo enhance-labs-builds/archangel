@@ -1,0 +1,16 @@
+name: Something you need
+description: A rule, a command or an output archangel does not have yet.
+labels: [brief]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you need and why
+      description: The problem in your repository, not the solution. This becomes the brief a design answers.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do today instead
+      description: Another tool, a script, or nothing.

@@ -1,0 +1,110 @@
+name: Mutants
+
+# Every mutant of the whole code base weekly, and of a pull request's diff when CI calls this with
+# its base. The mutants are split into shards of about 30, each on its own runner, so a diff of any
+# size finishes within a shard's hour; a small pull request is one shard.
+on:
+  schedule:
+    - cron: '23 5 * * 0'
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      base:
+        description: The commit to diff against; empty mutates the whole code base
+        type: string
+        required: true
+
+permissions: {}
+
+# A newer push to the same branch, or a second weekly run, replaces the one in progress.
+concurrency:
+  group: mutants-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BASE: ${{ inputs.base }}
+
+jobs:
+  plan:
+    name: Count the mutants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      count: ${{ steps.plan.outputs.count }}
+      shards: ${{ steps.plan.outputs.shards }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-mutants@27.1.0
+      - id: plan
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ -n "$BASE" ]]; then
+            git diff "$BASE"...HEAD > "$RUNNER_TEMP/diff.patch"
+            args=(--in-diff "$RUNNER_TEMP/diff.patch")
+          fi
+          count=$(cargo mutants --list ${args[@]+"${args[@]}"} | wc -l | tr -d '[:space:]')
+          shards=$(( (count + 29) / 30 ))
+          {
+            echo "count=$count"
+            echo "shards=$shards"
+            echo "matrix=$(jq -cn --argjson n "$shards" '[range($n)]')"
+          } >> "$GITHUB_OUTPUT"
+          echo "$count mutants in $shards shards" >> "$GITHUB_STEP_SUMMARY"
+
+  shard:
+    name: Mutants ${{ matrix.shard }}
+    needs: plan
+    if: needs.plan.outputs.shards != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      # GitHub runs about 20 jobs at once per account, so a large diff leaves room for the rest of CI.
+      max-parallel: 16
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
+        with:
+          tool: cargo-mutants@27.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      # The resolution differential test asks the TypeScript compiler, from node_modules.
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Mutate this shard, and fail for each mutant that no test catches
+        env:
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ needs.plan.outputs.shards }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ -n "$BASE" ]]; then
+            git diff "$BASE"...HEAD > "$RUNNER_TEMP/diff.patch"
+            args=(--in-diff "$RUNNER_TEMP/diff.patch")
+          fi
+          cargo mutants ${args[@]+"${args[@]}"} --shard "$SHARD/$SHARDS" --no-shuffle --jobs 2
+      - name: Keep the list of mutants that no test caught
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutants-${{ matrix.shard }}
+          path: mutants.out/
+          if-no-files-found: ignore

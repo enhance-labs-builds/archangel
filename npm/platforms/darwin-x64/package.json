@@ -1,0 +1,25 @@
+{
+  "name": "@enhance-eng/archangel-darwin-x64",
+  "version": "0.0.0",
+  "description": "The archangel binary for darwin-x64, built for x86_64-apple-darwin. Install @enhance-eng/archangel, which depends on it.",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enhance-labs-builds/archangel.git",
+    "directory": "npm/platforms/darwin-x64"
+  },
+  "homepage": "https://github.com/enhance-labs-builds/archangel#readme",
+  "bugs": {
+    "url": "https://github.com/enhance-labs-builds/archangel/issues"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "bin/"
+  ],
+  "preferUnplugged": true
+}
