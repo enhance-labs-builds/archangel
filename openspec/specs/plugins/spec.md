@@ -9,7 +9,7 @@ like any other rule.
 
 ### Requirement: A plugin rule names its plugin's condition
 
-A rule MUST be able to use a plugin condition with `{ files, plugin: '<plugin>/<condition>', options }`. Archangel MUST validate `options` against the condition's JSON Schema before any check, and MUST refuse with `config-invalid` a rule that names a plugin or condition the config does not load, listing the conditions it does load.
+A rule MUST be able to use a plugin condition with `{ files, plugin: '<plugin>/<condition>', options }`. Archangel MUST validate `options` against the JSON Schema that the condition declares as `optionsSchema`, before any check, and MUST refuse with `config-invalid` a rule that names a plugin or condition the config does not load, listing the conditions it does load.
 
 #### Scenario: A misspelt condition
 
@@ -24,6 +24,24 @@ A rule MUST be able to use a plugin condition with `{ files, plugin: '<plugin>/<
 - **WHEN** archangel loads the config
 - **THEN** archangel gives `config-invalid` at the rule's `options`, saying `max` must be a number
 - **TEST** `crates/archangel_config/tests/validate.rs` › "plugin_options_are_checked_against_the_schema"
+
+### Requirement: A condition has only the fields archangel knows
+
+A condition MUST have only the fields `name`, `description`, `docs`, `reads`, `optionsSchema` and `check`. Archangel MUST refuse any other field with `config-invalid` at that field, saying the plugin's author must fix it. For a field named `options`, the message MUST say that the JSON Schema of the options is `optionsSchema`, because `options` are the values a rule passes to `check`.
+
+#### Scenario: A condition that names its schema options
+
+- **GIVEN** a plugin whose condition declares its JSON Schema as `options`
+- **WHEN** archangel loads the config
+- **THEN** archangel gives `config-invalid` at that condition's `options`, saying the schema is `optionsSchema`, and exits with status 2
+- **TEST** `crates/archangel/tests/plugins.rs` › "a_plugin_that_names_its_schema_options_stops_the_check"
+
+#### Scenario: A condition field archangel does not know
+
+- **GIVEN** a condition with the field `read`
+- **WHEN** archangel validates the config
+- **THEN** archangel gives `config-invalid` at that field, listing the fields a condition has
+- **TEST** `crates/archangel_config/tests/plugins.rs` › "a_condition_field_archangel_does_not_know_is_refused_with_the_fields_it_knows"
 
 ### Requirement: A plugin condition sees only what its filter covers
 

@@ -470,7 +470,7 @@ fn plugin_rules() -> Architecture {
         "elements": { "shared": "src/shared/**", "feature": "src/features/{feature}/**" },
         "selectors": { "test": "**/*.test.ts", "story": "**/*.stories.ts" },
         "plugins": { "team": { "schemaVersion": 1, "conditions": {
-            "no-barrels": { "description": "", "reads": ["exports"], "options": null },
+            "no-barrels": { "description": "", "reads": ["exports"], "optionsSchema": null },
         } } },
         "rules": [
             { "name": "no-stories", "files": "**", "mayNotImport": "story" },

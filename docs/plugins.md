@@ -1,84 +1,94 @@
 # Plugins
 
-A plugin adds conditions that you write in TypeScript. Use a plugin when the built-in conditions in
+A plugin lets you write your own rules in TypeScript. Use a plugin when the built-in conditions in
 [docs/rules.md](rules.md) cannot say what you want.
 
-## How a plugin works
+## How it works
 
-- A condition receives a **view** of the files that its rule is about. Each file in the view has its
-  path, its element, its captures and its selectors. It also has the facts that the condition asks
-  for: imports, importers or exports.
-- The condition returns **violations**. Archangel shows each violation like any other problem. Your
-  exceptions, your baseline and each output format apply to it.
-- Plugins run in the Node process that loads your config. They never run in archangel's own process.
+1. **Archangel makes a map of your code.** For each file, the map has its path, its element, what
+   it imports, what imports it, and what it exports.
+2. **A rule asks a question about part of the map.** For example: "Do files in `shared` import a
+   feature?" The built-in conditions, such as `mayNotImport`, are questions that archangel already
+   knows.
+3. **A plugin is a question that you write as a function.** Archangel gives your function the part
+   of the map that the rule is about. Your function gives back a list of problems.
 
-## Write a plugin
+## The parts of a condition
 
-This plugin limits the number of stores in each entity. A store is a file that ends in `.store.ts`.
-Put it in `plugins/team.ts`:
+A plugin has one or more **conditions**. A condition is an object with these fields:
+
+| Field | What it is |
+| --- | --- |
+| `name` | The name that a rule uses, for example `max-imports`. |
+| `description` | One sentence that says what the condition requires. |
+| `reads` | The facts that your function needs: `'imports'`, `'importers'` or `'exports'`. Archangel sends only these facts. |
+| `optionsSchema` | Optional. A JSON Schema for the settings that a rule can give. Archangel refuses a rule whose settings do not match it. |
+| `check` | Your function. Archangel calls it as `check(view, options)`. |
+
+`check(view, options)` gets two arguments:
+
+- **`view`** is the part of the map. `view.files` is a list of files. Each file is an object, for
+  example `{ path: 'src/a.ts', element: 'feature', imports: [...] }`.
+- **`options`** are the settings that the rule gives. If the rule has `options: { max: 5 }`, then
+  `options` is `{ max: 5 }`.
+
+`check` returns a list of problems. Each problem is `{ file, message }`.
+
+## A first plugin
+
+This plugin reports a file that imports more than `max` other files.
+
+**1. Write the plugin.** Put it in `plugins/team.ts`:
 
 ```ts
 import { defineCondition, definePlugin } from '@enhance-eng/archangel';
 
-const oneStorePerEntity = defineCondition({
-  name: 'one-store-per-entity',
-  description: 'Each entity has at most `max` stores.',
-  docs: 'https://example.com/team/one-store-per-entity',
-  // A JSON Schema. Archangel refuses a rule whose options do not match it.
-  options: {
+const maxImports = defineCondition({
+  name: 'max-imports',
+  description: 'A file imports at most `max` other files.',
+  reads: ['imports'],
+  optionsSchema: {
     type: 'object',
     properties: { max: { type: 'integer', minimum: 1 } },
     required: ['max'],
-    additionalProperties: false,
   },
-  // The facts that the condition reads. This one reads only paths and captures.
-  reads: [],
   check(view, options: { max: number }) {
-    const stores = new Map<string, string[]>();
-    for (const file of view.files) {
-      if (!file.path.endsWith('.store.ts')) continue;
-      const entity = file.captures.entity ?? '';
-      stores.set(entity, [...(stores.get(entity) ?? []), file.path]);
-    }
-    return [...stores.values()]
-      .filter((files) => files.length > options.max)
-      .flatMap((files) =>
-        files.map((file) => ({
-          file,
-          message: `${file} is one of ${files.length} stores in its entity, and an entity has at most ${options.max}`,
-        })),
-      );
+    return view.files
+      .filter((file) => file.imports.length > options.max)
+      .map((file) => ({
+        file: file.path,
+        message: `${file.path} has ${file.imports.length} imports, and the limit is ${options.max}`,
+      }));
   },
 });
 
-export default definePlugin({ name: 'team', schemaVersion: 1, conditions: [oneStorePerEntity] });
+export default definePlugin({ name: 'team', schemaVersion: 1, conditions: [maxImports] });
 ```
 
-## Use the plugin
-
-Load the plugin in your config with a name. A rule then uses the condition as
-`<name>/<condition>`, with its `options` and its examples:
+**2. Use it in a rule.** In `archangel.config.ts`, load the plugin with a name. Then write a rule
+with `plugin: '<plugin name>/<condition name>'`:
 
 ```ts
 import { defineConfig } from '@enhance-eng/archangel';
 import team from './plugins/team.ts';
 
 export default defineConfig({
-  elements: { entity: 'src/entities/{entity}/**' },
+  elements: { feature: 'src/features/{feature}/**' },
   plugins: { team },
   rules: ({ rule }) => [
     rule({
-      name: 'one-store',
-      files: 'entity',
-      plugin: 'team/one-store-per-entity',
-      options: { max: 1 },
-      reason: 'An entity keeps its state in one place',
+      name: 'small-files',
+      files: 'feature',
+      plugin: 'team/max-imports',
+      options: { max: 2 },
       examples: {
-        accepted: [{ 'src/entities/example/user.store.ts': 'export const user = 1;\n' }],
+        accepted: [{ 'src/features/a/x.ts': "import './y';", 'src/features/a/y.ts': '' }],
         rejected: [
           {
-            'src/entities/example/user.store.ts': 'export const user = 1;\n',
-            'src/entities/example/session.store.ts': 'export const session = 1;\n',
+            'src/features/a/x.ts': "import './y';\nimport './z';\nimport './w';",
+            'src/features/a/y.ts': '',
+            'src/features/a/z.ts': '',
+            'src/features/a/w.ts': '',
           },
         ],
       },
@@ -87,18 +97,51 @@ export default defineConfig({
 });
 ```
 
-Run `npx archangel test` to prove the rule. Then run `npx archangel check`. It reports each entity
-that has two stores.
+**3. Prove and run it.** `npx archangel test` checks the examples. `npx archangel check` then
+reports each file in a feature that has more than two imports.
 
-## What a violation can say
+## A larger example
 
-A violation names a file of the view, or a folder that contains a file of the view:
+This condition finds entities that have too many stores. A store is a file that ends in `.store.ts`.
+It reads no facts, because it needs only the paths and the captures.
+
+```ts
+const oneStorePerEntity = defineCondition({
+  name: 'one-store-per-entity',
+  description: 'Each entity has at most `max` stores.',
+  reads: [],
+  optionsSchema: {
+    type: 'object',
+    properties: { max: { type: 'integer', minimum: 1 } },
+    required: ['max'],
+  },
+  check(view, options: { max: number }) {
+    // Make a list of the stores of each entity.
+    const stores = new Map<string, string[]>();
+    for (const file of view.files) {
+      if (!file.path.endsWith('.store.ts')) continue;
+      const entity = file.captures.entity ?? '';
+      stores.set(entity, [...(stores.get(entity) ?? []), file.path]);
+    }
+    // Report each store of an entity that has too many.
+    return [...stores.values()]
+      .filter((files) => files.length > options.max)
+      .flatMap((files) =>
+        files.map((file) => ({ file, message: `${file} is one of ${files.length} stores in its entity` })),
+      );
+  },
+});
+```
+
+## What a problem can say
+
+A problem names a file of the view, or a folder that contains a file of the view:
 
 ```ts
 { file, message }
 ```
 
-It can also name an import. An exception comment above that import can then permit it:
+A problem can also name an import. An exception comment above that import can then permit it:
 
 ```ts
 { file, import: { specifier, occurrence }, message }
@@ -113,6 +156,9 @@ check fails, when:
 - a condition reports a file that is not in its view;
 - the plugin process stops.
 
+If a condition has a field that archangel does not know, archangel stops before the check and names
+the field.
+
 ## What a plugin prints
 
 Each line that a plugin prints goes to standard error, or to the editor's log, with the name of the
@@ -120,12 +166,13 @@ plugin.
 
 ## In the editor
 
-Archangel shows its own problems immediately. It shows the plugin's problems when Node answers.
+Archangel shows its own problems immediately. It shows the plugin's problems when the plugin answers.
+Plugins run in the Node process that loads your config, not in archangel's own process.
 
 ## Publish a plugin
 
 - Name the package `archangel-plugin-<name>` or `@scope/archangel-plugin`.
 - The types of the view are in `@enhance-eng/archangel`: `View`, `FileRecord`, `ImportRecord` and
   `ExportsRecord`.
-- A new field in the view does not change `schemaVersion`. So a plugin reads only the fields that it
-  knows, and a new release of archangel does not break it.
+- A new field in the view does not change `schemaVersion`. A plugin reads only the fields that it
+  knows, so a new release of archangel does not break it.

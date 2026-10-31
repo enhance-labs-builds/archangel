@@ -152,7 +152,7 @@ const rootOption = {
 };
 
 const condition = (name, description, reads, check) =>
-  defineCondition({ name, description, docs: `${DOCS}${name}`, options: rootOption, reads, check });
+  defineCondition({ name, description, docs: `${DOCS}${name}`, optionsSchema: rootOption, reads, check });
 
 const typoInLayerName = condition(
   'typo-in-layer-name',

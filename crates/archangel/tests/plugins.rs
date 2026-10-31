@@ -355,3 +355,36 @@ fn a_line_a_plugin_writes_to_standard_output_goes_to_standard_error() {
         found.stderr
     );
 }
+
+#[test]
+fn a_plugin_that_names_its_schema_options_stops_the_check() {
+    let repo = FixtureRepo::new()
+        .file("src/entities/user/index.ts", "export const user = 1;\n")
+        .file(
+            "old-plugin.mjs",
+            "export default { name: 'old', schemaVersion: 1, conditions: [{ name: 'stores', \
+             description: '', reads: [], options: { type: 'object' }, check: () => [] }] };\n",
+        )
+        .file(
+            "archangel.config.mjs",
+            "import old from './old-plugin.mjs';\n\
+             export default { elements: { entity: 'src/entities/{entity}/**' }, plugins: { old }, \
+             rules: [] };\n",
+        );
+    let found = run(&repo, &["check"]);
+    assert_eq!(
+        found.status, 2,
+        "the config cannot be used: {}",
+        found.stderr
+    );
+    assert!(
+        found
+            .stderr
+            .contains("plugins.old.conditions.stores.options")
+            && found
+                .stderr
+                .contains("the JSON Schema of its options is `optionsSchema`"),
+        "the problem names the field and its new name: {}",
+        found.stderr
+    );
+}

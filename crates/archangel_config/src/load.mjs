@@ -69,6 +69,8 @@ const builders = {
 
 const isObject = (value) => value !== null && typeof value === 'object';
 
+const CONDITION_FIELDS = ['name', 'description', 'docs', 'reads', 'optionsSchema', 'check'];
+
 /** A plugin as archangel validates it: its schema version and its conditions, without code. */
 const describe = (plugin) => ({
   schemaVersion: plugin?.schemaVersion ?? null,
@@ -80,7 +82,8 @@ const describe = (plugin) => ({
             description: condition?.description ?? '',
             docs: condition?.docs ?? null,
             reads: Array.isArray(condition?.reads) ? condition.reads : [],
-            options: condition?.options ?? null,
+            optionsSchema: condition?.optionsSchema ?? null,
+            unknown: isObject(condition) ? Object.keys(condition).filter((key) => !CONDITION_FIELDS.includes(key)) : [],
           },
         ]),
       )

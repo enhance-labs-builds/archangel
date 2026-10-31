@@ -5,12 +5,12 @@
 import { writeSync } from 'node:fs';
 import { connect } from 'node:net';
 
-const condition = (name, reads, options, check) => ({
+const condition = (name, reads, optionsSchema, check) => ({
   name,
   description: `The fixture condition ${name}.`,
   docs: `https://example.com/fixture/${name}`,
   reads,
-  options,
+  optionsSchema,
   check,
 });
 

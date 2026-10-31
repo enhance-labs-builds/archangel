@@ -20,8 +20,8 @@ fn team_config(rules: &Value) -> archangel_config::Config {
         &json!({
             "team": { "schemaVersion": 1, "conditions": {
                 "stores": { "description": "one store", "docs": "https://example.com/stores",
-                            "reads": ["imports", "importers"], "options": null },
-                "barrels": { "description": "", "reads": ["exports"], "options": null },
+                            "reads": ["imports", "importers"], "optionsSchema": null },
+                "barrels": { "description": "", "reads": ["exports"], "optionsSchema": null },
             } },
             "other": { "schemaVersion": 1, "conditions": {} },
         }),
@@ -191,6 +191,46 @@ fn plugins_that_are_not_an_object_of_plugins_are_refused() {
         (
             Some("plugins"),
             "must be an object of plugin names to plugins"
+        ),
+        "{problem:?}"
+    );
+}
+
+#[test]
+fn a_condition_that_names_its_schema_options_is_told_it_is_options_schema() {
+    let problem = loader_problem(&with_plugins(
+        &json!({ "team": { "schemaVersion": 1, "conditions": {
+            "stores": { "description": "", "reads": [], "optionsSchema": null, "unknown": ["options"] },
+        } } }),
+        &json!([]),
+    ));
+    assert_eq!(
+        (problem.field.as_deref(), problem.message.as_str()),
+        (
+            Some("plugins.team.conditions.stores.options"),
+            "the plugin \"team\" gives its condition `stores` the field `options`, which conditions \
+             do not have; the JSON Schema of its options is `optionsSchema`; report it to the \
+             plugin's author"
+        ),
+        "{problem:?}"
+    );
+}
+
+#[test]
+fn a_condition_field_archangel_does_not_know_is_refused_with_the_fields_it_knows() {
+    let problem = loader_problem(&with_plugins(
+        &json!({ "team": { "schemaVersion": 1, "conditions": {
+            "stores": { "description": "", "reads": [], "optionsSchema": null, "unknown": ["read"] },
+        } } }),
+        &json!([]),
+    ));
+    assert_eq!(
+        (problem.field.as_deref(), problem.message.as_str()),
+        (
+            Some("plugins.team.conditions.stores.read"),
+            "the plugin \"team\" gives its condition `stores` the field `read`, which conditions do \
+             not have; a condition has name, description, docs, reads, optionsSchema, check; report \
+             it to the plugin's author"
         ),
         "{problem:?}"
     );
