@@ -197,7 +197,7 @@ fn a_path_that_only_a_rule_pattern_matches_is_in_no_element() {
     let named: Vec<Vec<PatternId>> = config
         .rules
         .iter()
-        .map(|rule| rule.sentences[0].files.patterns().collect())
+        .map(|rule| rule.sentences[0].files.included_patterns())
         .collect();
     assert_eq!(
         named,

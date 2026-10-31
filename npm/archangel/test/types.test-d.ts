@@ -197,3 +197,75 @@ expectError(
     rules: [{ sentences: [{ folders: 'src/app/ui', mustNotExist: true }] }],
   }),
 );
+
+// "a config's own rule name cannot contain a slash, which separates a preset's name from its rule's"
+expectError(
+  defineConfig({
+    elements: { src: 'src/**' },
+    rules: [{ name: 'team/no-legacy', files: 'src/**', mayNotImport: 'src/legacy/**' }],
+  }),
+);
+expectError(
+  defineConfig({
+    elements: { src: 'src/**' },
+    rules: ({ rule }) => [rule({ name: 'team/no-legacy', files: 'src/**', mustNotExist: true })],
+  }),
+);
+expectError(
+  defineConfig({
+    elements: { app: 'src/app/**', shared: 'src/shared/**' },
+    rules: ({ layers }) => [layers(['app', 'shared'], { name: 'team/layers' })],
+  }),
+);
+expectError(
+  defineConfig({
+    elements: { feature: 'src/features/{feature}/**' },
+    rules: ({ isolate }) => [isolate('feature', { name: 'team/isolate' })],
+  }),
+);
+expectError(
+  defineConfig({
+    elements: { entity: 'src/entities/{entity}/**' },
+    rules: ({ entry }) => [entry('entity', 'index.ts', { name: 'team/entry' })],
+  }),
+);
+expectError(
+  defineConfig({
+    elements: { app: 'src/app/**' },
+    rules: [{ name: 'team/no-ui', sentences: [{ folders: 'src/app/ui', mustNotExist: true }] }],
+  }),
+);
+expectError(
+  defineConfig({
+    elements: { app: 'src/app/**' },
+    rules: [{ name: 'team/no-ui', folders: 'src/app/ui', mustNotExist: true }],
+  }),
+);
+expectError(
+  defineConfig({
+    elements: { app: 'src/app/**' },
+    plugins: { team },
+    rules: [{ name: 'team/one-store', files: 'app', plugin: 'team/one-store', options: { max: 1 } }],
+  }),
+);
+// The prefix of a preset the config extends names the rule it replaces; any other prefix does not.
+expectError(
+  defineConfig({
+    extends: [fsd({ root: 'src' }), nextjs()],
+    rules: [{ name: 'team/public-api', folders: 'src/*', mustContain: 'index.ts' }],
+  }),
+);
+expectError(
+  defineConfig({
+    extends: [fsd({ root: 'src', name: 'fsd-admin' })],
+    rules: [{ name: 'fsd/public-api', folders: 'src/*', mustContain: 'index.ts' }],
+  }),
+);
+defineConfig({
+  extends: [fsd({ root: 'src', name: 'fsd-admin' }), nextjs()],
+  rules: ({ rule }) => [
+    rule({ name: 'fsd-admin/public-api', folders: 'src/*', mustContain: 'index.ts' }),
+    rule({ name: 'nextjs/client-stays-client', files: 'src/**', mayNotImport: 'src/server/**' }),
+    rule({ name: 'no-legacy', files: 'src/**', mayNotImport: 'src/legacy/**' }),
+  ],
+});

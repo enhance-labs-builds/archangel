@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 
+use archangel_config::{Condition, Rule};
 use archangel_graph::{ImportGraph, OverlayFiles, Work};
 
 use crate::architecture::Architecture;
@@ -60,6 +61,7 @@ impl Architecture {
     ) -> ExampleOutcome {
         let mut classes = Classes::new();
         let mut run = Run::new(self, graph, &mut classes, example_scope(graph, overlay));
+        run.manifests = graph.manifests_with(Some(overlay));
         run.watched = Some((rule, false));
         run.imports(work);
         let checks = std::mem::take(&mut run.checks);
@@ -220,10 +222,8 @@ impl Judge<'_> {
                 )))
             }
             ExampleKind::Accepted if !considered => {
-                let message = format!(
-                    "\"{name}\" never looked at an import of this example, so accepting it proves \
-                     nothing; give the example an import between the elements the rule names"
-                );
+                let rule = &self.architecture.config.rules[self.rule];
+                let message = format!("\"{name}\" {}", unchecked(rule));
                 let mut diagnostic = Diagnostic::new(Code::ExampleProvesNothing, message);
                 diagnostic.rule = Some(name.clone());
                 Some(diagnostic)
@@ -236,6 +236,55 @@ impl Judge<'_> {
         let mut diagnostic = Diagnostic::new(Code::ExampleFailed, message);
         diagnostic.rule = Some(self.architecture.config.rules[self.rule].name.clone());
         diagnostic
+    }
+}
+
+/// Why an accepted example that its rule never looked at proves nothing, in the terms of what the
+/// rule looks at, and what to give the example.
+fn unchecked(rule: &Rule) -> &'static str {
+    let Some(sentence) = rule.sentences.first() else {
+        return "never looked at this example, so accepting it proves nothing";
+    };
+    let folders = sentence.folders.is_some();
+    match &sentence.condition {
+        Condition::MustNotExist if folders => {
+            "never looked at a folder of this example, and every folder it looks at breaks it, so \
+             no accepted example can prove it; keep only rejected examples"
+        }
+        Condition::MustNotExist => {
+            "never looked at a file of this example, and every file it looks at breaks it, so no \
+             accepted example can prove it; keep only rejected examples"
+        }
+        Condition::MustBeNamed(_) | Condition::MustContain(_) if folders => {
+            "never looked at a folder of this example, so accepting it proves nothing; give the \
+             example a file in a folder the rule names"
+        }
+        Condition::MustContain(_) => {
+            "never looked at an instance of this example, so accepting it proves nothing; give the \
+             example a file in an instance of the element the rule names"
+        }
+        Condition::MustBeNamed(_)
+        | Condition::MustExport(_)
+        | Condition::MayNotExport(_)
+        | Condition::MustOnlyReExport => {
+            "never looked at a file of this example, so accepting it proves nothing; give the \
+             example a file in the rule's files"
+        }
+        Condition::Plugin(_) => {
+            "never saw a file of this example, so accepting it proves nothing; give the example a \
+             file in the rule's files"
+        }
+        Condition::NoCycles => {
+            "never looked at an import of this example, so accepting it proves nothing; give the \
+             example an import between files in the rule's files"
+        }
+        Condition::MayNotImport(_)
+        | Condition::MayOnlyImport(_)
+        | Condition::MayOnlyBeImportedBy(_)
+        | Condition::Entry { .. } => {
+            "never looked at an import of this example, so accepting it proves nothing; give the \
+             example an import between the elements the rule names"
+        }
     }
 }
 

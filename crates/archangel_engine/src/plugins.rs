@@ -652,7 +652,7 @@ impl Plugins {
             }
             let rules = place.rules.clone();
             let importers = || {
-                let found = files.graph.importers(&file.path);
+                let found = overlay.importers(files.graph, &file.path);
                 found.into_iter().map(str::to_owned).collect()
             };
             let source = view::Source { file, resolutions };

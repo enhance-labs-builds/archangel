@@ -384,7 +384,12 @@ fn accepted_cycle_example_whose_own_files_import_nothing_proves_nothing() {
     let (outcomes, _) = examples(&rules, &repo);
     assert_eq!(
         failures(&outcomes),
-        [Some(proves_nothing("cycles"))],
+        [Some((
+            Code::ExampleProvesNothing,
+            "\"cycles\" never looked at an import of this example, so accepting it proves \
+             nothing; give the example an import between files in the rule's files"
+                .to_owned()
+        ))],
         "only the repository's b.ts has an import the search looked at"
     );
 }
@@ -539,4 +544,220 @@ fn accepted_transitive_example_with_an_import_its_rule_counts_passes() {
         [None],
         "the walk follows the example's import, and it reaches no database"
     );
+}
+
+/// The package `vitest`, installed, as files of a repository or of an example.
+fn vitest() -> [(&'static str, &'static str); 2] {
+    [
+        (
+            "node_modules/vitest/package.json",
+            r#"{ "name": "vitest", "main": "index.js" }"#,
+        ),
+        ("node_modules/vitest/index.js", ""),
+    ]
+}
+
+/// A manifest that lists `vitest` under `devDependencies`.
+const VITEST_FOR_DEVELOPMENT: &str = r#"{ "name": "app", "devDependencies": { "vitest": "1" } }"#;
+
+/// For a rejected example of a `dependency: 'dev'` rule beside a `dependency: 'undeclared'` rule,
+/// each violation the example gives, as (rule, message).
+fn dependency_violations(repo: &FixtureRepo, example: &Value) -> Vec<(String, String)> {
+    let forbid = |name: &str, kind: &str, examples: Value| {
+        json!({ "name": name, "files": "src", "mayNotImport": { "packages": ["*"] },
+                "dependency": kind, "examples": examples })
+    };
+    let config = json!({
+        "elements": { "src": "src/**" },
+        "rules": [
+            forbid("dev", "dev", json!({ "rejected": [example] })),
+            forbid("undeclared", "undeclared", json!({})),
+        ],
+    });
+    let (outcomes, _) = examples_of(&config, repo);
+    outcomes
+        .iter()
+        .flat_map(|o| &o.diagnostics)
+        .map(|d| (d.rule.clone().unwrap_or_default(), d.message.clone()))
+        .collect()
+}
+
+fn imports_vitest(manifests: &[(&str, &str)]) -> Value {
+    let installed = vitest();
+    let files = manifests
+        .iter()
+        .chain(&installed)
+        .map(|(path, text)| ((*path).to_owned(), Value::from(*text)))
+        .chain([(
+            "src/a.ts".to_owned(),
+            Value::from("import { x } from 'vitest';\n"),
+        )]);
+    Value::Object(files.collect())
+}
+
+fn listed_only_for_development(manifest: &str) -> Vec<(String, String)> {
+    vec![(
+        "dev".to_owned(),
+        format!(
+            "src/a.ts may not import \"vitest\", because files in \"src\" may not import the \
+             package `*` that {manifest} lists only under devDependencies"
+        ),
+    )]
+}
+
+#[test]
+fn an_example_sees_its_own_manifest() {
+    let repo = FixtureRepo::new()
+        .file("package.json", r#"{ "name": "app" }"#)
+        .file("src/b.ts", "export {};\n");
+    for manifest in ["package.json", "src/package.json"] {
+        let example = imports_vitest(&[(manifest, VITEST_FOR_DEVELOPMENT)]);
+        assert_eq!(
+            dependency_violations(&repo, &example),
+            listed_only_for_development(manifest),
+            "the example's own {manifest} lists vitest for development"
+        );
+    }
+}
+
+#[test]
+fn an_example_without_a_manifest_sees_the_repository_manifest() {
+    let repo = vitest()
+        .into_iter()
+        .fold(FixtureRepo::new(), |repo, (path, text)| {
+            repo.file(path, text)
+        })
+        .file(".gitignore", "node_modules/\n")
+        .file("package.json", VITEST_FOR_DEVELOPMENT)
+        .file("src/b.ts", "export {};\n");
+    let example = json!({ "src/a.ts": "import { x } from 'vitest';\n" });
+    assert_eq!(
+        dependency_violations(&repo, &example),
+        listed_only_for_development("package.json"),
+        "the repository's package.json lists vitest for development"
+    );
+}
+
+#[test]
+fn an_example_manifest_replaces_the_repository_manifest_at_its_path_and_the_nearest_wins() {
+    let repo = FixtureRepo::new()
+        .file(
+            "package.json",
+            r#"{ "name": "app", "dependencies": { "vitest": "1" } }"#,
+        )
+        .file("src/b.ts", "export {};\n");
+    let replaced = imports_vitest(&[("package.json", VITEST_FOR_DEVELOPMENT)]);
+    assert_eq!(
+        dependency_violations(&repo, &replaced),
+        listed_only_for_development("package.json"),
+        "the example's package.json replaces the repository's, which lists vitest for production"
+    );
+    let nearer = imports_vitest(&[("src/package.json", r#"{ "name": "src" }"#)]);
+    assert_eq!(
+        dependency_violations(&repo, &nearer),
+        [(
+            "undeclared".to_owned(),
+            "src/a.ts may not import \"vitest\", because files in \"src\" may not import the \
+             package `*` that src/package.json does not list"
+                .to_owned()
+        )],
+        "the example's src/package.json is nearer than the repository's package.json"
+    );
+}
+
+/// The end of the message for an accepted example that a rule never looked at.
+fn looked_at(what: &str, add: &str) -> String {
+    format!("never looked at {what} of this example, so accepting it proves nothing; {add}")
+}
+
+/// For `mustNotExist`, which every file or folder it looks at breaks.
+fn cannot_accept(what: &str) -> String {
+    format!(
+        "never looked at a {what} of this example, and every {what} it looks at breaks it, so no \
+         accepted example can prove it; keep only rejected examples"
+    )
+}
+
+const ADD_A_FILE: &str = "give the example a file in the rule's files";
+
+/// A rule about files, folders or instances of each kind that does not cover `src/app/a.ts`, and
+/// the end of the message that an accepted example of only that file gets.
+fn structure_rules_that_never_look_at_src_app() -> Vec<(Value, String)> {
+    let folder = "give the example a file in a folder the rule names";
+    let instance = "give the example a file in an instance of the element the rule names";
+    vec![
+        (
+            json!({ "files": "src/legacy/**", "mustNotExist": true }),
+            cannot_accept("file"),
+        ),
+        (
+            json!({ "folders": "src/legacy/*", "mustNotExist": true }),
+            cannot_accept("folder"),
+        ),
+        (
+            json!({ "files": "src/shared/**", "mustBeNamed": "kebab-case" }),
+            looked_at("a file", ADD_A_FILE),
+        ),
+        (
+            json!({ "folders": "src/shared/*", "mustBeNamed": "kebab-case" }),
+            looked_at("a folder", folder),
+        ),
+        (
+            json!({ "folders": "src/shared/*", "mustContain": "index.ts" }),
+            looked_at("a folder", folder),
+        ),
+        (
+            json!({ "files": "feature", "mustContain": "index.ts" }),
+            looked_at("an instance", instance),
+        ),
+    ]
+}
+
+/// An export or import rule of each kind that does not cover `src/app/a.ts`, and the end of the
+/// message that an accepted example of only that file gets.
+fn other_rules_that_never_look_at_src_app() -> Vec<(Value, String)> {
+    let between_files = "give the example an import between files in the rule's files";
+    let between_elements = "give the example an import between the elements the rule names";
+    vec![
+        (
+            json!({ "files": "src/shared/**", "mustExport": "{FileName}" }),
+            looked_at("a file", ADD_A_FILE),
+        ),
+        (
+            json!({ "files": "src/shared/**", "mayNotExport": "default" }),
+            looked_at("a file", ADD_A_FILE),
+        ),
+        (
+            json!({ "files": "src/shared/**", "mustOnlyReExport": true }),
+            looked_at("a file", ADD_A_FILE),
+        ),
+        (
+            json!({ "files": "src/shared/**", "noCycles": true }),
+            looked_at("an import", between_files),
+        ),
+        (
+            json!({ "files": "shared", "mayNotImport": "app" }),
+            looked_at("an import", between_elements),
+        ),
+    ]
+}
+
+#[test]
+fn an_accepted_example_its_rule_never_checks_is_told_what_the_rule_looks_at() {
+    let cases = structure_rules_that_never_look_at_src_app()
+        .into_iter()
+        .chain(other_rules_that_never_look_at_src_app());
+    for (mut rule, expected) in cases {
+        rule["name"] = json!("r");
+        rule["examples"] = json!({ "accepted": [{ "src/app/a.ts": "export const a = 1;\n" }] });
+        let (outcomes, _) = examples(&json!([rule]), &login());
+        assert_eq!(
+            failures(&outcomes),
+            [Some((
+                Code::ExampleProvesNothing,
+                format!("\"r\" {expected}")
+            ))],
+            "{rule}"
+        );
+    }
 }
