@@ -1,7 +1,18 @@
 {
   "name": "@enhance-eng/archangel",
   "version": "0.0.0",
-  "description": "Architecture rules for TypeScript, checked in milliseconds: layers, isolated features, entry files and no cycles.",
+  "description": "Architecture rules for TypeScript, checked in milliseconds: imports, cycles, names, folder structure and exports, with presets and plugins.",
+  "keywords": [
+    "architecture",
+    "lint",
+    "typescript",
+    "imports",
+    "boundaries",
+    "dependency-cruiser",
+    "feature-sliced-design",
+    "monorepo",
+    "language-server"
+  ],
   "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
