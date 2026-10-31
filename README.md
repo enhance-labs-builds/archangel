@@ -20,9 +20,6 @@ error[layers]: "shared" may not import "feature", an earlier layer, through "../
   = note: reason: Shared code must not depend on features
 ```
 
-> **Status:** the first release is almost ready. Until it is on npm, build archangel from source
-> (see [Install from source](#install-from-source)).
-
 ## Quick start
 
 These steps take about five minutes. You need Node 22.18 or later.
@@ -166,7 +163,7 @@ With Rust 1.93 or later, from a clone of this repository:
 cargo install --path crates/archangel
 ```
 
-After the first release, `cargo install archangel` also works.
+To install a release with Rust, run `cargo install archangel`.
 
 ## Contributing
 
