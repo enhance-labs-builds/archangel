@@ -20,6 +20,34 @@ error[layers]: "shared" may not import "feature", an earlier layer, through "../
   = note: reason: Shared code must not depend on features
 ```
 
+## How to think about archangel
+
+```mermaid
+flowchart LR
+  code["Your code"] --> map["A map of your code<br/>each file: its part,<br/>its imports, its exports"]
+  config["Your config<br/>the parts and the rules"] --> rules{"Each rule asks<br/>a question<br/>about the map"}
+  map --> rules
+  rules --> problems["Problems<br/>file, line, rule,<br/>reason, fix"]
+```
+
+Archangel reads your code one time and makes a map. For each file, the map shows which part of the
+code it is in, what it imports, what imports it, and what it exports.
+
+Your config gives names to the parts of your code, and it has rules. Each rule is a question about
+the map, for example: "Does a file in `shared` import a feature?" Each "yes" is a problem. Archangel
+shows the file, the line, the rule, your reason for the rule, and what to do.
+
+When you change a file, archangel changes only that part of the map. That is why it is fast enough
+for your editor.
+
+You need to know three words:
+
+| Word | What it is | Example |
+| --- | --- | --- |
+| **Element** | A part of your code that you name with a path pattern | `feature: 'src/features/{feature}/**'` |
+| **Rule** | A sentence about some files: the files, and one condition | `rule({ files: 'shared', mayNotImport: 'feature' })` |
+| **Example** | Code that a rule must accept or reject, which proves that the rule works | `rejected: [{ 'src/shared/a.ts': "import '../features/x';" }]` |
+
 ## Quick start
 
 These steps take about five minutes. You need Node 22.18 or later.
