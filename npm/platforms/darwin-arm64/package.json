@@ -1,6 +1,6 @@
 {
   "name": "@enhance-eng/archangel-darwin-arm64",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The archangel binary for darwin-arm64, built for aarch64-apple-darwin. Install @enhance-eng/archangel, which depends on it.",
   "license": "MIT OR Apache-2.0",
   "repository": {
