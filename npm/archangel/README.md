@@ -1,8 +1,10 @@
 # Archangel
 
-**Architecture rules for TypeScript.** You write down how your code is organized. Archangel tells
-you when the code breaks those rules, and what to do about it. It checks a large repository in about
-a second, so it can run in your editor as you type.
+**Make architecture verifiable.**
+
+Archangel checks the architecture rules of a TypeScript codebase. You write down how your code is
+organized. Archangel tells you when the code breaks those rules, and what to do about it. It checks
+a large repository in about a second, so it can run in your editor as you type.
 
 ```sh
 npm install --save-dev @enhance-eng/archangel
