@@ -1,7 +1,7 @@
 {
   "name": "archangel-vscode",
   "displayName": "Archangel",
-  "description": "Architecture rules for TypeScript, checked as you type: layers, isolated features, entry files and no cycles.",
+  "description": "Architecture rules for TypeScript, checked as you type: imports, cycles, names, folder structure and exports.",
   "version": "0.0.0",
   "license": "MIT OR Apache-2.0",
   "repository": {
