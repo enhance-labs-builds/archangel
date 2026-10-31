@@ -12,9 +12,11 @@ on:
 
 permissions: {}
 
+# A newer push to a pull request replaces its run. Each run on main finishes, so that the README's
+# badge shows the result of main, not a run that a later merge cancelled.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
