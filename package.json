@@ -7,7 +7,7 @@
   },
   "devDependencies": {
     "@feature-sliced/steiger-plugin": "0.8.1",
-    "@fission-ai/openspec": "1.14.3",
+    "@fission-ai/openspec": "1.15.0",
     "ajv": "8.20.0",
     "pluralize": "8.0.0",
     "steiger": "0.8.1",
