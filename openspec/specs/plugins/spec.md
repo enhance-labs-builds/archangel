@@ -132,6 +132,19 @@ A plugin rule MUST be proven by `archangel test` like any other rule: the condit
 - **THEN** the rule fails as `rule-unproven`
 - **TEST** `crates/archangel/tests/plugins.rs` › "a_plugin_rule_without_a_rejected_example_is_unproven"
 
+### Requirement: The record of an example file holds its importers in the example
+
+The record of an example file MUST list as importers the example files that import it and the repository files that import it, except those the example replaces.
+
+#### Scenario: The importers of an example file
+
+- **GIVEN** a plugin rule whose condition reads `importers` and rejects a file that has any, with the rejected example `{ 'src/shared/a.ts': "import './b'", 'src/shared/b.ts': '' }`
+- **AND** an accepted example that replaces the repository's only importer of `src/shared/s.ts` with a file that does not import it, beside its own `src/shared/s.ts`
+- **WHEN** the developer runs `archangel test`
+- **THEN** `src/shared/b.ts` has the importer `src/shared/a.ts` and the rejected example passes
+- **AND** `src/shared/s.ts` has no importers and the accepted example passes
+- **TEST** `crates/archangel_engine/tests/plugins.rs` › "an_example_files_importers_are_the_example_files_that_import_it"
+
 ### Requirement: A plugin that fails never passes in silence
 
 A condition that throws, a violation for a file outside the condition's view or for a folder that holds no file of it, and a plugin process that stops MUST each give one `plugin-failed` diagnostic that names the plugin, says what happened, and says the rule can be turned off with `off` or reported to the plugin's author; the check MUST fail. In the editor, the server MUST start the plugin process again on the next change.

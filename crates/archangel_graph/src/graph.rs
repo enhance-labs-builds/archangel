@@ -83,6 +83,36 @@ pub struct OverlayFiles {
     pub others: Vec<String>,
 }
 
+impl OverlayFiles {
+    /// The files whose imports resolve to `path`, directly, with these files laid over `graph`:
+    /// the files of the overlay that import it, and the repository files that import it and that
+    /// no file of the overlay replaces. Each once, in path order.
+    #[must_use]
+    pub fn importers<'a>(&'a self, graph: &'a ImportGraph, path: &str) -> Vec<&'a str> {
+        let replaced = |from: &str| self.files.iter().any(|file| file.path == from);
+        let imports_it = |resolutions: &[Resolution]| {
+            resolutions
+                .iter()
+                .any(|r| matches!(r, Resolution::File(target) if target == path))
+        };
+        let mut found: Vec<&str> = graph
+            .importers(path)
+            .into_iter()
+            .filter(|from| !replaced(from))
+            .chain(
+                self.files
+                    .iter()
+                    .zip(&self.resolutions)
+                    .filter(|(_, resolutions)| imports_it(resolutions))
+                    .map(|(file, _)| file.path.as_str()),
+            )
+            .collect();
+        found.sort_unstable();
+        found.dedup();
+        found
+    }
+}
+
 /// The graph of one repository.
 #[derive(Debug, Clone)]
 pub struct ImportGraph {
