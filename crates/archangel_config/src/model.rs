@@ -203,9 +203,44 @@ impl FileSet {
         })
     }
 
-    /// The patterns the set names itself, not through a selector.
-    pub fn patterns(&self) -> impl Iterator<Item = PatternId> + '_ {
-        self.terms.iter().filter_map(Term::pattern)
+    /// The patterns the set names itself, not through a selector, outside every `not`: those
+    /// whose files the set takes in rather than leaves out.
+    #[must_use]
+    pub fn included_patterns(&self) -> Vec<PatternId> {
+        // The index of the first term of each answer on the stack, so that a `not` knows which
+        // terms it negates.
+        let mut starts: Vec<usize> = Vec::new();
+        let mut negated = vec![false; self.terms.len()];
+        for (index, term) in self.terms.iter().enumerate() {
+            let start = match term {
+                Term::All(count) | Term::Any(count) => {
+                    let first = starts.len().saturating_sub(*count);
+                    let start = starts.get(first).copied().unwrap_or(index);
+                    starts.truncate(first);
+                    start
+                }
+                Term::Not => {
+                    let start = starts.pop().unwrap_or(index);
+                    for flag in negated.iter_mut().take(index).skip(start) {
+                        *flag = true;
+                    }
+                    start
+                }
+                Term::Pattern(_)
+                | Term::Element(_)
+                | Term::Instance { .. }
+                | Term::AnyElement
+                | Term::Directive(_)
+                | Term::Selector(_) => index,
+            };
+            starts.push(start);
+        }
+        self.terms
+            .iter()
+            .zip(negated)
+            .filter(|(_, negated)| !negated)
+            .filter_map(|(term, _)| term.pattern())
+            .collect()
     }
 }
 

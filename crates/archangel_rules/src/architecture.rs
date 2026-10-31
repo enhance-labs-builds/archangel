@@ -137,7 +137,8 @@ impl Architecture {
     }
 
     /// Each pattern a sentence writes inline must match a file, except in the files of a
-    /// `mustNotExist` rule, which pass by matching nothing.
+    /// `mustNotExist` rule, which pass by matching nothing, and inside a `not`, where leaving out
+    /// nothing changes nothing.
     fn report_inline(&mut self, rule: &str, sentence: &Sentence) {
         let side = sentence.condition.side().cloned().unwrap_or_default();
         let own =
@@ -146,7 +147,7 @@ impl Architecture {
             .into_iter()
             .chain(&side.files)
             .chain(sentence.options.stop_at.as_ref());
-        let patterns: Vec<_> = sets.flat_map(FileSet::patterns).collect();
+        let patterns: Vec<_> = sets.flat_map(FileSet::included_patterns).collect();
         for pattern in patterns {
             let set = self.set(&FileSet::of(Term::Pattern(pattern)));
             let origin = Origin::Inline(rule.to_owned());
