@@ -1,7 +1,7 @@
 {
   "name": "@enhance-eng/archangel",
   "version": "0.0.0",
-  "description": "Architecture rules for TypeScript, checked in milliseconds: imports, cycles, names, folder structure and exports, with presets and plugins.",
+  "description": "Make architecture verifiable. Architecture rules for TypeScript, checked in milliseconds: imports, cycles, names, folder structure and exports.",
   "keywords": [
     "architecture",
     "lint",

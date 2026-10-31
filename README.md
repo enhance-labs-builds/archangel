@@ -3,9 +3,11 @@
 [![CI](https://github.com/enhance-labs-builds/archangel/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/enhance-labs-builds/archangel/actions/workflows/ci.yml)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
 
-**Architecture rules for TypeScript.** You write down how your code is organized. Archangel tells
-you when the code breaks those rules, and what to do about it. It checks a large repository in about
-a second, so it can run in your editor as you type.
+**Make architecture verifiable.**
+
+Archangel checks the architecture rules of a TypeScript codebase. You write down how your code is
+organized. Archangel tells you when the code breaks those rules, and what to do about it. It checks
+a large repository in about a second, so it can run in your editor as you type.
 
 ```text
 error[layers]: "shared" may not import "feature", an earlier layer, through "../features/cart"
