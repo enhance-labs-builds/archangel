@@ -94,6 +94,30 @@ fn an_overlay_file_replaces_the_repository_file_at_its_path() {
 }
 
 #[test]
+fn a_files_importers_with_an_overlay_are_the_overlay_files_and_the_repository_files_it_keeps() {
+    let repo = FixtureRepo::new()
+        .file("src/b.ts", "export const b = 1;\n")
+        .file("src/c.ts", "export const c = 1;\n")
+        .file("src/kept.ts", "import { b } from './b';\n")
+        .file("src/replaced.ts", "import { b } from './b';\n");
+    let graph = graph(&repo);
+    let overlay = graph.overlay(
+        &files(&[
+            ("src/replaced.ts", "export const replaced = 1;\n"),
+            ("src/added.ts", "import { b } from './b';\n"),
+            ("src/elsewhere.ts", "import { c } from './c';\n"),
+        ]),
+        &mut Work::default(),
+    );
+    assert_eq!(
+        overlay.importers(&graph, "src/b.ts"),
+        ["src/added.ts", "src/kept.ts"],
+        "the overlay file that imports it, and the repository file the overlay does not replace; \
+         not the replaced file, which no longer imports it, nor the file that imports another"
+    );
+}
+
+#[test]
 fn an_overlay_parses_only_its_own_files() {
     let repo = FixtureRepo::new()
         .file("src/a.ts", "export const a = 1;\n")
