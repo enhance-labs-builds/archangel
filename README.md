@@ -22,31 +22,70 @@ error[layers]: "shared" may not import "feature", an earlier layer, through "../
 
 ## How to think about archangel
 
+**Architecture is a set of decisions about which code may depend on which code.** "Features do not
+import each other." "The UI does not talk to the database." "Shared code knows nothing about the
+app." These decisions are what keep a large codebase changeable.
+
+**A decision that nobody checks is a wish.** Each day, code moves a little away from it. A reviewer
+can stop some of it. But coding agents now write more code than a person can read, so an unchecked
+architecture decays faster than before.
+
+**Archangel makes each decision a check that a machine can do.** Tests verify behavior. The type
+checker verifies types. Archangel verifies architecture. It is fast enough to run on each change. The
+person or the agent that writes the code knows immediately when it breaks a decision, and what to do
+instead.
+
 ```mermaid
 flowchart LR
   code["Your code"] --> map["A map of your code<br/>each file: its part,<br/>its imports, its exports"]
-  config["Your config<br/>the parts and the rules"] --> rules{"Each rule asks<br/>a question<br/>about the map"}
+  config["Your decisions<br/>as rules"] --> rules{"Each rule asks<br/>a question<br/>about the map"}
   map --> rules
-  rules --> problems["Problems<br/>file, line, rule,<br/>reason, fix"]
+  rules --> problems["Problems<br/>file, line, rule,<br/>reason, what to do"]
 ```
 
-Archangel reads your code one time and makes a map. For each file, the map shows which part of the
-code it is in, what it imports, what imports it, and what it exports.
-
-Your config gives names to the parts of your code, and it has rules. Each rule is a question about
-the map, for example: "Does a file in `shared` import a feature?" Each "yes" is a problem. Archangel
-shows the file, the line, the rule, your reason for the rule, and what to do.
-
-When you change a file, archangel changes only that part of the map. That is why it is fast enough
-for your editor.
-
-You need to know three words:
+### Three words
 
 | Word | What it is | Example |
 | --- | --- | --- |
-| **Element** | A part of your code that you name with a path pattern | `feature: 'src/features/{feature}/**'` |
-| **Rule** | A sentence about some files: the files, and one condition | `rule({ files: 'shared', mayNotImport: 'feature' })` |
-| **Example** | Code that a rule must accept or reject, which proves that the rule works | `rejected: [{ 'src/shared/a.ts': "import '../features/x';" }]` |
+| **Element** | A part of your code, named by a path pattern. | `feature: 'src/features/{feature}/**'` |
+| **Rule** | One decision, written as a sentence: some files, and one condition. | `rule({ files: 'shared', mayNotImport: 'feature' })` |
+| **Example** | A small piece of code that proves a rule works. | see below |
+
+**Why examples?** A rule can be wrong and still pass. For example, if you type `src/feature/**`
+instead of `src/features/**`, the rule finds no files, and it shows "no problems" each time. An
+example is a small imaginary repository of two or three files, which you write in the rule. A
+`rejected` example is code that the rule must report. An `accepted` example is code that the rule
+must permit. `npx archangel test` makes each example in memory and checks it against its rule. If a
+rule cannot find the problem in its own rejected example, the rule is broken, and you know
+immediately. Examples test your rules, not your application. They also show a reader exactly what a
+rule forbids.
+
+```ts
+isolate('feature', {
+  examples: {
+    // A feature that imports a different feature: the rule must report this.
+    rejected: [{ 'src/features/cart/a.ts': "import '../login/b';", 'src/features/login/b.ts': '' }],
+  },
+}),
+```
+
+### Our opinions
+
+- **A rule that cannot fail is a defect.** So each rule needs a rejected example, a set of files
+  that is empty is an error, and archangel never skips a file without saying so.
+- **There are no warnings.** A rule is on or off. People ignore warnings, and an agent cannot know
+  which warnings matter.
+- **Each problem says what to do.** A message is an instruction for the next reader, which is often
+  an agent.
+- **Exceptions are visible.** An exception is a comment above one import, with a reason. A baseline
+  of old problems can only get smaller.
+- **Fast enough for each keystroke.** A check that runs only in CI comes too late to change how the
+  code is written.
+- **Structure, not style.** Archangel checks where code is and what it depends on. ESLint and the
+  type checker check the rest.
+
+[docs/principles.md](docs/principles.md) gives the reasons for each opinion, and the ideas that
+archangel comes from.
 
 ## Quick start
 
@@ -175,6 +214,7 @@ archangel numbers.
 
 | Page | What it tells you |
 | --- | --- |
+| [docs/principles.md](docs/principles.md) | What archangel believes about architecture, why, and where the ideas come from |
 | [docs/rules.md](docs/rules.md) | Elements, selectors, every condition, and how to prove a rule |
 | [docs/presets.md](docs/presets.md) | The Feature-Sliced Design and Next.js presets, and how to change them |
 | [docs/plugins.md](docs/plugins.md) | How to write your own conditions in TypeScript |
