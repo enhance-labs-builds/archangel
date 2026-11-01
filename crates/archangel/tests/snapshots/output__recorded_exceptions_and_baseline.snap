@@ -1,0 +1,130 @@
+---
+source: crates/archangel/tests/output.rs
+expression: all
+---
+$ archangel check
+status: 0
+checked 10 files and 6 imports: no problems
+  layers: 2 permitted by exceptions, 3 by the baseline
+
+$ archangel check --format json
+status: 0
+{
+  "schemaVersion": 1,
+  "diagnostics": [],
+  "summary": {
+    "files": 10,
+    "imports": 6,
+    "exceptions": {
+      "layers": 2
+    },
+    "baselined": {
+      "layers": 3
+    },
+    "permittedUnresolved": 0,
+    "unfollowed": 0,
+    "linksNotFollowed": [],
+    "nestedRepositories": [],
+    "presetNamesMatchingNothing": [],
+    "work": {
+      "filesFound": 10,
+      "filesRead": 10,
+      "bytesRead": 249,
+      "filesParsed": 10,
+      "importsFound": 6,
+      "resolutions": 6,
+      "filesClassified": 12,
+      "patternPasses": 12,
+      "ruleEvaluations": 6,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}
+
+$ archangel test
+status: 1
+error[rule-unproven]: the rule "layers" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: layers
+
+error[rule-unproven]: the rule "entry(entity)" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: entry(entity)
+
+0 examples, none failed; 2 rules without a rejected example
+
+$ archangel test --format json
+status: 1
+{
+  "schemaVersion": 1,
+  "examples": [],
+  "unproven": [
+    {
+      "code": "rule-unproven",
+      "rule": "layers",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"layers\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "rule-unproven",
+      "rule": "entry(entity)",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"entry(entity)\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
+  "summary": {
+    "passed": false,
+    "work": {
+      "filesFound": 0,
+      "filesRead": 0,
+      "bytesRead": 0,
+      "filesParsed": 0,
+      "importsFound": 0,
+      "resolutions": 0,
+      "filesClassified": 0,
+      "patternPasses": 0,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}
