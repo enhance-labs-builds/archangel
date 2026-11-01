@@ -5,7 +5,7 @@
 use std::fmt::Write;
 use std::path::Path;
 
-use archangel_config::{Condition, Rule, RuleKind};
+use archangel_config::{Condition, Rule, RuleKind, TableId};
 use archangel_engine::Session;
 use archangel_rules::{Reach, RuleReach};
 use serde_json::{Value, json};
@@ -184,21 +184,24 @@ fn notes(session: &Session, rule: &Rule, out: &mut String) {
 fn text(session: &Session, reach: &Reach) -> String {
     let rules = &session.architecture().config().rules;
     let mut blocks: Vec<String> = Vec::new();
-    let mut index = 0;
-    while let Some(first) = reach.rules.get(index) {
+    let mut shown: Vec<TableId> = Vec::new();
+    for first in &reach.rules {
         let rule = &rules[first.rule];
         let RuleKind::TableRow { table, .. } = &rule.kind else {
             blocks.push(plain_rule(session, rule, first));
-            index += 1;
             continue;
         };
-        let group: Vec<&RuleReach> = reach.rules[index..]
+        if shown.contains(table) {
+            continue;
+        }
+        shown.push(*table);
+        let group: Vec<&RuleReach> = reach
+            .rules
             .iter()
-            .take_while(|other| {
+            .filter(|other| {
                 matches!(&rules[other.rule].kind, RuleKind::TableRow { table: id, .. } if id == table)
             })
             .collect();
-        index += group.len();
         blocks.push(table_block(session, *table, &group));
     }
     blocks.extend(off_block(session));
@@ -216,11 +219,7 @@ fn plain_rule(session: &Session, rule: &Rule, reach: &RuleReach) -> String {
     out
 }
 
-fn table_block(
-    session: &Session,
-    table: archangel_config::TableId,
-    group: &[&RuleReach],
-) -> String {
+fn table_block(session: &Session, table: TableId, group: &[&RuleReach]) -> String {
     let config = session.architecture().config();
     let rules = &config.rules;
     let rows = config.tables[table.index()].rows.len() as u64;

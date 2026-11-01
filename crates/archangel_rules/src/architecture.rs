@@ -13,6 +13,8 @@ use crate::classes::{ClassKey, Classes, Lookup};
 /// The config, compiled.
 #[derive(Debug, Clone)]
 pub struct Architecture {
+    /// The config file, relative to the config folder, when the config has one on disk.
+    config_file: Option<String>,
     pub(crate) config: Config,
     pub(crate) matcher: ElementMatcher,
     /// Every set of files whose membership is part of a file's class.
@@ -41,6 +43,8 @@ pub(crate) struct Compiled {
     /// permits only the same instance of them.
     pub(crate) own_instance: Option<OwnInstance>,
     pub(crate) stop_at: Option<usize>,
+    /// Whether the sentence belongs to a table, which never holds the config file.
+    pub(crate) of_table: bool,
 }
 
 /// A rule side or an area, with the indices of its sets.
@@ -132,6 +136,7 @@ impl Architecture {
             config,
             matcher,
             sets: Vec::new(),
+            config_file: None,
             package_names: Vec::new(),
             sentences: Vec::new(),
             reported: Vec::new(),
@@ -186,6 +191,7 @@ impl Architecture {
             side: self.side(&side),
             area: sentence.options.within.as_ref().map(|area| self.side(area)),
             own_instance,
+            of_table: matches!(self.config.rules[rule].kind, RuleKind::TableRow { .. }),
             stop_at: sentence.options.stop_at.as_ref().map(|s| self.set(s)),
         }
     }
@@ -479,6 +485,19 @@ impl Architecture {
         compiled.side.holds(to)
     }
 
+    /// The architecture of a config at this path, relative to the config folder. The config file
+    /// is in no table.
+    #[must_use]
+    pub fn with_config_file(mut self, path: impl Into<String>) -> Self {
+        self.config_file = Some(path.into());
+        self
+    }
+
+    /// Whether a path is the config file.
+    pub(crate) fn is_config_file(&self, path: &str) -> bool {
+        self.config_file.as_deref() == Some(path)
+    }
+
     /// Whether a package's name is named by an inline package name.
     pub(crate) fn package_named(&self, index: usize, name: &str) -> bool {
         package_matches(&self.package_names[index], name)
@@ -532,6 +551,54 @@ impl Architecture {
         }
     }
 
+    /// Whether a rule judged one import: it looks at the two classes, and the import's own facts
+    /// are those the rule names. A rule about cycles follows each import between its files.
+    pub(crate) fn judges(&self, rule: usize, edge: &Edge<'_>, classes: &Classes) -> bool {
+        let (from, to) = (classes.key(edge.from.class), classes.key(edge.to.class));
+        self.sentences
+            .iter()
+            .filter(|compiled| compiled.rule == rule)
+            .any(|compiled| {
+                let sentence = &self.config.rules[rule].sentences[compiled.sentence];
+                match sentence.condition {
+                    Condition::NoCycles => in_files(compiled, from) && in_files(compiled, to),
+                    _ => {
+                        self.considers(rule, from, to)
+                            && crate::facts::hold(sentence, edge, classes)
+                    }
+                }
+            })
+    }
+
+    /// Whether a rule can judge an import between two classes, before the import's own facts.
+    pub(crate) fn may_judge(&self, rule: usize, from: &ClassKey, to: &ClassKey) -> bool {
+        self.considers(rule, from, to)
+            || self
+                .sentences
+                .iter()
+                .filter(|compiled| compiled.rule == rule)
+                .any(|compiled| {
+                    let sentence = &self.config.rules[rule].sentences[compiled.sentence];
+                    matches!(sentence.condition, Condition::NoCycles)
+                        && in_files(compiled, from)
+                        && in_files(compiled, to)
+                })
+    }
+
+    /// Whether an example's rule looked at an import. A table row counts only an import that its
+    /// limits apply to; another rule looks as it did in 0.1, before the import's own facts.
+    pub(crate) fn looks_at(&self, rule: usize, edge: &Edge<'_>, classes: &Classes) -> bool {
+        if matches!(self.config.rules[rule].kind, RuleKind::TableRow { .. }) {
+            self.judges(rule, edge, classes)
+        } else {
+            self.considers(
+                rule,
+                classes.key(edge.from.class),
+                classes.key(edge.to.class),
+            )
+        }
+    }
+
     pub(crate) fn test(&self, check: &Check, edge: &Edge<'_>, classes: &Classes) -> bool {
         let compiled = &self.sentences[check.sentence];
         let sentence = &self.config.rules[compiled.rule].sentences[compiled.sentence];
@@ -556,7 +623,14 @@ fn in_set(set: usize, class: &ClassKey) -> bool {
 
 /// Whether a file of this class is among a sentence's files.
 pub(crate) fn in_files(compiled: &Compiled, class: &ClassKey) -> bool {
-    in_set(compiled.files, class)
+    let config_file = matches!(
+        class,
+        ClassKey::File {
+            config_file: true,
+            ..
+        }
+    );
+    !(compiled.of_table && config_file) && in_set(compiled.files, class)
 }
 
 /// Whether a file of this class is among a sentence's own files.
@@ -569,7 +643,13 @@ fn different_instances(sentence: &Sentence, edge: &Edge<'_>) -> bool {
     let Condition::Entry { element, .. } = &sentence.condition else {
         return false;
     };
-    instances_differ(*element, edge)
+    let from = edge.from.classification.and_then(|c| c.of(*element));
+    let to = edge.to.classification.and_then(|c| c.of(*element));
+    match (from, to) {
+        (Some(from), Some(to)) => !from.same_root(to),
+        (None, None) => false,
+        _ => true,
+    }
 }
 
 /// Whether the two ends of an import are in different instances of an element, or only one of them

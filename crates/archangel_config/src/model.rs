@@ -115,6 +115,8 @@ pub struct Table {
     pub kinds: Option<KindPattern>,
     /// The files whose imports the table judges.
     pub files: FileSet,
+    /// Whether the config wrote no `files`, so the table judges the files of its rows.
+    pub default_files: bool,
     /// Each row key with the files of its name, in the order of the config.
     pub rows: Vec<(String, FileSet)>,
     /// Written examples, run against all the rows.
@@ -788,6 +790,8 @@ pub struct Rule {
     pub sentences: Vec<Sentence>,
     /// Why the team has the rule.
     pub reason: Option<String>,
+    /// Whether the config wrote the reason with `because`.
+    pub because: bool,
     /// Where to read more.
     pub link: Option<String>,
     /// Which imports the rule checks.

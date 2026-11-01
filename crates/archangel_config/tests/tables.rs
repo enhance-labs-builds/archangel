@@ -274,3 +274,27 @@ fn a_kind_pattern_that_cannot_mean_what_it_says_is_pattern_invalid() {
         "{message}"
     );
 }
+
+#[test]
+fn a_row_that_every_row_may_import_lists_and_may_not_import_itself_is_refused() {
+    let config = with_rules(&[table(
+        "t",
+        &json!({ "port": [], "entity": [] }),
+        &json!({ "kinds": KINDS, "everyRowMayImport": ["port"], "mayNotImportItself": ["port"] }),
+    )]);
+    let (message, _) = one_of(&config, ProblemCode::ConfigInvalid);
+    assert!(message.contains("everyRowMayImport"), "{message}");
+}
+
+#[test]
+fn a_rule_and_a_table_with_one_name_are_refused() {
+    let config = with_rules(&[
+        json!({ "name": "t", "files": "api", "mayNotImport": "shared" }),
+        table("t", &json!({ "port": [] }), &json!({ "kinds": KINDS })),
+    ]);
+    let (message, _) = one_of(&config, ProblemCode::RuleNameDuplicate);
+    assert!(
+        message.contains("\"t\"") || message.contains("`t`"),
+        "{message}"
+    );
+}

@@ -388,7 +388,7 @@ impl<'a> Run<'a> {
         };
         let (broken, evaluations) = self.architecture.evaluate(self.classes, &edge);
         work.rule_evaluations += evaluations;
-        self.watch(from_class, to_class, site.import);
+        self.watch(&edge);
         for sentence in broken {
             let violation = self.violation(sentence, from, to.as_ref(), site, (path, package));
             self.violations.push(violation);
@@ -416,15 +416,13 @@ impl<'a> Run<'a> {
     }
 
     /// Notes whether the rule whose example this run checks looked at an import.
-    fn watch(&mut self, from: u32, to: u32, import: &Import) {
+    fn watch(&mut self, edge: &Edge<'_>) {
         if let Some((rules, considered)) = &mut self.watched {
             *considered |= rules.iter().any(|rule| {
-                covers(self.architecture.config.rules[*rule].imports, import.kind)
-                    && self.architecture.considers(
-                        *rule,
-                        self.classes.key(from),
-                        self.classes.key(to),
-                    )
+                covers(
+                    self.architecture.config.rules[*rule].imports,
+                    edge.import.kind,
+                ) && self.architecture.looks_at(*rule, edge, self.classes)
             });
         }
     }
@@ -670,7 +668,7 @@ impl<'a> Run<'a> {
             }
             let files = rows
                 .iter()
-                .map(|(_, set)| self.classes.files_of_set(*set))
+                .map(|(_, set)| self.classes.table_files_of_set(*set))
                 .sum::<u64>();
             if files == 0 && (table.rows.is_empty() || !rows.is_empty()) {
                 self.table_checks_nothing(table);
@@ -680,7 +678,7 @@ impl<'a> Run<'a> {
                 let is_kind = table.rows.iter().any(|(key, files)| {
                     key == row && matches!(files.terms.as_slice(), [Term::Kind { .. }])
                 });
-                if is_kind && self.classes.files_of_set(*set) == 0 {
+                if is_kind && self.classes.table_files_of_set(*set) == 0 {
                     no_file.push(format!("{}.{row}", table.name));
                 }
             }
@@ -925,7 +923,32 @@ impl<'a> Run<'a> {
         self.empty_presets();
     }
 
-    /// A preset whose file elements together match no file: most likely a wrong root.
+    /// The sets of the rows of each table that a preset declares.
+    fn tables_of_preset(&self, preset: &str) -> Vec<usize> {
+        let architecture = self.architecture;
+        let prefix = format!("{preset}/");
+        architecture
+            .sentences
+            .iter()
+            .filter(|compiled| compiled.sentence == 0)
+            .filter_map(
+                |compiled| match &architecture.config.rules[compiled.rule].kind {
+                    RuleKind::TableRow {
+                        table,
+                        row: Some(_),
+                    } if architecture.config.tables[table.index()]
+                        .name
+                        .starts_with(&prefix) =>
+                    {
+                        Some(compiled.files)
+                    }
+                    _ => None,
+                },
+            )
+            .collect()
+    }
+
+    /// A preset whose file elements and tables together match no file: most likely a wrong root.
     fn empty_presets(&mut self) {
         for preset in &self.architecture.config.presets {
             let files: Vec<ElementId> = preset
@@ -939,7 +962,14 @@ impl<'a> Run<'a> {
                     )
                 })
                 .collect();
-            if files.is_empty() || files.iter().any(|&id| self.classes.files_of(id) > 0) {
+            let tables = self.tables_of_preset(&preset.name);
+            let tables_have_files = tables
+                .iter()
+                .any(|set| self.classes.table_files_of_set(*set) > 0);
+            if (files.is_empty() && tables.is_empty())
+                || tables_have_files
+                || files.iter().any(|&id| self.classes.files_of(id) > 0)
+            {
                 continue;
             }
             let root = if preset.root.is_empty() {

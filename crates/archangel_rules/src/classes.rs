@@ -16,6 +16,8 @@ pub(crate) enum ClassKey {
     File {
         elements: Vec<ElementId>,
         bits: Vec<bool>,
+        /// Whether the file is the config file, which is in no table.
+        config_file: bool,
     },
     /// A package: its elements and, for each inline package name, whether it names the package.
     Package {
@@ -34,6 +36,8 @@ struct FileClass {
     /// Whether the walk visited the file, as a source file or another, which the counts of each
     /// class hold.
     counted: bool,
+    /// Whether a table can hold the file: a source file that the walk visited, not the config file.
+    of_tables: bool,
 }
 
 /// The compiled config and the graph whose files are classified.
@@ -67,6 +71,7 @@ struct Placed<'p> {
     path: &'p str,
     directive: Option<&'p str>,
     counted: bool,
+    source: bool,
 }
 
 /// The classes of a check or a session, and the rule table cells of the pairs met so far.
@@ -79,6 +84,8 @@ pub struct Classes {
     /// The files the walk visited in each class. A file that only an import points to, such as
     /// one the ignore list leaves out, is in no count, because the walk never visits it.
     counts: Vec<u64>,
+    /// The files in each class that a table can hold.
+    table_counts: Vec<u64>,
     cells: HashMap<(u32, u32), Vec<Check>>,
     /// The files that the walk visited in two or more of the config's own parts, with the parts.
     overlaps: BTreeMap<String, Vec<ElementId>>,
@@ -106,6 +113,7 @@ impl Classes {
             self.overlaps.remove(&path);
             if let Some(file) = self.files.remove(&path) {
                 self.counts[file.class as usize] -= 1;
+                self.table_counts[file.class as usize] -= u64::from(file.of_tables);
             }
         }
         let lookup = Lookup::new(architecture, graph);
@@ -183,6 +191,7 @@ impl Classes {
             path: &file.path,
             directive: file.facts.as_ref().and_then(|f| f.directive.as_deref()),
             counted: false,
+            source: true,
         };
         self.place(architecture, &placed, work);
         self.known(&file.path)
@@ -216,6 +225,7 @@ impl Classes {
                 .and_then(|file| file.facts.as_ref())
                 .and_then(|facts| facts.directive.as_deref()),
             counted: source.is_some() || lookup.graph.is_some_and(|g| g.is_other(path)),
+            source: source.is_some(),
         };
         self.place(lookup.architecture, &placed, work);
     }
@@ -244,6 +254,8 @@ impl Classes {
             selectors: vec![false; architecture.config.selectors.len()],
         };
         let bits = set_bits(architecture, place);
+        let config_file = architecture.is_config_file(placed.path);
+        let of_tables = placed.counted && placed.source && !config_file;
         let class = self.intern(ClassKey::File {
             elements: found
                 .classification
@@ -252,6 +264,7 @@ impl Classes {
                 .map(|c| c.element)
                 .collect(),
             bits,
+            config_file,
         });
         if placed.counted {
             if found.overlap.is_empty() {
@@ -265,14 +278,17 @@ impl Classes {
             kinds,
             class,
             counted: placed.counted,
+            of_tables,
         };
         if let Some(old) = self.files.insert(placed.path.to_owned(), file)
             && old.counted
         {
             self.counts[old.class as usize] -= 1;
+            self.table_counts[old.class as usize] -= u64::from(old.of_tables);
         }
         if placed.counted {
             self.counts[class as usize] += 1;
+            self.table_counts[class as usize] += u64::from(of_tables);
         }
     }
 
@@ -284,6 +300,7 @@ impl Classes {
         self.index.insert(key.clone(), class);
         self.keys.push(key);
         self.counts.push(0);
+        self.table_counts.push(0);
         class
     }
 
@@ -302,6 +319,16 @@ impl Classes {
     /// The checks of a filled cell.
     pub(crate) fn cell(&self, from: u32, to: u32) -> &[Check] {
         self.cells.get(&(from, to)).map_or(&[], Vec::as_slice)
+    }
+
+    /// The element of a file with a class.
+    pub(crate) fn place_of(&self, path: &str) -> Option<&Classification> {
+        self.files.get(path)?.classification.as_ref()
+    }
+
+    /// The element of a package with a class.
+    pub(crate) fn package_place_of(&self, name: &str) -> Option<&Classification> {
+        self.packages.get(name)?.1.as_ref()
     }
 
     /// The place of a file with a class in a table's kind pattern.
@@ -343,6 +370,16 @@ impl Classes {
         self.keys
             .iter()
             .zip(&self.counts)
+            .filter(|(key, _)| matches!(key, ClassKey::File { bits, .. } if bits[set]))
+            .map(|(_, count)| count)
+            .sum()
+    }
+
+    /// The number of files in a set of files that a table can hold.
+    pub(crate) fn table_files_of_set(&self, set: usize) -> u64 {
+        self.keys
+            .iter()
+            .zip(&self.table_counts)
             .filter(|(key, _)| matches!(key, ClassKey::File { bits, .. } if bits[set]))
             .map(|(_, count)| count)
             .sum()

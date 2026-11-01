@@ -43,6 +43,74 @@ The reach MUST be the count of files in the rule's files, of imports it judged, 
 - **THEN** the output has an entry for each of the 300 rules
 - **TEST** `crates/archangel/tests/rules_command.rs` › "rules_prints_every_rule_with_no_elision"
 
+### Requirement: The reach of a rule follows the limits of the rule
+
+The reach MUST NOT count an import that a rule's `names`, `specifier`, `instance` or `dependency` leaves out, and that import MUST be listed as judged by no rule when no other rule judges it. An import between the files of a `noCycles` rule MUST count as judged. A table MUST print in one block, also when a config rule replaces one of its rows.
+
+#### Scenario: A limit that skips an import
+
+- **GIVEN** a table with `specifier: 'parent'`, and an import through an alias
+- **WHEN** the developer runs `archangel rules`
+- **THEN** the row counts 0 imports judged, and the import is in the list of imports that no rule judged
+- **TEST** `crates/archangel/tests/rules_command.rs` › "reach_does_not_count_an_import_that_a_limit_skips"
+
+#### Scenario: An import that a cycle rule follows
+
+- **GIVEN** a `noCycles` rule on `src/**`, and an import between two of its files
+- **WHEN** the developer runs `archangel rules`
+- **THEN** the import is not in the list of imports that no rule judged
+- **TEST** `crates/archangel/tests/rules_command.rs` › "reach_counts_an_import_that_no_cycles_follows"
+
+#### Scenario: A preset's row that a config rule replaces
+
+- **GIVEN** a preset table with three rows, and a config rule that replaces the middle row
+- **WHEN** the developer runs `archangel rules`
+- **THEN** the table has one block
+- **TEST** `crates/archangel/tests/rules_command.rs` › "a_table_stays_in_one_block_when_a_config_rule_replaces_a_row"
+
+### Requirement: A table without files says what its own rule covers
+
+The sentence of `<table>.every-file-has-a-kind` MUST NOT say that every file has a row on a table without `files`. It MUST say that a file with no kind, or in no row, is not checked here, and the list of what no rule judges MUST hold that file.
+
+#### Scenario: A file with no kind in a table without files
+
+- **GIVEN** a table with the kind pattern `src/{kind}/**` and no `files`, and the file `src/index.ts`
+- **WHEN** the developer runs `archangel rules`
+- **THEN** the rule says "a file with a kind has a row; a file with no kind is not checked here", and the list of files that no rule judges has `src/index.ts`
+- **TEST** `crates/archangel/tests/rules_command.rs` › "a_table_without_files_says_what_it_covers_and_lists_the_rest"
+
+### Requirement: A check error uses the word of the config and says what to do
+
+A rule written with `because` MUST print `because:` in text output, and a rule written with `reason` MUST print `reason:`. A `may-import` error MUST have one help line that says what to do. A rule's `files` that names nothing MUST NOT list an empty set of names or suggest a package under the new spellings.
+
+#### Scenario: A rule with because
+
+- **GIVEN** a rule written with `because`
+- **WHEN** it reports a violation
+- **THEN** the text output has `because:`
+- **TEST** `crates/archangel/tests/cli.rs` › "a_rule_written_with_because_prints_because"
+
+#### Scenario: A rule with reason
+
+- **GIVEN** a rule written with `reason`
+- **WHEN** it reports a violation
+- **THEN** the text output has `reason:`
+- **TEST** `crates/archangel/tests/cli.rs` › "a_rule_written_with_reason_prints_reason"
+
+#### Scenario: A row error
+
+- **GIVEN** the small-app fixture
+- **WHEN** the developer runs `archangel check`
+- **THEN** the error says to remove the import, or to move the code to a file whose row permits the import
+- **TEST** `crates/archangel/tests/cli.rs` › "a_row_error_says_what_to_do"
+
+#### Scenario: A rule that names a kind as its files
+
+- **GIVEN** a config with no parts, a table with the kind `routes`, and a rule with `files: 'routes'`
+- **WHEN** archangel loads the config
+- **THEN** the message says that a kind has a meaning only in its table, and suggests no package
+- **TEST** `crates/archangel/tests/cli.rs` › "an_unknown_name_in_a_config_with_no_names_does_not_list_nothing"
+
 ### Requirement: The rules command says which rules check nothing and where each rule comes from
 
 A rule or row with no file MUST say that it checks nothing, and name the name that has no file. A table's `every-file-has-a-kind` rule MUST count the files of the table. A preset rule MUST name its preset. A config rule that replaces a preset rule MUST name the rule that it replaces. A rule made by a builder MUST name the file and line of the builder call, in whichever file the call is, a helper module included. A rule written as a plain object MUST name the config file only.
@@ -149,6 +217,13 @@ With `--format json`, `archangel rules` MUST print the same content as the text 
 ### Requirement: Explain answers for any line of a statement and for each import on a line
 
 The line MAY be any line of the import statement. A line with two or more imports MUST give one block for each.
+
+#### Scenario: Any line of a statement after the specifier
+
+- **GIVEN** a file with `import data from './b.json'` and `with { type: 'json' }` on the next line, and `import(`, `'./c'` and `)` on three lines
+- **WHEN** the developer runs `archangel explain` on each of these lines
+- **THEN** the output explains the import of that statement
+- **TEST** `crates/archangel/tests/cli.rs` › "explain_finds_an_import_on_each_line_of_its_statement"
 
 #### Scenario: An import statement over two lines
 

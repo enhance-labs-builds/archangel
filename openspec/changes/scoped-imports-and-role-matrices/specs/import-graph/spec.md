@@ -65,3 +65,31 @@ The runtime or type mark of an import MUST follow what TypeScript emits for the 
 - **WHEN** archangel reads the file
 - **THEN** the import of `./config` is a type import
 - **TEST** `crates/archangel_graph/tests/imports.rs` › "imports_in_declaration_files_are_type_imports"
+
+## ADDED Requirements
+
+### Requirement: A new tsconfig takes effect in watch and the editor
+
+A tsconfig that appears at a path that the lookup of a file passed MUST make archangel resolve and mark that file's imports again, so that a session gives the answer of a full check.
+
+#### Scenario: A first tsconfig that sets verbatimModuleSyntax
+
+- **GIVEN** a session on a repository with no tsconfig, whose cycle exists only as an inline type import
+- **WHEN** `tsconfig.json` appears with `verbatimModuleSyntax: true`
+- **THEN** the session reports the cycle
+- **TEST** `crates/archangel_engine/tests/work.rs` › "a_new_tsconfig_with_verbatim_module_syntax_re_marks_imports_in_the_editor"
+
+#### Scenario: A nearer tsconfig
+
+- **GIVEN** a session on a repository whose root tsconfig sets `verbatimModuleSyntax: true`, with that cycle reported
+- **WHEN** `src/tsconfig.json` appears with `verbatimModuleSyntax: false`
+- **THEN** the session reports no cycle
+- **TEST** `crates/archangel_engine/tests/work.rs` › "a_nearer_new_tsconfig_takes_over_from_the_one_above_in_the_editor"
+
+#### Scenario: A tsconfig that gives an alias its target
+
+- **GIVEN** a session in which `@/a` does not resolve
+- **WHEN** `tsconfig.json` appears with a `paths` entry for `@/*`
+- **THEN** the import resolves to its file
+- **TEST** `crates/archangel_engine/tests/work.rs` › "a_new_tsconfig_with_paths_resolves_an_alias_in_the_editor"
+

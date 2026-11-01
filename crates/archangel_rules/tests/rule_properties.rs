@@ -249,6 +249,7 @@ fn import(kind: ImportKind) -> Import {
         form: ImportForm::Static,
         line: 1,
         statement_line: 1,
+        statement_end_line: 1,
         column: 1,
         span: (0, 0),
         utf16: (0, 0),
@@ -422,6 +423,7 @@ fn random_table() -> impl Strategy<Value = RandomTable> {
             // A row in `mayNotImportItself` that names itself is refused, so those lists stay apart.
             let itself: Vec<usize> = itself
                 .into_iter()
+                .filter(|key| !every.iter().any(|cell| CELLS[*cell] == ROW_KEYS[*key]))
                 .filter(|key| {
                     rows.iter().any(|(row, cells)| {
                         row == key && !cells.iter().any(|cell| CELLS[*cell] == ROW_KEYS[*key])
@@ -502,9 +504,22 @@ fn hand_config(table: &RandomTable) -> Value {
                 .collect();
             let captured = key == "e0";
             let refused = table.itself.iter().any(|other| ROW_KEYS[*other] == key);
-            // A row without a capture permits its own name everywhere, and so does a sentence's list.
-            if refused || !captured {
-                side.push(hand_name(key));
+            let lists_itself = side.contains(&hand_name(key));
+            let listed: Vec<String> = side.iter().filter(|cell| *cell != "x0").cloned().collect();
+            // The list permits the row's own name everywhere, and an `instance` sentence, which
+            // shares no code with a row's own-instance permission, then takes it back.
+            side.push(hand_name(key));
+            if captured && !refused && !lists_itself {
+                let mut target = vec![json!(hand_name(key)), json!({ "not": { "any": listed } })];
+                if listed.is_empty() {
+                    target.pop();
+                }
+                if let Some(area) = table.area {
+                    target.push(json!(CELLS[area]));
+                }
+                let only = json!({ "files": key, "mayOnlyImport": side, "within": area });
+                let other = json!({ "files": key, "mayNotImport": { "all": target }, "instance": "different" });
+                return json!({ "name": format!("t.{key}"), "sentences": [only, other] });
             }
             if refused {
                 let in_area = table.area.map_or_else(
@@ -544,6 +559,49 @@ fn broken_names(config: &Value, from: &str, target: Target<'_>) -> Vec<String> {
     names.dedup();
     names
 }
+
+/// A table of kinds with another capture in its pattern, and maybe `files`.
+fn captured_kinds_table(files: Option<&str>) -> Value {
+    let mut written = json!({
+        "kind": "mayImport", "name": "t",
+        "rows": { "k0": ["k1"], "k1": [] },
+        "kinds": "{x}/*.{kind}.ts",
+    });
+    if let Some(files) = files {
+        written["files"] = json!(files);
+    }
+    json!({ "rules": [written] })
+}
+
+/// The rules that the design says that table means, written by hand with paths: nothing in them
+/// uses a capture, so they share no code with a kind's instance.
+fn captured_kinds_by_hand(files: Option<&str>) -> Value {
+    let row = |kind: &str, listed: &[&str]| {
+        let within = |pattern: String| match files {
+            Some(files) => json!({ "all": [pattern, files] }),
+            None => json!(pattern),
+        };
+        let mut permitted: Vec<String> = listed.iter().map(|k| format!("*/*.{k}.ts")).collect();
+        permitted.push(format!("*/*.{kind}.ts"));
+        let others = json!({
+            "files": within(format!("*/*.{kind}.ts")),
+            "mayNotImport": { "all": ["**", { "not": { "any": permitted } }] },
+        });
+        let a_to_b = json!({ "files": within(format!("a/*.{kind}.ts")), "mayNotImport": format!("b/*.{kind}.ts") });
+        let b_to_a = json!({ "files": within(format!("b/*.{kind}.ts")), "mayNotImport": format!("a/*.{kind}.ts") });
+        json!({ "name": format!("t.{kind}"), "sentences": [others, a_to_b, b_to_a] })
+    };
+    json!({ "rules": [row("k0", &["k1"]), row("k1", &[])] })
+}
+
+const CAPTURED_FILES: [&str; 6] = [
+    "a/f.k0.ts",
+    "a/g.k1.ts",
+    "b/f.k0.ts",
+    "b/g.k1.ts",
+    "other/f.ts",
+    "plain.ts",
+];
 
 const TABLE_FILES: [&str; 8] = [
     "a/i0/f.k0.ts",
@@ -588,6 +646,18 @@ proptest! {
         prop_assert_eq!(
             broken_names(&table_config(&table), from, target),
             broken_names(&hand_config(&table), from, target)
+        );
+    }
+
+    #[test]
+    fn a_table_with_files_and_a_captured_kind_agrees_with_one_rule_per_row(
+        from in prop::sample::select(CAPTURED_FILES.to_vec()),
+        to in prop::sample::select(CAPTURED_FILES.to_vec()),
+        files in prop::option::of(prop::sample::select(vec!["a/**", "b/*.k0.ts"])),
+    ) {
+        prop_assert_eq!(
+            broken_names(&captured_kinds_table(files), from, Target::File(to)),
+            broken_names(&captured_kinds_by_hand(files), from, Target::File(to))
         );
     }
 

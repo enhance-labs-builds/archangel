@@ -167,13 +167,13 @@ fn read_rules(
         rules_field(part, names, &mut found, problems);
     }
     names.scope = Placement::default();
-    check_unique_names(&found.preset, problems);
+    check_unique_names(&found.preset, &found.tables, problems);
     let own: Vec<Rule> = found
         .config
         .iter()
         .map(|(rule, _, _)| rule.clone())
         .collect();
-    check_unique_names(&own, problems);
+    check_unique_names(&own, &found.tables, problems);
     found
 }
 
@@ -402,8 +402,13 @@ fn declared_as(source: &ConfigPart<'_>, name: &str) -> Option<&'static str> {
 /// Why no import can ever count as this name of an externals set: archangel records the package
 /// that an import resolves to, under the `node:` name for a built-in module.
 fn never_matches(name: &str) -> Option<String> {
-    if name.starts_with("node:") {
-        return None;
+    if let Some(built_in) = name.strip_prefix("node:") {
+        let known = name.contains('*')
+            || nodejs_built_in_modules::BUILTINS.contains(&built_in)
+            || nodejs_built_in_modules::BUILTINS_WITH_MANDATORY_NODE_PREFIX.contains(&built_in);
+        return (!known).then(|| {
+            format!("`{name}` is not a Node built-in module, so no import can be this name")
+        });
     }
     if nodejs_built_in_modules::BUILTINS.contains(&name) {
         return Some(format!(
@@ -756,9 +761,19 @@ pub fn nearest<'n>(name: &str, known: &[&'n str]) -> Option<&'n str> {
         .map(|(_, candidate)| candidate)
 }
 
-fn check_unique_names(rules: &[Rule], problems: &mut Vec<ConfigProblem>) {
+fn check_unique_names(rules: &[Rule], tables: &[Table], problems: &mut Vec<ConfigProblem>) {
     let mut seen: Vec<&str> = Vec::new();
     for rule in rules {
+        if tables.iter().any(|table| table.name == rule.name) {
+            problems.push(ConfigProblem::new(
+                ProblemCode::RuleNameDuplicate,
+                format!(
+                    "a rule and a table are named `{}`; give each its own name, because `off` \
+                     refers to both by name",
+                    rule.name
+                ),
+            ));
+        }
         if seen.contains(&rule.name.as_str()) {
             problems.push(ConfigProblem::new(
                 ProblemCode::RuleNameDuplicate,

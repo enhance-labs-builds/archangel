@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use archangel_config::{Condition, Rule, RuleKind, TableId};
 use archangel_graph::{Import, ImportGraph, Resolution, SourceFile, Work};
 
-use crate::architecture::{Architecture, covers, in_files};
+use crate::architecture::{Architecture, Edge, End, covers, in_files};
 use crate::check::Report;
 use crate::classes::{ClassKey, Classes, Lookup};
 
@@ -216,12 +216,43 @@ impl Tally<'_> {
         let classes = &self.classes;
         let of_pair = self.judges.entry((from, to)).or_insert_with(|| {
             (0..architecture.config.rules.len())
-                .filter(|rule| architecture.considers(*rule, classes.key(from), classes.key(to)))
+                .filter(|rule| architecture.may_judge(*rule, classes.key(from), classes.key(to)))
                 .collect()
         });
+        let target = match resolution {
+            Resolution::File(to) => classes.place_of(to),
+            Resolution::Package(name) => classes.package_place_of(name),
+            Resolution::Unresolved(_) => None,
+        };
+        let edge = Edge {
+            from: End {
+                class: from,
+                classification: classes.place_of(path),
+                path: Some(path),
+                package: None,
+            },
+            to: End {
+                class: to,
+                classification: target,
+                path: match resolution {
+                    Resolution::File(to) => Some(to.as_str()),
+                    _ => None,
+                },
+                package: match resolution {
+                    Resolution::Package(name) => Some(name.as_str()),
+                    _ => None,
+                },
+            },
+            file: path,
+            import,
+            resolution,
+            manifests: Some(self.graph.manifests_with(None)),
+        };
         let mut in_a_rule = false;
         for rule in of_pair.iter() {
-            if covers(architecture.config.rules[*rule].imports, import.kind) {
+            if covers(architecture.config.rules[*rule].imports, import.kind)
+                && architecture.judges(*rule, &edge, classes)
+            {
                 self.imports[*rule] += 1;
                 in_a_rule = true;
             }

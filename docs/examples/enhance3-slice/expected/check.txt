@@ -4,8 +4,9 @@ error[may-import]: entity may not import use-case, through "../application/save.
 3 | import { save } from '../application/save.use-case';
   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ entity may import only value-object, domain-event, specification, policy, error, types, consts, apps/api/src/shared/result.ts, and itself
   |
+  = help: remove the import, or move the code to a file whose row permits the import
   = note: rule: domain.entity
-  = note: reason: Each kind of domain file depends only on the kinds below it.
+  = note: because: Each kind of domain file depends only on the kinds below it.
 
 error[may-import]: contract may not import web, through "../../../apps/web/src/main": contract may import only artwork-paint, canvas-format, ui, and itself
  --> packages/contract/src/canvas.ts:1:22
@@ -13,8 +14,9 @@ error[may-import]: contract may not import web, through "../../../apps/web/src/m
 1 | import { main } from '../../../apps/web/src/main';
   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ contract may import only artwork-paint, canvas-format, ui, and itself
   |
+  = help: remove the import, or move the code to a file whose row permits the import
   = note: rule: workspace.contract
-  = note: reason: Apps share code only through packages, and a package never reaches into an app.
+  = note: because: Apps share code only through packages, and a package never reaches into an app.
 
 checked 23 files and 7 imports: 2 problems
   domain.aggregate-root has no file in this repository

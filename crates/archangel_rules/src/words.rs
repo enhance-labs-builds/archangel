@@ -42,8 +42,14 @@ impl Architecture {
             return String::new();
         };
         let Some(row) = row else {
-            let table = &self.config.tables[table.index()].name;
-            return format!("every file of {table} has a row");
+            let table = &self.config.tables[table.index()];
+            return if !table.default_files {
+                format!("every file of {} has a row", table.name)
+            } else if table.kinds.is_some() {
+                "a file with a kind has a row; a file with no kind is not checked here".to_owned()
+            } else {
+                "a file in no row is not checked here; add `files` to check it".to_owned()
+            };
         };
         let compiled = &rule.sentences[sentence];
         if matches!(compiled.condition, Condition::MayNotImport(_)) {

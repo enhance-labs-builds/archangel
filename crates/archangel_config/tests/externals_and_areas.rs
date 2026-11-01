@@ -219,3 +219,26 @@ fn an_empty_may_only_import_needs_an_area() {
         "an empty list with an area"
     );
 }
+
+#[test]
+fn a_node_name_that_is_no_built_in_is_refused() {
+    let found = parse_json(
+        &json!({ "parts": { "a": "a/**" }, "externals": { "os": ["node:fss"] }, "rules": [] })
+            .to_string(),
+    )
+    .expect_err("no import can match the name");
+    assert!(
+        found.iter().any(|p| p.message.contains("node:fss")),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn node_names_that_exist_and_wildcards_are_accepted() {
+    let config = json!({
+        "parts": { "a": "a/**" },
+        "externals": { "os": ["node:fs", "node:fs/promises", "node:test", "node:sqlite", "node:*"] },
+        "rules": [],
+    });
+    parse_json(&config.to_string()).expect("each name can match");
+}

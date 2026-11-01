@@ -36,6 +36,7 @@ pub(crate) fn cycle_diagnostic(
             .to_owned(),
     );
     diagnostic.reason.clone_from(&rule.reason);
+    diagnostic.because = rule.because;
     diagnostic.link.clone_from(&rule.link);
     diagnostic.id = Some(ViolationId::Group {
         rule: rule.name.clone(),
@@ -130,6 +131,7 @@ pub(crate) fn import_diagnostic(
     diagnostic.specifier = Some(site.import.specifier.clone());
     diagnostic.help = Some(help);
     diagnostic.reason.clone_from(&rule.reason);
+    diagnostic.because = rule.because;
     diagnostic.link.clone_from(&rule.link);
     diagnostic.id = Some(ViolationId::Import {
         rule: rule.name.clone(),

@@ -957,3 +957,115 @@ fn export_evaluation_count_rejects_every_file_per_edit() {
         "the count catches an evaluation of every file's exports"
     );
 }
+
+/// The rules that gave a problem in the session, sorted.
+fn violated_rules(session: &Session) -> Vec<String> {
+    let mut rules: Vec<String> = session
+        .report()
+        .diagnostics
+        .iter()
+        .filter_map(|d| d.rule.clone())
+        .collect();
+    rules.sort();
+    rules
+}
+
+#[test]
+fn a_new_tsconfig_with_verbatim_module_syntax_re_marks_imports_in_the_editor() {
+    let _faults = faults();
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "import { type B } from './b';\n")
+        .file("src/b.ts", "import { a } from './a';\n")
+        .json_config(&json!({
+            "elements": { "src": "src/**" },
+            "rules": [{ "name": "no-cycles", "files": "src/**", "noCycles": true }],
+        }));
+    let mut session = open(&repo);
+    assert_eq!(
+        violated_rules(&session),
+        [] as [&str; 0],
+        "the first check is clean"
+    );
+    repo.write(
+        "tsconfig.json",
+        r#"{ "compilerOptions": { "verbatimModuleSyntax": true } }"#,
+    );
+    session.apply(vec![Change::Paths(vec![PathEvent::Created(path(
+        &repo,
+        "tsconfig.json",
+    ))])]);
+    assert_eq!(
+        violated_rules(&session),
+        ["no-cycles"],
+        "a new tsconfig changes the marks, as in a full check"
+    );
+}
+
+#[test]
+fn a_nearer_new_tsconfig_takes_over_from_the_one_above_in_the_editor() {
+    let _faults = faults();
+    let repo = FixtureRepo::new()
+        .file(
+            "tsconfig.json",
+            r#"{ "compilerOptions": { "verbatimModuleSyntax": true } }"#,
+        )
+        .file("src/a.ts", "import { type B } from './b';\n")
+        .file("src/b.ts", "import { a } from './a';\n")
+        .json_config(&json!({
+            "elements": { "src": "src/**" },
+            "rules": [{ "name": "no-cycles", "files": "src/**", "noCycles": true }],
+        }));
+    let mut session = open(&repo);
+    assert_eq!(
+        violated_rules(&session),
+        ["no-cycles"],
+        "the first check finds the cycle"
+    );
+    repo.write(
+        "src/tsconfig.json",
+        r#"{ "compilerOptions": { "verbatimModuleSyntax": false } }"#,
+    );
+    session.apply(vec![Change::Paths(vec![PathEvent::Created(path(
+        &repo,
+        "src/tsconfig.json",
+    ))])]);
+    assert_eq!(
+        violated_rules(&session),
+        [] as [&str; 0],
+        "the nearer tsconfig decides, as in a full check"
+    );
+}
+
+#[test]
+fn a_new_tsconfig_with_paths_resolves_an_alias_in_the_editor() {
+    let _faults = faults();
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "")
+        .file("src/b.ts", "import '@/a';\n")
+        .json_config(&json!({ "elements": { "src": "src/**" }, "rules": [] }));
+    let mut session = open(&repo);
+    assert!(
+        matches!(
+            session
+                .graph()
+                .resolutions("src/b.ts")
+                .map(<[_]>::to_vec)
+                .as_deref(),
+            Some([archangel_graph::Resolution::Unresolved(_)])
+        ),
+        "the alias has no tsconfig yet"
+    );
+    repo.write(
+        "tsconfig.json",
+        r#"{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }"#,
+    );
+    session.apply(vec![Change::Paths(vec![PathEvent::Created(path(
+        &repo,
+        "tsconfig.json",
+    ))])]);
+    assert_eq!(
+        session.graph().resolutions("src/b.ts").map(<[_]>::to_vec),
+        Some(vec![archangel_graph::Resolution::File("src/a.ts".into())]),
+        "a new tsconfig gives the alias its target"
+    );
+}

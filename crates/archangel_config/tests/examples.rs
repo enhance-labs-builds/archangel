@@ -59,7 +59,7 @@ fn a_target_is_a_file_when_it_has_a_source_extension() {
 #[test]
 fn a_chain_gives_each_file_its_imports_and_a_single_path_is_empty() {
     let found = rejected_of(&[
-        "a.ts imports b.ts imports a.ts",
+        "src/a.ts imports src/b.ts imports src/a.ts",
         "src/app/ui.ts",
         "src/x/a.ts imports src/y/b.ts",
     ]);
@@ -67,8 +67,8 @@ fn a_chain_gives_each_file_its_imports_and_a_single_path_is_empty() {
         found,
         [
             files(&[
-                ("a.ts", "import './b.ts';\n"),
-                ("b.ts", "import './a.ts';\n")
+                ("src/a.ts", "import './b.ts';\n"),
+                ("src/b.ts", "import './a.ts';\n")
             ]),
             files(&[("src/app/ui.ts", "")]),
             files(&[("src/x/a.ts", "import '../y/b.ts';\n"), ("src/y/b.ts", "")]),
@@ -87,7 +87,7 @@ fn a_string_with_any_other_shape_is_refused_with_the_form() {
         "/a.ts",
         "",
         "a.css imports b.ts",
-        "a.ts imports ./b.ts",
+        "./a.ts imports src/b.ts",
     ] {
         let rules = json!([{
             "name": "r", "files": "src/**", "mustBeNamed": "kebab-case",
@@ -174,4 +174,24 @@ fn a_file_set_stays_valid_on_a_rule_that_refuses_a_one_liner() {
         "examples": { "rejected": [{ "apps/api/a.ts": "import type { A } from 'react';\n" }] },
     }]);
     parse_json(&config_with(&rules).to_string()).expect("a file set is what the rule asks for");
+}
+
+#[test]
+fn a_name_with_a_source_extension_and_no_folder_is_a_package() {
+    let found = rejected_of(&["src/a.ts imports chart.js"]);
+    assert_eq!(
+        found,
+        [files(&[("src/a.ts", "import 'chart.js';\n")])],
+        "a target with no `/` is a package"
+    );
+}
+
+#[test]
+fn a_file_at_the_config_folder_is_a_target_with_dot_slash() {
+    let found = rejected_of(&["src/a.ts imports ./b.ts"]);
+    assert_eq!(
+        found,
+        [files(&[("src/a.ts", "import '../b.ts';\n"), ("b.ts", "")])],
+        "`./` marks a file at the config folder"
+    );
 }

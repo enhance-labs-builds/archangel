@@ -1036,3 +1036,61 @@ fn one_list_may_hold_both_forms() {
     let (outcomes, _) = examples(&rules, &login());
     assert_eq!(passed(&outcomes), [true, true], "{outcomes:?}");
 }
+
+#[test]
+fn a_rejected_table_example_with_a_misspelt_path_fails() {
+    let config = json!({
+        "rules": [{
+            "kind": "mayImport", "name": "t",
+            "rows": { "infra": [], "domain": [] },
+            "kinds": "src/{kind}/**",
+            "examples": { "rejected": ["src/domian/a.ts imports src/infra/b.ts"] },
+        }],
+    });
+    let repo = FixtureRepo::new().file("src/infra/c.ts", "");
+    let outcomes = table_outcomes(&config, &repo);
+    assert_eq!(passed(&outcomes), [false], "{outcomes:?}");
+    let message = &outcomes[0].failure.as_ref().unwrap().message;
+    assert!(
+        message.contains("no row of \"t\" rejected") && message.contains("src/domian/a.ts"),
+        "the message names the file that has no row: {message}"
+    );
+}
+
+#[test]
+fn an_accepted_table_example_that_every_row_skips_proves_nothing() {
+    let config = json!({
+        "rules": [{
+            "kind": "mayImport", "name": "t",
+            "rows": { "a": [], "b": [] },
+            "kinds": "src/{kind}/**",
+            "specifier": "parent",
+            "examples": { "accepted": [{ "src/a/x.ts": "import './y';\n", "src/a/y.ts": "" }] },
+        }],
+    });
+    let repo = FixtureRepo::new().file("src/b/c.ts", "");
+    let outcomes = table_outcomes(&config, &repo);
+    assert_eq!(passed(&outcomes), [false], "{outcomes:?}");
+    assert_eq!(
+        outcomes[0].failure.as_ref().unwrap().code,
+        Code::ExampleProvesNothing,
+        "{outcomes:?}"
+    );
+}
+
+#[test]
+fn a_plain_rule_keeps_its_accepted_example_whose_import_a_limit_skips() {
+    let outcomes = examples(
+        &json!([{
+            "name": "r", "files": "shared", "mayNotImport": "app", "specifier": "parent",
+            "examples": { "accepted": [{
+                "src/shared/x/a.ts": "import '@/app/b';\n",
+            }] },
+        }]),
+        &FixtureRepo::new().file("src/app/b.ts", "").file(
+            "tsconfig.json",
+            r#"{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }"#,
+        ),
+    );
+    assert_eq!(passed(&outcomes.0), [true], "as in 0.1: {:?}", outcomes.0);
+}

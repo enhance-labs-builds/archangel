@@ -29,8 +29,13 @@ fn is_source(path: &str) -> bool {
     SOURCE_EXTENSIONS.iter().any(|end| path.ends_with(end))
 }
 
+/// Whether a target is a file in the repository. A package name can end like a file, as `chart.js`
+/// does, so a file names its folder: `src/b.ts`, or `./b.ts` at the config folder.
 fn is_file_target(target: &str) -> bool {
-    is_source(target) && !target.starts_with('@') && !target.starts_with("node:")
+    is_source(target)
+        && target.contains('/')
+        && !target.starts_with('@')
+        && !target.starts_with("node:")
 }
 
 /// The file set that one line stands for, or why the line has no such set.
@@ -61,13 +66,15 @@ pub(crate) fn one_line(line: &str) -> Result<ExampleFiles, String> {
                 "only a source file imports, and \"{from}\" is not one"
             )));
         }
+        let from = from.strip_prefix("./").unwrap_or(from);
         let specifier = if is_file_target(to) {
+            let to = to.strip_prefix("./").unwrap_or(to);
             if !line_path(to) {
                 return Err(refuse(format!(
                     "\"{to}\" must be a path inside the repository, relative to the config folder"
                 )));
             }
-            files.entry((*to).to_owned()).or_default();
+            files.entry(to.to_owned()).or_default();
             relative(from, to)
         } else if index != last - 1 {
             return Err(refuse(format!(
@@ -80,7 +87,7 @@ pub(crate) fn one_line(line: &str) -> Result<ExampleFiles, String> {
         } else {
             (*to).to_owned()
         };
-        let text = files.entry((*from).to_owned()).or_default();
+        let text = files.entry(from.to_owned()).or_default();
         let _ = writeln!(text, "import '{specifier}';");
     }
     Ok(files)

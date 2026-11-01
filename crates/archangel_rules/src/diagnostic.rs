@@ -20,6 +20,8 @@ pub enum Code {
     MayOnlyBeImportedBy,
     /// A row of an import table.
     MayImport,
+    /// A file in the files of a table has no row.
+    EveryFileHasAKind,
     /// A `mustNotExist` condition.
     MustNotExist,
     /// A `mustBeNamed` condition.
@@ -97,7 +99,7 @@ pub enum Code {
 }
 
 /// The names of the codes, in declaration order, so a code's discriminant indexes its name.
-const NAMES: [&str; 44] = [
+const NAMES: [&str; 45] = [
     "layers",
     "isolate",
     "entry",
@@ -105,6 +107,7 @@ const NAMES: [&str; 44] = [
     "may-only-import",
     "may-only-be-imported-by",
     "may-import",
+    "every-file-has-a-kind",
     "must-not-exist",
     "must-be-named",
     "must-contain",
@@ -145,7 +148,7 @@ const NAMES: [&str; 44] = [
 ];
 
 /// Each code's documentation page, in the order of [`NAMES`].
-const PAGES: [&str; 44] = [
+const PAGES: [&str; 45] = [
     include_str!("../docs/layers.md"),
     include_str!("../docs/isolate.md"),
     include_str!("../docs/entry.md"),
@@ -153,6 +156,7 @@ const PAGES: [&str; 44] = [
     include_str!("../docs/may-only-import.md"),
     include_str!("../docs/may-only-be-imported-by.md"),
     include_str!("../docs/may-import.md"),
+    include_str!("../docs/every-file-has-a-kind.md"),
     include_str!("../docs/must-not-exist.md"),
     include_str!("../docs/must-be-named.md"),
     include_str!("../docs/must-contain.md"),
@@ -194,7 +198,7 @@ const PAGES: [&str; 44] = [
 
 impl Code {
     /// Every code, in the order the documentation lists them.
-    pub const ALL: [Self; 44] = [
+    pub const ALL: [Self; 45] = [
         Self::Layers,
         Self::Isolate,
         Self::Entry,
@@ -202,6 +206,7 @@ impl Code {
         Self::MayOnlyImport,
         Self::MayOnlyBeImportedBy,
         Self::MayImport,
+        Self::EveryFileHasAKind,
         Self::MustNotExist,
         Self::MustBeNamed,
         Self::MustContain,
@@ -280,6 +285,7 @@ impl Code {
                 | Self::MayOnlyImport
                 | Self::MayOnlyBeImportedBy
                 | Self::MayImport
+                | Self::EveryFileHasAKind
                 | Self::MustNotExist
                 | Self::MustBeNamed
                 | Self::MustContain
@@ -298,6 +304,7 @@ impl Code {
         matches!(
             self,
             Self::MustNotExist
+                | Self::EveryFileHasAKind
                 | Self::MustBeNamed
                 | Self::MustContain
                 | Self::MustExport
@@ -376,6 +383,8 @@ pub struct Diagnostic {
     pub help: Option<String>,
     /// The rule's reason, from the config.
     pub reason: Option<String>,
+    /// Whether the rule wrote its reason with `because`, which the text output then says.
+    pub because: bool,
     /// Where to read more, from the config.
     pub link: Option<String>,
     /// The violation's identity.
@@ -415,6 +424,7 @@ impl Diagnostic {
             message: message.into(),
             help: None,
             reason: None,
+            because: false,
             link: None,
             id: None,
             cycle: Vec::new(),

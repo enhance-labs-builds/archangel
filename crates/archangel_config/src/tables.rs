@@ -76,6 +76,7 @@ struct Shared {
     options: ImportOptions,
     default_area: Side,
     reason: Option<String>,
+    because: bool,
     link: Option<String>,
     imports: ImportKinds,
 }
@@ -170,6 +171,7 @@ impl<'v> Reading<'_, 'v, '_> {
             name: shared.full_name,
             kinds: self.kinds.take(),
             files: shared.files,
+            default_files: shared.default_files,
             rows: rows
                 .iter()
                 .map(|row| (row.key.to_owned(), row.files.clone()))
@@ -207,6 +209,7 @@ impl<'v> Reading<'_, 'v, '_> {
             default_files,
             options,
             reason: optional_string(object, reason_key, &self.input.field, self.problems),
+            because: reason_key == "because",
             link: optional_string(object, "link", &self.input.field, self.problems),
             imports: self.input.imports(&[], false, self.problems),
         }
@@ -439,6 +442,23 @@ impl<'v> Reading<'_, 'v, '_> {
     /// The cells of one row, without those of `everyRowMayImport`.
     fn row_side(&mut self, row: &Row<'_>, rows: &[Row<'_>], refused: &[String]) -> Side {
         let field = self.input.at(&format!("rows.{}", row.key));
+        let every_row = self
+            .object()
+            .get("everyRowMayImport")
+            .and_then(Value::as_array);
+        if refused.iter().any(|name| name == row.key)
+            && every_row
+                .is_some_and(|cells| cells.iter().any(|cell| cell.as_str() == Some(row.key)))
+        {
+            self.problems.push(invalid(
+                &self.input.at("everyRowMayImport"),
+                &format!(
+                    "`everyRowMayImport` names the row `{}`, and `mayNotImportItself` lists it; \
+                     keep one of the two",
+                    row.key
+                ),
+            ));
+        }
         let Some(cells) = row.cells.as_array() else {
             self.problems.push(invalid(
                 &field,
@@ -532,6 +552,7 @@ impl Shared {
             },
             sentences,
             reason: self.reason.clone(),
+            because: self.because,
             link: self.link.clone(),
             imports: self.imports,
             examples: Examples::default(),

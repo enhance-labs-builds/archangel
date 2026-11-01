@@ -4,7 +4,7 @@
 
 ### Requirement: A written example of a table runs against all its rows
 
-A table MAY have written examples. They MUST run once against all its rules. A rejected example MUST pass when one of these rules rejects it, and archangel MUST name that rule. It MUST fail when none rejects it, and the message MUST say that no row of the table rejected it.
+A table MAY have written examples. They MUST run once against all its rules. A rejected example MUST pass when a row rejects one of its imports, and archangel MUST name that row. The rule `every-file-has-a-kind` MUST NOT prove it, because a misspelt path would then prove the example. It MUST fail when no row rejects it, and the message MUST say that no row of the table rejected it and name each file of the example that has no row.
 
 #### Scenario: A written example that one row rejects
 
@@ -19,6 +19,13 @@ A table MAY have written examples. They MUST run once against all its rules. A r
 - **WHEN** the developer runs `archangel test`
 - **THEN** the example fails, and the message says that no row of `domain` rejected it
 - **TEST** `crates/archangel_rules/tests/examples.rs` › "a_written_table_example_fails_when_no_row_rejects_it"
+
+#### Scenario: A rejected example with a misspelt path
+
+- **GIVEN** a table with the rows `infra` and `domain`, the kind pattern `src/{kind}/**`, and the rejected example `'src/domian/a.ts imports src/infra/b.ts'`
+- **WHEN** the developer runs `archangel test`
+- **THEN** the example fails, and the message says that no row rejected it and names `src/domian/a.ts`
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_rejected_table_example_with_a_misspelt_path_fails"
 
 ### Requirement: A written accepted example of a table passes only when a row judged it
 
@@ -38,6 +45,24 @@ An accepted example of a table MUST pass when no row rejects it and a row judged
 - **WHEN** the developer runs `archangel test`
 - **THEN** the example fails with `example-proves-nothing`, and the message names `feature-code` and says to give the example an import from a file of a row into the repository
 - **TEST** `crates/archangel_rules/tests/examples.rs` › "a_table_accepted_example_that_no_row_judges_proves_nothing"
+
+### Requirement: A limit of a table decides whether a row judged an import
+
+A row MUST NOT count as judging an import that its `names`, `specifier`, `instance` or `dependency` leaves out. A rule that is not a table row MUST keep the proof of 0.1, before those limits.
+
+#### Scenario: An accepted table example that every row skips
+
+- **GIVEN** a table with `specifier: 'parent'`, and an accepted example whose only import is `./y`
+- **WHEN** the developer runs `archangel test`
+- **THEN** the example fails with `example-proves-nothing`
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "an_accepted_table_example_that_every_row_skips_proves_nothing"
+
+#### Scenario: A plain rule whose limit skips the import of its accepted example
+
+- **GIVEN** a `mayNotImport` rule with `specifier: 'parent'`, and an accepted example whose only import goes through an alias to the rule's target
+- **WHEN** the developer runs `archangel test`
+- **THEN** the example passes, as in 0.1
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_plain_rule_keeps_its_accepted_example_whose_import_a_limit_skips"
 
 ### Requirement: An accepted example outside a rule's area proves nothing
 
@@ -76,6 +101,20 @@ An item of `accepted` or `rejected` MUST be a file set or a string. A string MUS
 - **THEN** the example fails with `example-proves-nothing`
 - **TEST** `crates/archangel_rules/tests/examples.rs` › "an_accepted_one_liner_that_no_row_judges_proves_nothing"
 
+#### Scenario: A name with a source extension and no folder
+
+- **GIVEN** the string `'src/a.ts imports chart.js'`
+- **WHEN** archangel loads the config
+- **THEN** it makes one file that imports the package `chart.js`
+- **TEST** `crates/archangel_config/tests/examples.rs` › "a_name_with_a_source_extension_and_no_folder_is_a_package"
+
+#### Scenario: A file at the config folder
+
+- **GIVEN** the string `'src/a.ts imports ./b.ts'`
+- **WHEN** archangel loads the config
+- **THEN** it makes `src/a.ts`, which imports `../b.ts`, and `b.ts`
+- **TEST** `crates/archangel_config/tests/examples.rs` › "a_file_at_the_config_folder_is_a_target_with_dot_slash"
+
 #### Scenario: A target is a file or a package
 
 - **GIVEN** the strings `'a.ts imports src/b.tsx'`, `'a.ts imports react'`, `'a.ts imports @aws-sdk/client-s3'` and `'a.ts imports node:fs'`
@@ -85,7 +124,7 @@ An item of `accepted` or `rejected` MUST be a file set or a string. A string MUS
 
 #### Scenario: A chain and a single path
 
-- **GIVEN** the strings `'a.ts imports b.ts imports a.ts'` and `'src/app/ui.ts'`
+- **GIVEN** the strings `'src/a.ts imports src/b.ts imports src/a.ts'` and `'src/app/ui.ts'`
 - **WHEN** archangel loads the config
 - **THEN** the first makes two files that import each other, and the second makes one empty file
 - **TEST** `crates/archangel_config/tests/examples.rs` › "a_chain_gives_each_file_its_imports_and_a_single_path_is_empty"
@@ -113,7 +152,7 @@ An item of `accepted` or `rejected` MUST be a file set or a string. A string MUS
 
 #### Scenario: A string with any other shape
 
-- **GIVEN** the strings `'a.ts import b.ts'`, `'a.ts imports'`, `'../a.ts imports b.ts'` and `'a.ts imports react imports b.ts'`
+- **GIVEN** the strings `'a.ts import b.ts'`, `'a.ts imports'`, `'../a.ts imports src/b.ts'`, `'./a.ts imports src/b.ts'` and `'a.ts imports react imports src/b.ts'`
 - **WHEN** archangel loads the config
 - **THEN** each gives a config problem, whose message names the field and gives the form `<file> imports <file or package>`
 - **TEST** `crates/archangel_config/tests/examples.rs` › "a_string_with_any_other_shape_is_refused_with_the_form"

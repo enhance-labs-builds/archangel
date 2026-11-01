@@ -76,6 +76,8 @@ fn the_new_spellings_mean_the_old_ones() {
     // Each rule keeps the line of its own builder call, which is not part of what it means.
     for rule in new.rules.iter_mut().chain(old.rules.iter_mut()) {
         rule.source = None;
+        // The word for the reason in the text output follows the spelling, and means the same.
+        rule.because = false;
     }
     assert_eq!(meaning(&new), meaning(&old), "one meaning");
     assert_eq!(

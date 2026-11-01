@@ -309,6 +309,11 @@ questions the owner listed; items 9 to 12 came up while the change was written.
 
 ## How it works
 
+**One definition of an instance.** Two files are in one instance of a part when their captures have
+the same values, whichever pattern of the part found them. Rows, the own-files permission of
+`mayOnlyImport` and the `instance` option all use this. An `entry` rule keeps its 0.1 comparison of
+the folder, because its entry files start at that folder.
+
 ### One-line examples
 
 An item of `accepted` or `rejected` is a file set or a one-line string. Both forms can be in one
@@ -327,12 +332,13 @@ rejected: [
 Archangel makes the file set when it loads the config, so the example then runs as every other
 example does, in memory and with the same verdicts and `example-proves-nothing` messages. Each path
 becomes a file that holds one `import` line for each import that the string gives it, with a relative
-specifier and the target's own extension. A target is a file in the repository when it ends in a
-source extension (`.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`) and does not start
-with `@` or `node:`. Any other target is a package, and only the last target can be one. So a
-package named `chart.js` needs a file set. A path outside the repository, a path with a space, or
-a string with any other shape (such as `'a.ts import b.ts'`) is a config problem, whose message gives
-the form.
+specifier and the target's own extension. A target is a file in the repository when it has a `/`,
+ends in a source extension (`.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`) and does
+not start with `@` or `node:`. Any other target is a package, and only the last target can be one.
+So `chart.js` is a package, a file at the config folder is written `./b.ts`, and a package subpath
+with a source extension, such as `lodash/fp.js`, needs a file set. A path outside the repository, a
+path with a space, or a string with any other shape (such as `'a.ts import b.ts'`) is a config
+problem, whose message gives the form.
 
 A one-liner makes only runtime imports, in files with no other text. So it is refused where the file
 text decides the verdict: on a rule with `names`, `specifier`, `dependency` or `imports: 'types'`
@@ -442,18 +448,23 @@ error[may-import]: entity may not import use-case, through "../application/save.
 3 | import { save } from '../application/save.use-case';
   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ entity may import only value-object, domain-event, specification, policy, error, types, consts, apps/api/src/shared/result.ts, and itself
   |
+  = help: remove the import, or move the code to a file whose row permits the import
   = note: rule: domain.entity
-  = note: reason: Each kind of domain file depends only on the kinds below it.
+  = note: because: Each kind of domain file depends only on the kinds below it.
 ```
 
-The code in the first line is `may-import`, and the note reads `reason:`, because every 0.1 rule
-prints these words and each recorded output must stay the same. `archangel rules` shows the place
-of the rule in the config. A file in the table's files with no row gives one violation of `<table>.every-file-has-a-kind`, a
-rule that every table makes and that `off` can name. The message says whether the file has no kind,
+The code in the first line is `may-import`, because every 0.1 rule prints its code and each recorded
+output must stay the same. The note says `because:` for a rule written with `because` and `reason:`
+for a rule written with `reason`, so a 0.1 config sees its own word. `archangel rules` shows the
+place of the rule in the config. A file in the table's files with no row gives one violation of `<table>.every-file-has-a-kind`, a
+rule that every table makes and that `off` can name, with the code `every-file-has-a-kind`. Only the
+baseline can permit it, as for `must-not-exist`. Only source files count for a table, and the config
+file is in no table: a stylesheet in `files` has no kind to fix, and a `{kind}` pattern must not
+make the config file a problem of the architecture. The message says whether the file has no kind,
 and how to give it one, or has a kind with no row, and which row is closest:
 
 ```
-error[domain.every-file-has-a-kind]: apps/api/src/board/domain/board.spec-helper.ts has the kind spec-helper, and the table domain has no row for it
+error[every-file-has-a-kind]: apps/api/src/board/domain/board.spec-helper.ts has the kind spec-helper, and the table domain has no row for it
   = help: add a row for spec-helper, rename the file, or leave it out of the table's files with not
 ```
 
@@ -563,7 +574,7 @@ app  2 rows  archangel.config.ts:9
     6 files · 7 imports judged · 0 problems · 0 exceptions
   app.shared: shared may import only itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  app.every-file-has-a-kind: every file of app has a row
+  app.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
     7 files · 0 problems
 
 feature-code  3 rows  archangel.config.ts:16
@@ -575,7 +586,7 @@ feature-code  3 rows  archangel.config.ts:16
     2 files · 3 imports judged · 0 problems · 0 exceptions
   feature-code.api: api may import only shared, and itself
     2 files · 1 import judged · 0 problems · 0 exceptions
-  feature-code.every-file-has-a-kind: every file of feature-code has a row
+  feature-code.every-file-has-a-kind: a file with a kind has a row; a file with no kind is not checked here
     6 files · 0 problems
 
 Not judged by any rule: 0 files, 0 imports between repository files.

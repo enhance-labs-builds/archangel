@@ -33,7 +33,7 @@ workspace  16 rows  archangel.config.ts:31
     1 file · 0 imports judged · 0 problems · 0 exceptions
   workspace.canvas-format: canvas-format may import only itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.every-file-has-a-kind: every file of workspace has a row
+  workspace.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
     22 files · 0 problems
 
 web-uses-api-types-only  archangel.config.ts:52

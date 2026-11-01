@@ -36,13 +36,17 @@ impl Classification {
         self.all().find(|class| class.element == element)
     }
 
-    /// Whether two places are one instance of one element.
+    /// Whether two places are one instance of one element: their captures have the same values.
     #[must_use]
     pub fn same_instance(&self, other: &Self) -> bool {
-        self.element == other.element
-            && self.captures == other.captures
-            && self.names == other.names
-            && self.root == other.root
+        self.element == other.element && self.captures == other.captures
+    }
+
+    /// Whether two places are in one folder of one element, which an `entry` rule's entry files
+    /// start at.
+    #[must_use]
+    pub fn same_root(&self, other: &Self) -> bool {
+        self.same_instance(other) && self.names == other.names && self.root == other.root
     }
 }
 

@@ -110,7 +110,8 @@ impl Session {
         let started = Instant::now();
         let graph = ImportGraph::build(&config_dir, &options, &mut work);
         let graph_time = started.elapsed();
-        let architecture = Architecture::compile(loaded);
+        let architecture =
+            Architecture::compile(loaded).with_config_file(relative_config(&config_path));
         let started = Instant::now();
         let mut classes = Classes::new();
         classes.sync(&architecture, &graph, &mut work);
@@ -318,6 +319,14 @@ fn find_config(start: &Path, config: Option<&Path>) -> Result<PathBuf, Stop> {
 }
 
 /// The config's problems as diagnostics, in the config file.
+/// The config file, relative to the config folder: its name.
+pub(crate) fn relative_config(config_path: &Path) -> String {
+    config_path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
 pub(crate) fn config_problems(config_path: &Path, problems: &[ConfigProblem]) -> Vec<Diagnostic> {
     let name = config_path
         .file_name()

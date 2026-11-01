@@ -966,6 +966,15 @@ fn resolve_file(resolver: &ImportResolver, file: &Path, facts: Option<&FileFacts
     };
     let (tsconfig, problem) = resolver.tsconfig(file);
     problems.extend(problem);
+    // A tsconfig that appears in a folder nearer than the one in use, or the first one anywhere,
+    // decides for this file from then on.
+    let found = tsconfig.as_ref().map(|found| found.path.as_path());
+    inputs.existence.extend(
+        file.ancestors()
+            .skip(1)
+            .map(|folder| folder.join("tsconfig.json"))
+            .take_while(|candidate| Some(candidate.as_path()) != found),
+    );
     if let Some(tsconfig) = &tsconfig {
         inputs.contents.insert(tsconfig.path.clone());
         inputs

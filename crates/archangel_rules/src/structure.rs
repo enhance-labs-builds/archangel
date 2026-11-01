@@ -424,6 +424,15 @@ impl<'e> Evaluation<'e, '_> {
         }
     }
 
+    /// Whether a table can hold a path: a source file that is not the config file.
+    fn a_table_holds(&self, path: &str) -> bool {
+        let source = self
+            .overlay
+            .is_some_and(|overlay| overlay.files.iter().any(|file| file.path == path))
+            || self.graph.file(path).is_some();
+        source && !self.architecture.is_config_file(path)
+    }
+
     /// The naming and existence rules of each file.
     fn files(&mut self, paths: &[&str]) {
         let architecture = self.architecture;
@@ -456,6 +465,9 @@ impl<'e> Evaluation<'e, '_> {
                     continue;
                 }
                 let (rule, sentence) = architecture.sentence_of(compiled);
+                if compiled.of_table && !self.a_table_holds(path) {
+                    continue;
+                }
                 self.work.structure_evaluations += 1;
                 self.looked(compiled.rule);
                 match (&sentence.condition, &rule.kind) {
@@ -469,7 +481,7 @@ impl<'e> Evaluation<'e, '_> {
                             path,
                         );
                         found.push(About { rule, path }.violation(
-                            Code::MustNotExist,
+                            Code::EveryFileHasAKind,
                             message,
                             &help,
                         ));

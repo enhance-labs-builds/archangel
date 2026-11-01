@@ -122,6 +122,7 @@ pub(crate) fn parse_rule(
     let reason_key = one_spelling(object, ["because", "reason"], |key| input.at(key), problems)
         .map_or("reason", |(key, _)| key);
     let reason = optional_string(object, reason_key, &input.field, problems);
+    let because = reason_key == "because";
     let link = optional_string(object, "link", &input.field, problems);
     let examples = parse_examples(object.get("examples"), &input.field, problems);
     let (kind, sentences, default_name, transitive) = parsed?;
@@ -134,6 +135,7 @@ pub(crate) fn parse_rule(
         kind,
         sentences,
         reason,
+        because,
         link,
         imports,
         examples,

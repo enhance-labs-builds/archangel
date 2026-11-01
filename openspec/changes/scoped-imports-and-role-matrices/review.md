@@ -345,3 +345,7 @@ The owner approved the design and chose to add one-line examples (item 11). Adde
 refusals, requirements, tests and tasks; the enhance3 estimate is now 900 to 1,100 lines. A reader
 found earlier that a one-liner cannot express `import type`; it is now refused on such a rule, with a
 file set as the fix.
+
+### After the build: a code review and a cold read
+
+A code reviewer reproduced 13 findings on the built code, four of which let a check pass when it should not. A cold reader, acting as a junior engineer, found that a first docs example did not load and that `archangel rules` printed a false line for a table without `files`. All are fixed, with scenarios in the specs. The target rule of a one-line example changed: a file now has a `/`, so `chart.js` is a package. An `entry` rule keeps its comparison of the folder, so its 0.1 results do not change.

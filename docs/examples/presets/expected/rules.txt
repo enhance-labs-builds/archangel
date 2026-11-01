@@ -157,7 +157,7 @@ fsd-admin/no-cross-imports  archangel.config.ts
   files in features may not import all of (features, not features/*/@x/**) in a different instance
   files in widgets may not import all of (widgets, not widgets/*/@x/**) in a different instance
   files in pages may not import all of (pages, not pages/*/@x/**) in a different instance
-    2 files · 1 import judged · 0 problems · 0 exceptions
+    2 files · 0 imports judged · 0 problems · 0 exceptions
 
 fsd-admin/no-public-api-sidestep  archangel.config.ts
   because: Code outside a slice or segment imports it through its public API, the index file, not its inner files.

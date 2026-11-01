@@ -91,6 +91,11 @@ are listed in 1.24 and must still pass unchanged.
 - [x] 9.1 Run `archangel check --stats` on enhance3 with its 0.1 generated config and with a hand-written config of its workspace and API domain tables; verify that pattern passes stay one per file, and that rule evaluations rise by exactly the number of imports inside one instance of a captured part under `mayOnlyImport` (the own-instance default) and otherwise do not rise; record files classified, the number of compiled sets, and the times in the PR, and record the line count of the hand-written part against the estimate in design.md
 - [x] 9.2 Run `scripts/check`, which runs every crate's tests with and without fail points, the npm tests and the type tests, locally, and the fuzz target `pattern` for its usual time; verify everything passes before pushing
 
+## 10. Findings of the review
+
+- [x] 10.1 Fix the findings of the code review, with a test for each scenario in the specs: new tsconfigs in a session, preset tables in `preset-empty`, source files in tables, proof by a row, limits in the reach and in table proof, `node:` names, one definition of an instance, the config file in no table, names of rules and tables, the one-line target rule, explain of any line, and one block for a table
+- [x] 10.2 Fix the findings of the cold read: the code `every-file-has-a-kind`, `because:` in errors, the help line of `may-import`, the unknown-name message, the sentence of a table without `files`, a check of each rule fragment in the docs, and the words of `docs/rules.md` and `README.md`
+
 ## Workflow follow-up
 
 - Archive the change with `openspec archive scoped-imports-and-role-matrices --yes` as the last commit of the PR.

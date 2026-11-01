@@ -340,7 +340,7 @@ fn explain_line(options: &Options, session: &Session, path: &str, line: u32) -> 
         .imports
         .iter()
         .zip(resolutions)
-        .filter(|(import, _)| (import.statement_line..=import.line).contains(&line))
+        .filter(|(import, _)| (import.statement_line..=import.statement_end_line).contains(&line))
         .collect();
     if on_line.is_empty() {
         return no_import_on_line(options, path, line);

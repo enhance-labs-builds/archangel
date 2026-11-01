@@ -2,6 +2,7 @@
 //! without a change to the repository's graph.
 
 use std::collections::BTreeSet;
+use std::fmt::Write as _;
 
 use archangel_config::{Condition, Rule, RuleKind, TableId};
 use archangel_graph::{ImportGraph, OverlayFiles, Work};
@@ -78,7 +79,7 @@ impl Architecture {
         let proof = Proof {
             subject: Subject::Table(&self.config.tables[table.index()].name),
             judges: of_table(true),
-            rejects: of_table(false),
+            rejects: of_table(true),
             kind,
         };
         self.prove((graph, overlay), (&proof, &PluginFindings::default()), work)
@@ -314,7 +315,16 @@ impl Judge<'_> {
         let rejecting = self.rejecting(diagnostics);
         match self.proof.kind {
             ExampleKind::Rejected if !rejecting.is_empty() => None,
-            ExampleKind::Rejected => Some(self.failed(self.not_rejected(&name, &rejected_by))),
+            ExampleKind::Rejected => {
+                let mut message = self.not_rejected(&name, &rejected_by);
+                for file in self.files_with_no_row(diagnostics) {
+                    let _ = write!(
+                        message,
+                        "; `{file}` has no row, so check that its path has the right kind"
+                    );
+                }
+                Some(self.failed(message))
+            }
             ExampleKind::Accepted if !rejecting.is_empty() => Some(self.failed(format!(
                 "\"{}\" rejected an example it should accept; fix the rule or the example",
                 rejecting[0]
@@ -327,6 +337,18 @@ impl Judge<'_> {
             }
             ExampleKind::Accepted => None,
         }
+    }
+
+    /// For a table's example, the files of the example that are in no row.
+    fn files_with_no_row<'d>(&self, diagnostics: &'d [Diagnostic]) -> Vec<&'d str> {
+        if !matches!(self.proof.subject, Subject::Table(_)) {
+            return Vec::new();
+        }
+        diagnostics
+            .iter()
+            .filter(|d| d.code == Code::EveryFileHasAKind && self.involves(d))
+            .filter_map(|d| d.file.as_deref())
+            .collect()
     }
 
     fn not_rejected(&self, name: &str, rejected_by: &BTreeSet<&str>) -> String {

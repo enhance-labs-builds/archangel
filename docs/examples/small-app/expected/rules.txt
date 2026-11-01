@@ -5,7 +5,7 @@ app  2 rows  archangel.config.ts:9
     6 files · 7 imports judged · 0 problems · 0 exceptions
   app.shared: shared may import only itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  app.every-file-has-a-kind: every file of app has a row
+  app.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
     7 files · 0 problems
 
 feature-code  3 rows  archangel.config.ts:16
@@ -17,7 +17,7 @@ feature-code  3 rows  archangel.config.ts:16
     2 files · 3 imports judged · 0 problems · 0 exceptions
   feature-code.api: api may import only shared, and itself
     2 files · 1 import judged · 0 problems · 0 exceptions
-  feature-code.every-file-has-a-kind: every file of feature-code has a row
+  feature-code.every-file-has-a-kind: a file with a kind has a row; a file with no kind is not checked here
     6 files · 0 problems
 
 Not judged by any rule: 0 files, 0 imports between repository files.

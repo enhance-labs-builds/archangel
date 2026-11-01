@@ -117,6 +117,24 @@ A bare name of a built-in module MUST be refused with `config-invalid` and the f
 - **AND** archangel gives `config-invalid` for `@enhance/contract`, saying that it resolves to a repository file and its part judges it
 - **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_externals_name_that_could_never_match_is_refused"
 
+### Requirement: A node name must be a built-in module
+
+A name that starts with `node:`, has no wildcard, and names no built-in module MUST be refused with `config-invalid`. A built-in with a mandatory prefix, a built-in subpath and `node:*` MUST be accepted.
+
+#### Scenario: A misspelt built-in
+
+- **GIVEN** an externals set with `node:fss`
+- **WHEN** archangel loads the config
+- **THEN** the config is refused, and the message names `node:fss`
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "a_node_name_that_is_no_built_in_is_refused"
+
+#### Scenario: Node names that exist
+
+- **GIVEN** an externals set with `node:fs`, `node:fs/promises`, `node:test`, `node:sqlite` and `node:*`
+- **WHEN** archangel loads the config
+- **THEN** the config loads
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "node_names_that_exist_and_wildcards_are_accepted"
+
 ### Requirement: An externals name with a subpath is refused
 
 A name with a subpath, such as `pg/lib/client`, MUST be refused with `config-invalid` and the fix `pg`, because archangel records the package that an import resolves to. A `node:` name with a subpath is a built-in module and MUST be accepted.

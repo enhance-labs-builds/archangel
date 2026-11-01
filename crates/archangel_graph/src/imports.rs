@@ -59,6 +59,8 @@ pub struct Import {
     pub line: u32,
     /// The first line of the statement that holds the specifier, from 1.
     pub statement_line: u32,
+    /// The last line of the statement, from 1.
+    pub statement_end_line: u32,
     /// The column of the specifier, from 1, in characters.
     pub column: u32,
     /// The byte offsets of the specifier, quotes included.
@@ -260,6 +262,7 @@ impl Source<'_> {
             form,
             line,
             statement_line: line,
+            statement_end_line: line,
             column,
             span: (span.start, span.end),
             utf16: self.lines.utf16(self.text, span.start, span.end),
@@ -317,6 +320,7 @@ impl Source<'_> {
                     .with_names(statement.names);
                 import.names_typed = statement.all_typed && !request.is_type && !self.declaration;
                 import.statement_line = self.position(request.statement_span.start).0;
+                import.statement_end_line = self.position(request.statement_span.end).0;
                 facts.imports.push(import);
             }
         }
@@ -325,11 +329,13 @@ impl Source<'_> {
     fn dynamic_imports(&self, record: &ModuleRecord<'_>, facts: &mut FileFacts) {
         for dynamic in &record.dynamic_imports {
             match literal(self.slice(dynamic.module_request)) {
-                Some(specifier) => facts.imports.push(self.import(
-                    &specifier,
-                    dynamic.module_request,
-                    ImportForm::Dynamic,
-                )),
+                Some(specifier) => {
+                    let mut import =
+                        self.import(&specifier, dynamic.module_request, ImportForm::Dynamic);
+                    import.statement_line = self.position(dynamic.span.start).0;
+                    import.statement_end_line = self.position(dynamic.span.end).0;
+                    facts.imports.push(import);
+                }
                 None => facts.unfollowed.push(self.position(dynamic.span.start).0),
             }
         }

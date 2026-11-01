@@ -256,6 +256,28 @@ A row key that names no part, group or kind, in a table without a kind pattern, 
 - **THEN** archangel gives `rule-unknown-element` at the row, and names `canvas-document` as the closest name
 - **TEST** `crates/archangel_config/tests/tables.rs` › "a_row_key_that_names_nothing_is_refused_with_the_closest_name"
 
+### Requirement: A row that everyRowMayImport names may not refuse itself
+
+A row in `mayNotImportItself` that `everyRowMayImport` names MUST be refused with `config-invalid`, because each row has those names on its list.
+
+#### Scenario: Every row may import a row that may not import itself
+
+- **GIVEN** a table with `everyRowMayImport: ['port']` and `mayNotImportItself: ['port']`
+- **WHEN** archangel loads the config
+- **THEN** the config is refused with `config-invalid`, and the message names `everyRowMayImport`
+- **TEST** `crates/archangel_config/tests/tables.rs` › "a_row_that_every_row_may_import_lists_and_may_not_import_itself_is_refused"
+
+### Requirement: A rule and a table have different names
+
+A rule and a table with one name MUST be refused with `rule-name-duplicate`, because `off` refers to both by name.
+
+#### Scenario: A rule and a table named t
+
+- **GIVEN** a rule named `t` and a table named `t`
+- **WHEN** archangel loads the config
+- **THEN** the config is refused with `rule-name-duplicate`
+- **TEST** `crates/archangel_config/tests/tables.rs` › "a_rule_and_a_table_with_one_name_are_refused"
+
 ### Requirement: A row key that names an externals set is refused
 
 A row key that names an externals set MUST be refused with `config-invalid`, because outside packages have no files that import.
@@ -544,6 +566,110 @@ A table with no row, or whose rows together have no file, MUST give a `table-emp
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one `selector-empty` diagnostic for the area pattern, and no `table-empty` diagnostic
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "an_area_that_matches_nothing_is_selector_empty_not_table_empty"
+
+### Requirement: A table holds only source files, and never the config file
+
+A file that is not a source file MUST NOT count as a file of a table: it MUST NOT give `every-file-has-a-kind`, and MUST NOT keep a row or a table from counting as having no file. The config file MUST be in no table, as an importer or under `every-file-has-a-kind`.
+
+#### Scenario: A table whose only files are not source files
+
+- **GIVEN** a table with the kind pattern `docs/{kind}/**`, and only `docs/guide/a.md` under it
+- **WHEN** archangel makes a check
+- **THEN** archangel gives `table-empty`
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "a_table_whose_only_files_are_not_source_files_is_empty"
+
+#### Scenario: A row whose only files are not source files
+
+- **GIVEN** a table with the rows `domain` and `assets`, and only `src/assets/s.css` under `assets`
+- **WHEN** archangel makes a check
+- **THEN** the summary lists `t.assets` as a row with no file
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "a_row_with_only_files_that_are_not_source_files_is_a_row_with_no_file"
+
+#### Scenario: A file in the table's files that is not a source file
+
+- **GIVEN** a table with `files: 'src/**'`, and the files `src/docs/r.md` and `src/tsconfig.json`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives no violation for these files
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "a_file_that_is_not_source_needs_no_row"
+
+#### Scenario: The reach of a table counts source files
+
+- **GIVEN** the same table, and a row whose only file is a stylesheet
+- **WHEN** the developer runs `archangel rules`
+- **THEN** the table's own rule counts only source files, and the row checks nothing
+- **TEST** `crates/archangel/tests/rules_command.rs` › "a_table_counts_only_source_files"
+
+#### Scenario: The config file has a kind
+
+- **GIVEN** `archangel.config.ts`, the kind pattern `**/*.{kind}.ts`, and a row `config` with an empty list
+- **WHEN** archangel makes a check
+- **THEN** the imports of the config file give no violation
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "the_config_file_is_never_in_a_table"
+
+#### Scenario: The config file in the table's files
+
+- **GIVEN** `archangel.config.ts`, the kind pattern `**/*.{kind}.ts`, `files: '**'`, and no row `config`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives no violation for the config file
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "the_config_file_needs_no_row"
+
+### Requirement: A file with no row has its own code
+
+A violation of `<table>.every-file-has-a-kind` MUST have the code `every-file-has-a-kind`. Only the baseline MUST be able to permit it.
+
+#### Scenario: A file with no row
+
+- **GIVEN** a table with `files: 'src/**'`, and a file with a kind that has no row
+- **WHEN** archangel makes a check
+- **THEN** the code is `every-file-has-a-kind`, which is about a path
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "a_file_with_no_row_has_the_code_every_file_has_a_kind"
+
+### Requirement: A preset's tables count toward preset-empty
+
+`preset-empty` MUST count a preset's tables with its file parts, so that a preset with only tables and no file fails, and a preset whose table has a file does not.
+
+#### Scenario: A preset of tables with no file
+
+- **GIVEN** a preset with only a table, whose kind pattern is misspelt
+- **WHEN** archangel makes a check
+- **THEN** archangel gives `preset-empty`
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "a_preset_that_is_only_tables_and_has_no_file_is_preset_empty"
+
+#### Scenario: A preset of tables with a file
+
+- **GIVEN** a preset with only a table, and a file that has a kind of a row
+- **WHEN** archangel makes a check
+- **THEN** archangel gives no `preset-empty`
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "a_preset_whose_table_has_a_file_is_not_preset_empty"
+
+### Requirement: An instance comes from the values of the captures
+
+Two files MUST be in one instance of a part when their captures have the same values, whichever pattern of the part found them. Rows, `mayOnlyImport` and the `instance` option MUST agree. An `entry` rule MUST keep its comparison of the folder.
+
+#### Scenario: A row over two patterns of a part
+
+- **GIVEN** the part `f` with the patterns `a/{x}/**` and `b/{x}/**`, and the row `f: []`
+- **WHEN** `a/foo/x.ts` imports `b/foo/y.ts`, and `b/foo/y.ts` imports `a/bar/z.ts`
+- **THEN** only the second import is a violation
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "an_instance_comes_from_the_captures_across_two_patterns_of_a_part"
+
+#### Scenario: A rule and the instance option over two patterns of a part
+
+- **GIVEN** the same part, a `mayOnlyImport` rule on it, and a `mayNotImport` rule on it with `instance: 'different'`
+- **WHEN** `a/foo/x.ts` imports `b/foo/y.ts`
+- **THEN** neither rule gives a violation
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "may_only_import_and_the_instance_option_agree_on_an_instance"
+
+### Requirement: A table with files and a captured kind means its rows
+
+A table with `files` and a kind pattern with another capture MUST agree with the same rules written with paths.
+
+#### Scenario: Random imports of such a table
+
+- **GIVEN** a table of two kinds with the kind pattern `{x}/*.{kind}.ts`, with and without `files`, and the same rows written by hand with path patterns
+- **WHEN** archangel judges any import between the files
+- **THEN** both give the same broken rows
+- **TEST** `crates/archangel_rules/tests/rule_properties.rs` › "a_table_with_files_and_a_captured_kind_agrees_with_one_rule_per_row"
 
 ### Requirement: A preset's table that checks nothing is shown, not failed
 

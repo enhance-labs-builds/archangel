@@ -179,8 +179,7 @@ impl<'a> Names<'a> {
         ConfigProblem::new(
             ProblemCode::RuleUnknownElement,
             format!(
-                "the config declares no {} \"{text}\"; {}the declared names are {}; a package is \
-                 written {{ packages: ['{text}'] }}, and a path pattern has a `/` or a `*`",
+                "the config declares no {} \"{text}\"; {}{}; {}a path pattern has a `/` or a `*`",
                 if self.says_parts {
                     "part or group"
                 } else {
@@ -189,7 +188,16 @@ impl<'a> Names<'a> {
                 crate::parse::nearest(text, &declared)
                     .map(|near| format!("did you mean \"{near}\"? "))
                     .unwrap_or_default(),
-                declared.join(", "),
+                if declared.is_empty() {
+                    "the config declares no names".to_owned()
+                } else {
+                    format!("the declared names are {}", declared.join(", "))
+                },
+                if self.says_parts && field.rsplit('.').next() == Some("files") {
+                    "a kind has a meaning only in its table, and ".to_owned()
+                } else {
+                    format!("a package is written {{ packages: ['{text}'] }}, and ")
+                },
             ),
         )
         .at(field)

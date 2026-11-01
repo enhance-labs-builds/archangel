@@ -935,3 +935,88 @@ fn explain_shows_the_second_sentence_of_a_row_that_may_not_import_itself() {
     );
     assert!(out.contains("domain-event may not import itself"), "{out}");
 }
+
+#[test]
+fn explain_finds_an_import_on_each_line_of_its_statement() {
+    let repo = FixtureRepo::new()
+        .file(
+            "src/a.ts",
+            "import data from './b.json'\n  with { type: 'json' };\nconst lazy = import(\n  './c'\n);\n",
+        )
+        .file("src/b.json", "{}")
+        .file("src/c.ts", "")
+        .json_config(&json!({ "elements": { "src": "src/**" }, "rules": [] }));
+    for (line, target) in [(1, "b.json"), (2, "b.json"), (3, "c"), (4, "c"), (5, "c")] {
+        let found = run(&repo, &["explain", &format!("src/a.ts:{line}")]);
+        assert_eq!(
+            found.status, 0,
+            "line {line}: {}{}",
+            found.stdout, found.stderr
+        );
+        assert!(
+            found.stdout.contains(target),
+            "line {line}: {}",
+            found.stdout
+        );
+    }
+}
+
+fn because_repo(key: &str) -> FixtureRepo {
+    FixtureRepo::new()
+        .file("src/a/x.ts", "import '../b/y';\n")
+        .file("src/b/y.ts", "")
+        .json_config(&json!({
+            "elements": { "a": "src/a/**", "b": "src/b/**" },
+            "rules": [{ "name": "r", "files": "a", "mayNotImport": "b", key: "They stay apart." }],
+        }))
+}
+
+#[test]
+fn a_rule_written_with_because_prints_because() {
+    let found = run(&because_repo("because"), &["check"]);
+    assert!(
+        found.stdout.contains("because: They stay apart."),
+        "{}",
+        found.stdout
+    );
+    assert!(!found.stdout.contains("reason:"), "{}", found.stdout);
+}
+
+#[test]
+fn a_rule_written_with_reason_prints_reason() {
+    let found = run(&because_repo("reason"), &["check"]);
+    assert!(
+        found.stdout.contains("reason: They stay apart."),
+        "{}",
+        found.stdout
+    );
+    assert!(!found.stdout.contains("because:"), "{}", found.stdout);
+}
+
+#[test]
+fn a_row_error_says_what_to_do() {
+    let found = run(&fixtures::fixture("small-app"), &["check"]);
+    assert!(
+        found.stdout.contains(
+            "= help: remove the import, or move the code to a file whose row permits the import"
+        ),
+        "{}",
+        found.stdout
+    );
+}
+
+#[test]
+fn an_unknown_name_in_a_config_with_no_names_does_not_list_nothing() {
+    let repo = FixtureRepo::new().file("src/routes/a.ts", "").json_config(&json!({
+        "rules": [
+            { "kind": "mayImport", "name": "t", "rows": { "routes": [] }, "kinds": "src/{kind}/**" },
+            { "name": "r", "files": "routes", "mustBeNamed": "kebab-case" },
+        ],
+    }));
+    let found = run(&repo, &["check"]);
+    assert_eq!(found.status, 2, "{}{}", found.stdout, found.stderr);
+    let all = format!("{}{}", found.stdout, found.stderr);
+    assert!(!all.contains("the declared names are ;"), "{all}");
+    assert!(!all.contains("packages: ['routes']"), "{all}");
+    assert!(all.contains("only in its table"), "{all}");
+}

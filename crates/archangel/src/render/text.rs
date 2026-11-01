@@ -9,7 +9,7 @@ use std::path::Path;
 use annotate_snippets::{AnnotationKind, Group, Level, Origin, Renderer, Snippet};
 use archangel_engine::Timings;
 use archangel_graph::Work;
-use archangel_rules::{Diagnostic, Summary};
+use archangel_rules::{Code, Diagnostic, Summary};
 
 /// Every diagnostic, each with its source line when the file can be read from `dir`.
 pub(crate) fn diagnostics(dir: &Path, diagnostics: &[Diagnostic], color: bool) -> String {
@@ -84,13 +84,24 @@ fn group<'a>(diagnostic: &'a Diagnostic, source: Option<&'a str>) -> Group<'a> {
             diagnostic.help.as_deref(),
         ),
     };
+    if diagnostic.code == Code::MayImport {
+        group =
+            group.element(Level::HELP.message(
+                "remove the import, or move the code to a file whose row permits the import",
+            ));
+    }
     if let Some(rule) = &diagnostic.rule
         && rule != diagnostic.code.as_str()
     {
         group = group.element(Level::NOTE.message(format!("rule: {rule}")));
     }
     if let Some(reason) = &diagnostic.reason {
-        group = group.element(Level::NOTE.message(format!("reason: {reason}")));
+        let word = if diagnostic.because {
+            "because"
+        } else {
+            "reason"
+        };
+        group = group.element(Level::NOTE.message(format!("{word}: {reason}")));
     }
     if let Some(link) = &diagnostic.link {
         group = group.element(Level::NOTE.message(format!("see: {link}")));

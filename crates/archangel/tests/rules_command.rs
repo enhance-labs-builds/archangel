@@ -278,3 +278,135 @@ fn rules_counts_folders_for_a_rule_about_folders() {
         found.stdout
     );
 }
+
+const ALIAS: &str = r#"{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"] } } }"#;
+
+#[test]
+fn reach_does_not_count_an_import_that_a_limit_skips() {
+    let repo = FixtureRepo::new()
+        .file("tsconfig.json", ALIAS)
+        .file("src/a/x.ts", "import '@/b/y';\n")
+        .file("src/b/y.ts", "")
+        .json_config(&json!({
+            "rules": [{
+                "kind": "mayImport", "name": "t",
+                "rows": { "a": [], "b": [] },
+                "kinds": "src/{kind}/**",
+                "specifier": "parent",
+            }],
+        }));
+    let found = run(&repo, &["rules"]);
+    assert!(
+        block(&found.stdout, "t.a").contains("0 imports judged"),
+        "{}",
+        found.stdout
+    );
+    assert!(
+        found.stdout.contains("src/a/x.ts:1 imports src/b/y.ts"),
+        "the import is one that no rule judged: {}",
+        found.stdout
+    );
+}
+
+#[test]
+fn reach_counts_an_import_that_no_cycles_follows() {
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "import './b';\n")
+        .file("src/b.ts", "")
+        .json_config(&json!({
+            "elements": { "src": "src/**" },
+            "rules": [{ "name": "c", "files": "src/**", "noCycles": true }],
+        }));
+    let found = run(&repo, &["rules"]);
+    assert!(
+        !found.stdout.contains("src/a.ts:1 imports src/b.ts"),
+        "{}",
+        found.stdout
+    );
+}
+
+#[test]
+fn a_table_stays_in_one_block_when_a_config_rule_replaces_a_row() {
+    let repo = FixtureRepo::new()
+        .file("src/a/x.ts", "")
+        .file("src/b/y.ts", "")
+        .file("src/c/z.ts", "")
+        .file(
+            "archangel.config.mjs",
+            "export default {
+               extends: [{
+                 name: 'team', package: 'archangel-plugin-team', root: '',
+                 rules: [{
+                   kind: 'mayImport', name: 'roles',
+                   rows: { a: [], b: [], c: [] },
+                   kinds: 'src/{kind}/**',
+                 }],
+               }],
+               rules: [{ name: 'team/roles.b', files: 'src/b/**', mayNotImport: 'src/a/**' }],
+             };",
+        );
+    let found = run(&repo, &["rules"]);
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    assert_eq!(
+        found.stdout.matches("team/roles  ").count(),
+        1,
+        "{}",
+        found.stdout
+    );
+}
+
+#[test]
+fn a_table_counts_only_source_files() {
+    let repo = FixtureRepo::new()
+        .file("src/domain/a.ts", "")
+        .file("src/domain/x.ts", "")
+        .file("src/docs/r.md", "")
+        .file("src/assets/s.css", "")
+        .json_config(&json!({
+            "rules": [{
+                "kind": "mayImport", "name": "t",
+                "rows": { "domain": [], "assets": [] },
+                "kinds": "src/{kind}/**",
+                "files": "src/**",
+            }],
+        }));
+    let found = run(&repo, &["rules"]);
+    assert!(
+        block(&found.stdout, "t.every-file-has-a-kind").contains("2 files · 0 problems"),
+        "{}",
+        found.stdout
+    );
+    assert!(
+        block(&found.stdout, "t.assets").contains("checks nothing"),
+        "{}",
+        found.stdout
+    );
+}
+
+#[test]
+fn a_table_without_files_says_what_it_covers_and_lists_the_rest() {
+    let repo = FixtureRepo::new()
+        .file("src/routes/a.ts", "")
+        .file("src/index.ts", "")
+        .json_config(&json!({
+            "rules": [{
+                "kind": "mayImport", "name": "t",
+                "rows": { "routes": [] },
+                "kinds": "src/{kind}/**",
+            }],
+        }));
+    let found = run(&repo, &["rules"]);
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    let line = block(&found.stdout, "t.every-file-has-a-kind");
+    assert!(
+        line.contains("a file with a kind has a row; a file with no kind is not checked here"),
+        "{}",
+        found.stdout
+    );
+    assert!(line.contains("1 file · 0 problems"), "{}", found.stdout);
+    assert!(
+        found.stdout.contains("src/index.ts"),
+        "the file with no kind is in the list of files that no rule judges: {}",
+        found.stdout
+    );
+}
