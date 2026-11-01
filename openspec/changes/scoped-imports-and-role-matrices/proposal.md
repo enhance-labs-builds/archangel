@@ -41,8 +41,10 @@ Every 0.1 config keeps working, with two exceptions that the design names for a 
 default, so that tables and rules agree), and type imports under `verbatimModuleSyntax` are fixed
 (0.1 gives a plausible wrong answer). The release is 0.2.0.
 
-Out of scope: the rewrite of enhance3's config (estimated at 1,150 to 1,350 lines), one-line
-examples (an example written as one import string, such as `'entity -> use-case'`),
+An item of a rule's `examples` may also be one line, such as `'src/a.ts imports src/b.ts'`, in place
+of a file set.
+
+Out of scope: the rewrite of enhance3's config (estimated at 900 to 1,100 lines),
 `mayOnlyImportTypesFrom`, layers and isolate over groups, an explicit word to replace a preset
 rule, a map printed by `archangel init`, and a new capture syntax.
 

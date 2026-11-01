@@ -338,3 +338,10 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 - abstractions: `Rule.off` moved liveness out of `merge::off`: fixed, `off` still removes rules, and `Config.off` holds them for `rules` and `explain`.
 - limits, minor: the every-file message for a table without a kind pattern: fixed, with a scenario.
 - limits, minor: the split of `<file>:<line>` on a Windows path: fixed, the line follows the last colon.
+
+### After approval: one-line examples
+
+The owner approved the design and chose to add one-line examples (item 11). Added the form, its
+refusals, requirements, tests and tasks; the enhance3 estimate is now 900 to 1,100 lines. A reader
+found earlier that a one-liner cannot express `import type`; it is now refused on such a rule, with a
+file set as the fix.

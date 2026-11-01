@@ -278,14 +278,15 @@ questions the owner listed; items 9 to 12 came up while the change was written.
     changelog lists it under "Fixed". The other option is to keep the 0.1 answer and document it,
     which leaves a plausible wrong answer.
 
-11. **enhance3's config written by hand is about 1,150 to 1,350 lines** ("What enhance3 gains").
-    Recommendation: ship 0.2 without one-line examples and measure the rewrite (task 9.1 records the
-    slice). A one-line example is a rejected or accepted example written as one import string in
-    the rule, such as `'entity -> use-case'`, in place of an example object with source files. An
-    earlier interface sketch estimated about 700 lines; it assumed one-line examples (about 250
-    lines) and left out the literal file lists in enhance3's own rules (about 175 lines). The other
-    option is to add one-line examples to this change, which saves about 250 lines in enhance3 and
-    adds a new form to specify and test.
+11. **Examples may be one line, so enhance3's config written by hand is about 900 to 1,100 lines**
+    ("What enhance3 gains"; decided: add them to this change). An item of `accepted` or `rejected`
+    may be a string in place of a file set: `'src/a.ts imports src/b.ts'`. "One-line examples" in
+    "How it works" gives the form. An earlier estimate of 1,150 to 1,350 lines did not have them;
+    they save about 250 lines. The forms that were not chosen are an arrow string
+    (`'entity -> use-case'`), which needs a legend and names kinds, not files, so a typing error in
+    a pattern stays hidden; and a tuple (`['a.ts', 'b.ts']`), which does not say what the two paths
+    are. A sentence reads with no documentation, and it names real paths, which is what proves the
+    rule's patterns. Task 9.1 measures the real slice.
 
 12. **A table that checks nothing fails the check, `table-empty`.** A table with no row, or whose
     rows together have no file, checks nothing while the check stays green, and the usual cause is
@@ -306,6 +307,41 @@ questions the owner listed; items 9 to 12 came up while the change was written.
     and is refused either way.
 
 ## How it works
+
+### One-line examples
+
+An item of `accepted` or `rejected` is a file set or a one-line string. Both forms can be in one
+list, and every 0.1 file set keeps working. The string is a path, and any number of
+`imports <target>` after it:
+
+```ts
+rejected: [
+  'src/shared/price.ts imports src/features/cart/index.ts', // an import
+  'src/shared/price.ts imports react',                      // an import of a package
+  'src/a.ts imports src/b.ts imports src/a.ts',             // a chain, here a cycle
+  'src/app/ui.ts',                                          // one empty file
+],
+```
+
+Archangel makes the file set when it loads the config, so the example then runs as every other
+example does, in memory and with the same verdicts and `example-proves-nothing` messages. Each path
+becomes a file that holds one `import` line for each import that the string gives it, with a relative
+specifier and the target's own extension. A target is a file in the repository when it ends in a
+source extension (`.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`) and does not start
+with `@` or `node:`. Any other target is a package, and only the last target can be one. So a
+package named `chart.js` needs a file set. A path outside the repository, a path with a space, or
+a string with any other shape (such as `'a.ts import b.ts'`) is a config problem, whose message gives
+the form.
+
+A one-liner makes only runtime imports, in files with no other text. So it is refused where the file
+text decides the verdict: on a rule with `names`, `specifier`, `dependency` or `imports: 'types'`
+(which includes each row of a table with these options), on a rule whose sides or `stopAt` select by
+directive, on an export condition and on a plugin condition. The refusal names the rule and says to
+write a file set. Without it, a rejected example fails for no clear reason, and an accepted example
+passes and proves nothing. It works on the other import conditions, on `noCycles`, on `transitively`,
+on tables and on structure conditions.
+
+The cost is one string split for each example when the config loads, and nothing on the check.
 
 ### Parts, groups and externals
 
@@ -655,13 +691,13 @@ export default defineConfig({
     rule('web-uses-api-types-only', {
       files: 'web', mayNotImport: 'api', imports: 'runtime',
       because: 'The web app types its requests from the API router. No API code ships to the browser.',
-      examples: { rejected: [{ 'apps/web/src/a.ts': "import { app } from '../../api/src/app';", 'apps/api/src/app.ts': '' }] },
+      examples: { rejected: ['apps/web/src/a.ts imports apps/api/src/app.ts'] },
     }),
 
     rule('core-not-to-driver', {
       files: ['domain', 'application'], mayNotImport: 'driver',
       because: 'The domain and application layers never touch an I/O driver. A use case that needs one declares a port.',
-      examples: { rejected: [{ 'apps/api/src/board/domain/a.entity.ts': "import { Client } from 'pg';" }] },
+      examples: { rejected: ['apps/api/src/board/domain/a.entity.ts imports pg'] },
     }),
 
     mayImport('domain', {
@@ -686,7 +722,7 @@ export default defineConfig({
 });
 ```
 
-The two rules that are not tables carry a written rejected example, because 0.1's `rule-unproven`
+The two rules that are not tables carry a one-line rejected example, because 0.1's `rule-unproven`
 still applies to them. The domain table is the one enhance3 states, with one row added:
 `specification`. The stated table
 names `specification` as a cell but gives it no row, and 0.2 refuses a cell that is neither a row
@@ -713,13 +749,13 @@ preset). With the forms of this change:
 | 14 table uses, about 6 lines each, with no written example and the `every-file-has-a-kind` rule | up to 195 rows and about 20 naming rules | 90 |
 | API layers and editor models as tables, and 4 `entry` rules | 9 | 50 |
 | Naming rules for folders that no table covers, with brace alternatives | about 85 | 140 |
-| Other dependency rules, name first, each with a reason and a written rejected example | about 34 | 330 to 380 |
+| Other dependency rules, name first, each with a reason and a one-line rejected example | about 34 | 80 to 130 |
 | Overrides of the Feature-Sliced Design preset, for each of three apps | 9 | 120 |
 | Literal file lists in those rules | | 150 to 200 |
-| **Total** | about 380 | **about 1,150 to 1,350** |
+| **Total** | about 380 | **about 900 to 1,100** |
 
-The main savings over the builder's output are that table rows need no written example (about 80
-lines), the workspace table and externals (about 90 lines of package rules), the `every-file-has-a-kind`
+The main savings over the builder's output are one-line examples (about 250 lines), that table
+rows need no written example (about 80 lines), the workspace table and externals (about 90 lines of package rules), the `every-file-has-a-kind`
 rule (about 10 naming rules), and the name-first form (about one line per rule). This is an
 estimate from counts, not a measurement; the rewrite is a separate task, and task 9.1 measures the
 slice.
@@ -908,7 +944,7 @@ gains `archangel rules` and the `<file>:<line>` form of `explain`.
 - A preset rule is still replaced by a config rule with its prefixed name, with no explicit word;
   `archangel rules` shows each replacement. An explicit `replaces` would break 0.1 configs that
   replace by name, so it is deferred to a later change.
-- `mayOnlyImportTypesFrom`, layers and isolate over groups, one-line examples, a map printed by
+- `mayOnlyImportTypesFrom`, layers and isolate over groups, a map printed by
   `archangel init`, and typed builders for a config split across files are not in this change.
 
 None of these drops work silently. Searched: the config loader and its builders, the rule loader and
