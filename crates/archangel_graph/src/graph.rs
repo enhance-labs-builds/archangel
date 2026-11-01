@@ -312,6 +312,7 @@ impl ImportGraph {
         work.add(&parsed.work);
         work.resolutions += resolved.resolutions.len() as u64;
         self.files[index].facts = parsed.facts;
+        self.mark_imports(index, resolved.verbatim_module_syntax);
         self.parse_problems[index] = parsed.problem;
         self.hashes[index] = parsed.hash;
         let old = std::mem::replace(&mut self.resolutions[index], resolved.resolutions);
@@ -322,6 +323,12 @@ impl ImportGraph {
         self.inputs.contents.extend(self.resolver.files_read());
         self.refresh_problems();
         true
+    }
+
+    fn mark_imports(&mut self, index: usize, verbatim_module_syntax: bool) {
+        if let Some(facts) = &mut self.files[index].facts {
+            facts.mark_imports(verbatim_module_syntax);
+        }
     }
 
     /// Takes the file at `index` off the importer lists of its old targets and puts it on those
@@ -409,8 +416,9 @@ impl ImportGraph {
         self.resolutions = Vec::with_capacity(resolved.len());
         self.resolution_problems = BTreeSet::new();
         self.inputs = ResolutionInputs::default();
-        for outcome in resolved {
+        for (index, outcome) in resolved.into_iter().enumerate() {
             work.resolutions += outcome.resolutions.len() as u64;
+            self.mark_imports(index, outcome.verbatim_module_syntax);
             self.resolution_problems.extend(outcome.problems);
             self.inputs.contents.extend(outcome.inputs.contents);
             self.inputs.existence.extend(outcome.inputs.existence);
@@ -763,7 +771,10 @@ struct Collected {
 }
 
 impl Collected {
-    fn add(&mut self, path: String, (parsed, resolved): (Parsed, Resolved), work: &mut Work) {
+    fn add(&mut self, path: String, (mut parsed, resolved): (Parsed, Resolved), work: &mut Work) {
+        if let Some(facts) = &mut parsed.facts {
+            facts.mark_imports(resolved.verbatim_module_syntax);
+        }
         work.add(&parsed.work);
         work.resolutions += resolved.resolutions.len() as u64;
         self.parse_problems.push(parsed.problem);
@@ -809,6 +820,8 @@ struct Resolved {
     resolutions: Vec<Resolution>,
     problems: BTreeSet<ResolutionFileProblem>,
     inputs: ResolutionInputs,
+    /// Whether the file's tsconfig sets `verbatimModuleSyntax`.
+    verbatim_module_syntax: bool,
 }
 
 fn run_in<T: Send>(pool: Option<&rayon::ThreadPool>, job: impl FnOnce() -> T + Send) -> T {
@@ -948,6 +961,7 @@ fn resolve_file(resolver: &ImportResolver, file: &Path, facts: Option<&FileFacts
             resolutions: Vec::new(),
             problems,
             inputs,
+            verbatim_module_syntax: false,
         };
     };
     let (tsconfig, problem) = resolver.tsconfig(file);
@@ -958,6 +972,9 @@ fn resolve_file(resolver: &ImportResolver, file: &Path, facts: Option<&FileFacts
             .contents
             .extend(tsconfig.references_resolved.iter().map(|r| r.path.clone()));
     }
+    let verbatim_module_syntax = tsconfig
+        .as_ref()
+        .is_some_and(|found| found.compiler_options.verbatim_module_syntax == Some(true));
     let importer = Importer {
         file,
         tsconfig: tsconfig.as_deref(),
@@ -975,6 +992,7 @@ fn resolve_file(resolver: &ImportResolver, file: &Path, facts: Option<&FileFacts
         resolutions,
         problems,
         inputs,
+        verbatim_module_syntax,
     }
 }
 

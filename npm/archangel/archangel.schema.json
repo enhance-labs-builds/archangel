@@ -1312,11 +1312,17 @@
   },
   "anyOf": [
     {
+      "properties": {
+        "parts": true
+      },
       "required": [
         "parts"
       ]
     },
     {
+      "properties": {
+        "elements": true
+      },
       "required": [
         "elements"
       ]

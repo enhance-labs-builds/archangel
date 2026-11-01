@@ -12,6 +12,12 @@ guarantee.
 - `mayOnlyImport` on a part with a capture permits only the files of its own instance. In 0.1, it
   permitted every instance. To keep the 0.1 result, add the part to the rule's list.
 
+### Fixed
+
+- Type imports follow `verbatimModuleSyntax`. With this option, `import { type A } from './a'` and
+  `export { type A } from './a'` stay in the compiled code, so they are runtime imports. The file's
+  tsconfig decides the mark, so a change to the tsconfig marks the imports again with no parse.
+
 ## 0.1.1 - 2026-11-01
 
 ### Fixed

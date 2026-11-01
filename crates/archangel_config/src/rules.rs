@@ -540,7 +540,7 @@ impl Input<'_> {
             "mayNotImport" => names
                 .side(value, &field, problems)
                 .map(Condition::MayNotImport),
-            "mayOnlyImport" if lists_nothing(value) => {
+            "mayOnlyImport" if value.as_array().is_some_and(Vec::is_empty) => {
                 if self.object.contains_key("within") {
                     Some(Condition::MayOnlyImport(Side {
                         text: "nothing".to_owned(),

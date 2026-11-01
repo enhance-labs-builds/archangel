@@ -203,6 +203,7 @@ fn import(kind: ImportKind) -> Import {
         span: (0, 0),
         utf16: (0, 0),
         names: vec!["x".to_owned()],
+        names_typed: false,
     }
 }
 

@@ -308,6 +308,53 @@ fn tsconfig_change_parses_nothing_and_resolves_every_import_once() {
     );
 }
 
+/// A repository whose first check has no cycle and no runtime violation, because its tsconfig
+/// lets the compiler remove the inline type import.
+fn inline_type_repo() -> FixtureRepo {
+    FixtureRepo::new()
+        .file("tsconfig.json", r#"{ "compilerOptions": { "strict": true } }"#)
+        .file("src/a.ts", "import { type B } from './b';\n")
+        .file("src/b.ts", "import { a } from './a';\n")
+        .file("lib/c.ts", "import { type D } from '../other/d';\n")
+        .file("other/d.ts", "")
+        .json_config(&json!({
+            "elements": { "src": "src/**", "lib": "lib/**", "other": "other/**" },
+            "rules": [
+                { "name": "no-cycles", "files": "src/**", "noCycles": true },
+                { "name": "lib-types-only", "files": "lib", "mayNotImport": "other", "imports": "runtime" },
+            ],
+        }))
+}
+
+#[test]
+fn a_tsconfig_that_gains_verbatim_module_syntax_re_marks_every_import_without_a_parse() {
+    let _faults = faults();
+    let repo = inline_type_repo();
+    let mut session = open(&repo);
+    assert_eq!(session.report().diagnostics, [], "the first check is clean");
+    repo.write(
+        "tsconfig.json",
+        r#"{ "compilerOptions": { "strict": true, "verbatimModuleSyntax": true } }"#,
+    );
+    let applied = session.apply(vec![Change::Paths(vec![PathEvent::Changed(path(
+        &repo,
+        "tsconfig.json",
+    ))])]);
+    assert_eq!(counts(&applied.work).0, 0, "no file is parsed");
+    let mut rules: Vec<_> = session
+        .report()
+        .diagnostics
+        .iter()
+        .filter_map(|d| d.rule.clone())
+        .collect();
+    rules.sort();
+    assert_eq!(
+        rules,
+        ["lib-types-only", "no-cycles"],
+        "the cycle runs, and a rule about one file's runtime imports judges it again"
+    );
+}
+
 /// A workspace of 40 packages, each with a manifest the resolver reads for an import of it.
 #[cfg(unix)]
 fn workspace() -> FixtureRepo {

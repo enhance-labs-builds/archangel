@@ -67,6 +67,23 @@ pub struct Import {
     /// The names an import or export-from statement brings in: `default`, `*` or the name. An
     /// `export *` and a side-effect import list none.
     pub names: Vec<String>,
+    /// Whether every name has its own `type` modifier and the statement has none, so that the
+    /// tsconfig of the file decides the mark.
+    pub names_typed: bool,
+}
+
+impl FileFacts {
+    /// Sets the mark of each import that the file's tsconfig decides: `verbatimModuleSyntax` makes
+    /// TypeScript keep a statement whose names all have the `type` modifier, so the module runs.
+    pub(crate) fn mark_imports(&mut self, verbatim_module_syntax: bool) {
+        for import in self.imports.iter_mut().filter(|import| import.names_typed) {
+            import.kind = if verbatim_module_syntax {
+                ImportKind::Runtime
+            } else {
+                ImportKind::Type
+            };
+        }
+    }
 }
 
 /// Whether an import stays in the compiled JavaScript.
@@ -244,6 +261,7 @@ impl Source<'_> {
             span: (span.start, span.end),
             utf16: self.lines.utf16(self.text, span.start, span.end),
             names: Vec::new(),
+            names_typed: false,
         }
     }
 
@@ -290,10 +308,11 @@ impl Source<'_> {
                     ImportForm::ExportFrom
                 };
                 let statement = StatementNames::of(record, request.statement_span);
-                let import = self
+                let mut import = self
                     .import(specifier.as_str(), request.span, form)
                     .typed(request.is_type || statement.all_typed)
                     .with_names(statement.names);
+                import.names_typed = statement.all_typed && !request.is_type && !self.declaration;
                 facts.imports.push(import);
             }
         }

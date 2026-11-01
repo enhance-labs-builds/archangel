@@ -790,3 +790,22 @@ fn an_accepted_example_outside_the_area_proves_nothing() {
         "{failure:?}"
     );
 }
+
+#[test]
+fn an_example_follows_verbatim_module_syntax() {
+    let repo = FixtureRepo::new()
+        .file(
+            "tsconfig.json",
+            r#"{ "compilerOptions": { "verbatimModuleSyntax": true } }"#,
+        )
+        .file("src/shared/s.ts", "");
+    let rules = json!([{
+        "name": "no-cycles", "files": "src/**", "noCycles": true,
+        "examples": { "rejected": [{
+            "src/shared/a.ts": "import { type B } from './b';\n",
+            "src/shared/b.ts": "import { a } from './a';\n",
+        }] },
+    }]);
+    let (outcomes, _) = examples(&rules, &repo);
+    assert_eq!(passed(&outcomes), [true], "the cycle runs: {outcomes:?}");
+}
