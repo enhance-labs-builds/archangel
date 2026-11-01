@@ -32,8 +32,8 @@ test, archangel tells you, or your coding agent, where, why, and what to do.
 
 ## An example
 
-The main form of a test is a **table**. Each row of a table is a group of files, and the list on that
-row is what those files may import. The table refuses each other import into the repository.
+The main form of a test is a **table**. Each row of a table is a set of files, and the list on that
+row is what those files may import. The table refuses all other imports into the repository.
 
 ```ts
 import { defineConfig } from '@enhance-eng/archangel';
@@ -97,8 +97,8 @@ see what your tests do.
 - **One tool, one config.** It holds the rules of dependency-cruiser, eslint-plugin-boundaries,
   eslint-plugin-check-file and Steiger.
 - **Errors that say what to do.** Each error shows the line, the rule, your reason for the rule,
-  and what the rule permits.
-- **Tests that cannot lie.** A table that finds no file fails the check. A file in a table's files
+  and what the rule permits. A table's error says to remove the import or to move the code.
+- **Tests that fail when they check nothing.** A table that finds no file fails the check. A file in a table's files
   that has no row is a problem. Each rule that is not a table row needs an example of code that it
   must reject, and `archangel test` fails if the rule does not reject it.
 - **Made for coding agents.** Watch mode, a language server, and JSON output give an agent the
@@ -138,9 +138,9 @@ reject its example, so the test fails.
 ## Why archangel
 
 Part of your architecture is in the source code: which code depends on which code, where files are,
-and what each part exports. A reviewer sees a diff, not the graph of imports, so this part decays a
-little with each change. Coding agents write code faster than people can review it, so it now
-decays faster.
+and what each part exports. A reviewer sees a diff, not the graph of imports. So each change can
+break this part, and the reviewer does not see it. Coding agents write code faster than people can
+review it, so this now occurs more often.
 
 Archangel makes this part of your architecture testable. Unit tests check behavior. The type
 checker checks types. Archangel tests architecture.

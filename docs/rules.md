@@ -1,27 +1,67 @@
 # Rules
 
-This page tells you how to write rules. A rule has two parts:
+This page tells you how to write architecture tests. A test has one of two forms:
 
-- **Files**: the files that the rule is about.
-- **One condition**: what those files must do, or must not do.
+- **A table** says what each set of files may import. Use a table for the imports of your
+  architecture.
+- **A rule** has some files and one condition. Use a rule for each other decision.
 
 Read a rule as a sentence: "These files may not import React."
 
 ```ts
-rule('no-react-in-shared', { files: 'shared', mayNotImport: 'react' })
+rule('no-react-in-shared', { files: 'shared', mayNotImport: { packages: ['react'] } })
 ```
 
-A table is many of these rules in one place. Use a table for the imports of your architecture, and a
-rule for each other decision.
+This config has a table, and a rule with an example:
 
-## Name the parts of your code
+```ts
+import { defineConfig } from '@enhance-eng/archangel';
 
-Before you write rules, give names to the parts of your code. Archangel has three kinds of names.
+export default defineConfig({
+  parts: {
+    routes: 'src/routes/**',
+    services: 'src/services/**',
+    db: 'src/db/**',
+  },
+  rules: ({ mayImport, rule }) => [
+    mayImport('layers', {
+      routes: ['services'],
+      services: ['db'],
+      db: [],
+    }, {
+      because: 'A route calls a service. Only a service calls the database code.',
+    }),
+
+    rule('no-pg-in-routes', {
+      files: 'routes',
+      mayNotImport: { packages: ['pg'] },
+      because: 'Only the db folder talks to the database.',
+      examples: {
+        accepted: ['src/routes/users.ts imports src/services/users.ts'],
+        rejected: ['src/routes/users.ts imports pg'],
+      },
+    }),
+  ],
+});
+```
+
+## Words on this page
+
+- **Capture:** a name in braces in a path pattern, such as `{feature}`. It takes one name from the
+  path.
+- **Instance:** the files with the same values in their captures. `{feature}` makes each folder in
+  `src/features` one instance.
+- **Cell:** one name in the list on a row of a table.
+- **Judge:** a rule judges an import when the rule decides to permit or refuse that import.
+
+## Name the sets of files
+
+Before you write tests, give names to your sets of files. Archangel has three types of names.
 
 ### Parts
 
-A part is a part of your code, found by a path pattern. Each file is in one part at most. If two
-parts find one file, archangel shows the error `part-overlap`.
+A part is a named area of your code, found by a path pattern. Each file is in one part at most. If
+two parts find one file, archangel shows the error `part-overlap`.
 
 ```ts
 parts: {
@@ -30,8 +70,8 @@ parts: {
 },
 ```
 
-`{feature}` captures one part of the path. Each folder in `src/features` is then one **instance** of
-the part `feature`, for example `login` or `cart`.
+Each folder in `src/features` is then one instance of the part `feature`, for example `login` or
+`cart`.
 
 ### Groups
 
@@ -47,8 +87,8 @@ groups: {
 
 ### Externals
 
-An externals set is a named set of outside packages. Use it on the other side of an import rule, or
-in a table.
+An externals set is a named set of outside packages. Use it in a cell of a table. On the other side
+of a rule, use its name, or write the packages there with `{ packages: ['react'] }`.
 
 ```ts
 externals: {
@@ -84,7 +124,7 @@ never find a problem, so archangel does not let it pass silently.
 
 ## Tables
 
-A table says what each group of files may import.
+A table says what each set of files may import.
 
 ```ts
 mayImport('feature-code', {
@@ -116,8 +156,16 @@ A **kind** is a name that the table's `kinds` pattern gives to a file. The patte
 `{kind}` can be in a pattern two times. Then the two places must give the same name. A declaration
 file counts `.d.ts` as one extension, so `env.d.ts` has no kind `d`.
 
-A kind means the same files in all of the table. Use `files` to choose which files the table judges
-as importers. The target of an import has its kind everywhere.
+The `files` option does not change what a kind is. It only chooses the importers that the table
+judges. A file outside `files` still has its kind when another file imports it.
+
+### Parts or kinds
+
+- **Use parts** for areas that have names of their own and that many tests use. A rule's `files` can
+  name a part.
+- **Use kinds** when one pattern gives the names, as for many folders or file endings. No
+  declaration is necessary. A kind has a meaning only in its table, so a rule's `files` cannot name
+  it.
 
 ### What a row permits
 
@@ -128,15 +176,23 @@ A row permits only:
 - its own name, in the same instance. Use `mayNotImportItself` to remove this;
 - what `everyRowMayImport` lists.
 
-The row refuses each other import into the repository. An import of a target that has no row gives
-the message "no row for ...". A table judges an import of an outside package only if one of its
-cells, or `everyRowMayImport`, names an externals set with that package.
+The row refuses all other imports into the repository. An import of a target that has no row gives
+the message "no row for ...".
+
+**A table cannot refuse a package unless a cell names it.** A table judges an import of an outside
+package only if a cell, or `everyRowMayImport`, names an externals set with that package. Without
+this, a row with an empty list can still import each package.
 
 ### Each file has a row
 
 Each table makes the rule `<table>.every-file-has-a-kind`. This rule refuses a file in the table's
-`files` that has no row. A table without `files` has no list of files to look at, so it does not
-check a file that has no kind.
+`files` that has no row. The error has the code `every-file-has-a-kind`.
+
+A table without `files` does not check a file that has no kind or that is in no row.
+`archangel rules` says this on the rule's line, and lists the file under the files that no rule
+judges. To check these files, add `files`.
+
+Only source files count for a table. The config file is in no table.
 
 To let a file out of a table, write `not` in the table's `files`, or put the rule's name in `off`.
 
@@ -158,7 +214,13 @@ error, because you can write a kind before the first file has it. `archangel che
 | `imports`, `names`, `specifier`, `instance`, `dependency` | The same as for an import condition. Each row gets the option. |
 
 A table row does not need a written example. You can write examples for a table: they run against
-all its rows, and a rejected example passes when one row rejects it.
+all its rows, and a rejected example passes when one row refuses one of its imports.
+
+A JSON config writes a table with its `kind`:
+
+```json
+{ "kind": "mayImport", "name": "feature-code", "rows": { "views": ["models"], "models": [] }, "kinds": "src/features/*/{kind}/**" }
+```
 
 ## Conditions
 
@@ -168,8 +230,8 @@ Each rule has one condition.
 
 | Condition | Example | Archangel reports |
 | --- | --- | --- |
-| `mayNotImport` | `rule('a', { files: 'shared', mayNotImport: 'react' })` | an import of `react` in `shared` |
-| `mayOnlyImport` | `rule('a', { files: 'view', mayOnlyImport: ['shared', 'react'] })` | an import in `view` of something that is not in the list |
+| `mayNotImport` | `rule('a', { files: 'shared', mayNotImport: { packages: ['react'] } })` | an import of `react` in `shared` |
+| `mayOnlyImport` | `rule('a', { files: 'view', mayOnlyImport: ['shared', { packages: ['react'] }] })` | an import in `view` of something that is not in the list |
 | `mayOnlyBeImportedBy` | `rule('a', { files: 'db', mayOnlyBeImportedBy: 'api' })` | an import of `db` by a file that is not in `api` or `db` |
 | `noCycles` | `rule('a', { files: 'src/**', noCycles: true })` | files that import each other in a cycle |
 
@@ -212,8 +274,8 @@ Add one of these options to an import condition. The condition then applies only
 | `dependency: 'undeclared'` | packages that the nearest `package.json` does not list |
 | `within: 'apps/api/src/**'` | imports into this area. It works on `mayOnlyImport` and `mayOnlyBeImportedBy`. |
 
-`within` removes a double negative. To say that a file may import only some of the files in an area,
-and may import each thing outside it:
+`within` limits a rule to one area. The rule permits each import outside the area. Use it to say that
+a file may import only some of the files in an area:
 
 ```ts
 rule('entity-imports', {
@@ -331,13 +393,21 @@ rule('no-react-in-shared', {
 | `'src/a.ts imports src/b.ts imports src/a.ts'` | Two files that import each other. |
 | `'src/app/ui.ts'` | One empty file. |
 
-A target that ends in `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs` or `.cjs` is a file,
-unless it starts with `@` or `node:`. Each other target is a package.
+A target is a file when it has a `/` and ends in `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`
+or `.cjs`, and does not start with `@` or `node:`. Each other target is a package. So `chart.js` is a
+package. Write a file at the config folder as `./b.ts`. A package path such as `lodash/fp.js` needs
+a file set.
 
-A file made from one line holds only runtime imports. So archangel refuses one line on a rule where
-the text of the file decides the result: a rule with `names`, `specifier`, `dependency` or
-`imports: 'types'`, a rule that selects files by directive, an export condition, and a plugin
-condition. For these rules, write the files yourself:
+The package of an example must be installed, because archangel resolves the import as usual.
+
+A file made from one line holds only runtime imports. So archangel refuses one line where the text of
+the file decides the result. It refuses one line on:
+
+- a rule with `names`, `specifier`, `dependency` or `imports: 'types'`;
+- a rule that selects files by directive;
+- an export condition or a plugin condition.
+
+For these rules, write the files yourself:
 
 ```ts
 isolate('feature', {
@@ -356,8 +426,12 @@ shows that the rule can find a problem. A table row does not need a written exam
 
 `archangel rules` shows each rule as a sentence, with its reason, where you wrote it, the files and
 imports that it judged, and its problems and exceptions. A rule that covers no file says that it
-checks nothing. At the end, it lists the files and imports that no rule judges, and the outside
+checks nothing. An import that a rule's `names`, `specifier`, `instance` or `dependency` leaves out
+does not count as judged. At the end, it lists the files and imports that no rule judges, and the outside
 packages that no rule names.
+
+The count in `archangel check` includes the config file, so it can be one more than the count in
+`archangel rules`.
 
 `archangel explain src/a.ts:3` shows each rule that judged the import on line 3, with its result, and
 why each other rule did not judge it.
@@ -365,7 +439,7 @@ why each other rule did not judge it.
 ## Older spellings
 
 A config from archangel 0.1 still loads. A config uses one spelling of each key, and archangel refuses
-two spellings in one config. These spellings stop at 1.0.
+two spellings in one config. An error prints `because:` or `reason:`, as your config writes it. These spellings stop at 1.0.
 
 | Spelling | Older spelling |
 | --- | --- |
@@ -374,4 +448,5 @@ two spellings in one config. These spellings stop at 1.0.
 | `because` | `reason` |
 | `rule('<name>', { ... })` | `rule({ name: '<name>', ... })` |
 
-A package set in `elements`, `{ packages: [...] }`, is now an entry in `externals`.
+A package set in `elements` is now an entry in `externals`. On the other side of a rule,
+`{ packages: [...] }` is not an older spelling, and it stays.

@@ -28,7 +28,8 @@ config still loads, with the two changes of result below. Read
 - `archangel explain <file>:<line>`: each rule that judged one import, and why each other rule did
   not.
 - A config can have rules and no parts.
-- The diagnostic codes `may-import`, `part-overlap`, `table-empty` and `table-row-overlap`.
+- The diagnostic codes `may-import`, `every-file-has-a-kind`, `part-overlap`, `table-empty` and
+  `table-row-overlap`.
 - `archangel init` writes the new spellings and a one-line example.
 
 ### Changed

@@ -7,6 +7,24 @@ fixture that archangel checks, so an example cannot disagree with what archangel
 
 ## ADDED Requirements
 
+### Requirement: Every rule fragment in the docs loads
+
+Each rule written in a TypeScript block, or as inline code, in the README or a page under `docs/` MUST load in a config that declares its names. A test MUST run each one, so that a docs example cannot stop working.
+
+#### Scenario: A fragment that does not load
+
+- **GIVEN** a doc with the inline code `rule('a', { files: 'shared', mayNotImport: 'react' })`, whose bare package name the config refuses
+- **WHEN** the test reads the doc
+- **THEN** the test names the doc and the line of the fragment
+- **TEST** `crates/archangel/tests/doc_examples.rs` › "a_fragment_that_does_not_load_is_named"
+
+#### Scenario: The fragments of the docs
+
+- **GIVEN** the README and each page under `docs/`
+- **WHEN** the test runs each rule fragment in a config
+- **THEN** no fragment gives a config error
+- **TEST** `crates/archangel/tests/doc_examples.rs` › "every_rule_fragment_in_the_docs_loads"
+
 ### Requirement: Every config example in the docs is a checked fixture
 
 Each config example in the README and in the docs folder MUST be the text of a fixture. A fixture MUST hold the config, the source files, and the expected output of each command that the docs show for it. A test MUST run each command on each fixture and compare the output with the expected output. A test MUST read each config block in the README and the docs and find the fixture whose config has the same text.

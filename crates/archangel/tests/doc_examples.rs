@@ -75,6 +75,93 @@ fn config_blocks(text: &str) -> Vec<(usize, String)> {
     blocks
 }
 
+/// Each rule fragment of a doc, with the line it starts on: a TypeScript block that starts with a
+/// builder, and a piece of inline code that does.
+fn fragments(text: &str) -> Vec<(usize, String)> {
+    const BUILDERS: [&str; 5] = ["rule(", "mayImport(", "layers(", "isolate(", "entry("];
+    // A placeholder, a rule's default name and a plugin's rule cannot load alone.
+    let is_fragment = |code: &str| {
+        BUILDERS.iter().any(|builder| code.starts_with(builder))
+            && code.contains('\'')
+            && !code.contains("...")
+            && !code.contains("plugin:")
+    };
+    let mut found = Vec::new();
+    let mut block: Option<(usize, String)> = None;
+    let mut fenced = false;
+    for (index, line) in text.lines().enumerate() {
+        if line.starts_with("```") {
+            match block.take() {
+                Some((at, code)) if is_fragment(&code) => found.push((at, code)),
+                Some(_) => {}
+                None if line.trim_end() == "```ts" => block = Some((index + 1, String::new())),
+                None => {}
+            }
+            fenced = !fenced;
+            continue;
+        }
+        if let Some((_, code)) = &mut block {
+            code.push_str(line);
+            code.push('\n');
+        } else if !fenced {
+            found.extend(
+                line.split('`')
+                    .skip(1)
+                    .step_by(2)
+                    .filter(|code| is_fragment(code))
+                    .map(|code| (index + 1, code.to_owned())),
+            );
+        }
+    }
+    found
+}
+
+/// A repository whose config holds one rule fragment, with each name that the docs use declared.
+fn fragment_repo(fragment: &str) -> FixtureRepo {
+    let parts: String = [
+        "app",
+        "shared",
+        "view",
+        "db",
+        "api",
+        "entity",
+        "value-object",
+        "error",
+        "use-case",
+    ]
+    .iter()
+    .map(|name| format!("'{name}': 'src/{name}/**',"))
+    .collect();
+    let parts = format!("{parts} feature: 'src/features/{{feature}}/**',");
+    FixtureRepo::new().file("src/shared/a.ts", "").file(
+        "archangel.config.mjs",
+        &format!(
+            "export default {{
+               parts: {{ {parts} }},
+               groups: {{ test: '**/*.test.ts', client: {{ directive: 'use client' }} }},
+               externals: {{ driver: ['pg'] }},
+               rules: ({{ rule, mayImport, layers, isolate, entry }}) => [{fragment}],
+             }};\n"
+        ),
+    )
+}
+
+/// A problem for each rule fragment of a doc that does not load.
+fn fragments_that_do_not_load(doc: &str, text: &str) -> Vec<String> {
+    fragments(text)
+        .into_iter()
+        .filter_map(|(line, fragment)| {
+            let found = run(&fragment_repo(&fragment), &["check"]);
+            (found.status == 2).then(|| {
+                format!(
+                    "{doc}:{line}: this fragment does not load: {fragment}\n{}{}",
+                    found.stdout, found.stderr
+                )
+            })
+        })
+        .collect()
+}
+
 /// The text of each fixture's config.
 fn fixture_configs() -> Vec<String> {
     fixture_names()
@@ -124,6 +211,30 @@ fn every_config_example_in_the_docs_is_a_checked_fixture() {
         let text = read_text(&doc);
         let shown = doc.strip_prefix(&root).unwrap().display().to_string();
         problems.extend(blocks_without_a_fixture(&shown, &text, &configs));
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}
+
+#[test]
+fn a_fragment_that_does_not_load_is_named() {
+    let text = "Write `rule('a', { files: 'shared', mayNotImport: 'react' })` in a config.\n";
+    let problems = fragments_that_do_not_load("docs/rules.md", text);
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert!(
+        problems[0].starts_with("docs/rules.md:1: this fragment does not load"),
+        "{}",
+        problems[0]
+    );
+}
+
+#[test]
+fn every_rule_fragment_in_the_docs_loads() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut problems = Vec::new();
+    for doc in std::iter::once(root.join("README.md")).chain(markdown_files(&root.join("docs"))) {
+        let text = read_text(&doc);
+        let shown = doc.strip_prefix(&root).unwrap().display().to_string();
+        problems.extend(fragments_that_do_not_load(&shown, &text));
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
