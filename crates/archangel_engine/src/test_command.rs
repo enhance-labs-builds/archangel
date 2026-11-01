@@ -1,6 +1,6 @@
 //! `archangel test`: every example of every rule, each in memory against the repository.
 
-use archangel_config::ExampleFiles;
+use archangel_config::{ExampleFiles, RuleKind, TableId};
 use archangel_graph::{GraphOptions, ImportGraph, Work};
 use archangel_rules::{Diagnostic, ExampleKind, ExampleOutcome, PluginFindings};
 
@@ -59,7 +59,7 @@ impl Session {
             for (kind, examples) in sets {
                 for (number, files) in examples.iter().enumerate() {
                     let example = Example {
-                        rule: index,
+                        of: Of::Rule(index),
                         kind,
                         files,
                     };
@@ -67,6 +67,36 @@ impl Session {
                     work.examples_checked += 1;
                     runs.push(ExampleRun {
                         rule: rule.name.clone(),
+                        kind,
+                        number: number + 1,
+                        files: files.keys().cloned().collect(),
+                        texts: files.clone(),
+                        outcome,
+                    });
+                }
+            }
+        }
+        let tables = self.architecture.config().tables.clone();
+        for (index, table) in tables.iter().enumerate() {
+            let id = TableId(u32::try_from(index).unwrap_or(u32::MAX));
+            let live = rules
+                .iter()
+                .any(|rule| matches!(&rule.kind, RuleKind::TableRow { table, .. } if *table == id));
+            let sets = [
+                (ExampleKind::Accepted, &table.examples.accepted),
+                (ExampleKind::Rejected, &table.examples.rejected),
+            ];
+            for (kind, examples) in sets.into_iter().filter(|_| live) {
+                for (number, files) in examples.iter().enumerate() {
+                    let example = Example {
+                        of: Of::Table(id),
+                        kind,
+                        files,
+                    };
+                    let outcome = self.outcome(&example, &mut work);
+                    work.examples_checked += 1;
+                    runs.push(ExampleRun {
+                        rule: table.name.clone(),
                         kind,
                         number: number + 1,
                         files: files.keys().cloned().collect(),
@@ -106,7 +136,19 @@ impl Session {
             drop(self.architecture.check(graph, None, work));
         }
         let overlay = graph.overlay(example.files, work);
-        let is_plugin = self.architecture.config().rules[example.rule]
+        let rule = match example.of {
+            Of::Rule(rule) => rule,
+            Of::Table(table) => {
+                return self.architecture.check_table_example(
+                    graph,
+                    &overlay,
+                    table,
+                    example.kind,
+                    work,
+                );
+            }
+        };
+        let is_plugin = self.architecture.config().rules[rule]
             .plugin_use()
             .is_some();
         let findings = if is_plugin {
@@ -117,25 +159,29 @@ impl Session {
             };
             let of = crate::plugins::PluginExample {
                 overlay: &overlay,
-                rule: example.rule,
+                rule,
             };
             self.plugins.example(files, of, work)
         } else {
             PluginFindings::default()
         };
-        self.architecture.check_example_with(
-            graph,
-            &overlay,
-            (example.rule, example.kind),
-            &findings,
-            work,
-        )
+        self.architecture
+            .check_example_with(graph, &overlay, (rule, example.kind), &findings, work)
     }
 }
 
-/// One example of one rule.
+/// Whose example it is.
+#[derive(Clone, Copy)]
+enum Of {
+    /// A rule, by its index.
+    Rule(usize),
+    /// A table, whose rules all judge it.
+    Table(TableId),
+}
+
+/// One example of one rule or table.
 struct Example<'e> {
-    rule: usize,
+    of: Of,
     kind: ExampleKind,
     files: &'e ExampleFiles,
 }

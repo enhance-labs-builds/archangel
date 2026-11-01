@@ -152,6 +152,7 @@ pub fn from_value(value: &Value) -> Result<Config, Vec<ConfigProblem>> {
         off,
         tables,
     };
+    crate::examples::one_liners_belong(&config, &mut problems);
     finish(config, problems)
 }
 
@@ -261,14 +262,15 @@ fn elements_field(
         Some((key, _)) => {
             problems.push(invalid(
                 &source.at(key),
-                "must be an object of element names to patterns",
+                &format!("must be an object of {} names to patterns", part_word(key)),
             ));
             Vec::new()
         }
-        None if source.scope.prefix.is_none() && !has_presets => {
+        None if source.scope.prefix.is_none() && !has_presets && !has_rules(source.object) => {
             problems.push(invalid(
-                "elements",
-                "is missing; declare at least one element",
+                "parts",
+                "is missing, and the config has no rule; declare a part, such as \
+                 `parts: { app: 'src/**' }`, or write a rule",
             ));
             Vec::new()
         }
@@ -276,6 +278,21 @@ fn elements_field(
     };
     elements.extend(externals_field(source, set, problems));
     elements
+}
+
+/// What a key of the config calls the things it declares.
+fn part_word(key: &str) -> &'static str {
+    if key == "parts" { "part" } else { "element" }
+}
+
+/// Whether the config writes a rule.
+fn has_rules(root: &Map<String, Value>) -> bool {
+    match root.get("rules") {
+        None => false,
+        Some(Value::Array(rules)) => !rules.is_empty(),
+        // Not a list: `rules_field` refuses it, and this problem would only add noise.
+        Some(_) => true,
+    }
 }
 
 /// The externals sets of a part, as package elements.
@@ -524,6 +541,7 @@ pub(crate) fn rooted(examples: Examples, scope: &Placement) -> Examples {
     Examples {
         accepted: examples.accepted.into_iter().map(move_set).collect(),
         rejected: examples.rejected.into_iter().map(move_set).collect(),
+        one_line: examples.one_line,
     }
 }
 
@@ -620,9 +638,7 @@ pub(crate) fn patterns(
                 problems.push(
                     ConfigProblem::new(
                         ProblemCode::PatternInvalid,
-                        format!(
-                            "the pattern `{text}` of element \"{element}\" is invalid: {error}"
-                        ),
+                        format!("the pattern `{text}` of \"{element}\" is invalid: {error}"),
                     )
                     .at(field),
                 );
@@ -722,6 +738,12 @@ pub(crate) fn parse_examples(
         return Examples::default();
     };
     unknown_fields(object, &["accepted", "rejected"], &field, problems);
+    let one_line = ["accepted", "rejected"].iter().any(|key| {
+        object
+            .get(*key)
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(Value::is_string))
+    });
     let sets = |key: &str, problems: &mut Vec<ConfigProblem>| -> Vec<ExampleFiles> {
         let field = format!("{field}.{key}");
         match object.get(key) {
@@ -742,6 +764,7 @@ pub(crate) fn parse_examples(
     Examples {
         accepted: sets("accepted", problems),
         rejected: sets("rejected", problems),
+        one_line,
     }
 }
 
@@ -750,17 +773,22 @@ fn example_files(
     field: &str,
     problems: &mut Vec<ConfigProblem>,
 ) -> Option<ExampleFiles> {
+    if let Value::String(line) = value {
+        return match crate::examples::one_line(line) {
+            Ok(files) => Some(files),
+            Err(reason) => {
+                problems.push(invalid(field, &reason));
+                None
+            }
+        };
+    }
     let Some(object) = value.as_object() else {
         problems.push(invalid(field, "must map file paths to their text"));
         return None;
     };
     let mut files = ExampleFiles::new();
     for (path, text) in object {
-        let path_ok = !path.is_empty()
-            && !path.starts_with('/')
-            && !path.contains('\\')
-            && !path.split('/').any(|part| part == ".." || part.is_empty());
-        if !path_ok {
+        if !crate::examples::path_is_inside(path) {
             problems.push(invalid(
                 field,
                 &format!(

@@ -133,7 +133,7 @@ pub(crate) fn test_document(report: &ExampleReport) -> String {
         .runs
         .iter()
         .map(|run| {
-            json!({
+            let mut found = json!({
                 "rule": run.rule,
                 "kind": match run.kind { ExampleKind::Accepted => "accepted", ExampleKind::Rejected => "rejected" },
                 "number": run.number,
@@ -141,7 +141,11 @@ pub(crate) fn test_document(report: &ExampleReport) -> String {
                 "passed": run.outcome.passed,
                 "failure": run.outcome.failure.as_ref().map(diagnostic),
                 "diagnostics": run.outcome.diagnostics.iter().map(diagnostic).collect::<Vec<_>>(),
-            })
+            });
+            if let Some(row) = &run.outcome.rejected_by {
+                found["rejectedBy"] = json!(row);
+            }
+            found
         })
         .collect();
     document(&json!({

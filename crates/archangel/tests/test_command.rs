@@ -299,3 +299,52 @@ fn files_written_count_rejects_examples_on_disk() {
         found.stdout
     );
 }
+
+#[test]
+fn a_table_row_needs_no_written_example() {
+    let repo = FixtureRepo::new()
+        .file("apps/api/src/one.entity.ts", "")
+        .json_config(&json!({
+            "parts": { "api": "apps/api/**" },
+            "rules": [{
+                "kind": "mayImport", "name": "domain",
+                "rows": { "entity": [], "port": ["entity"] },
+                "kinds": "**/*.{kind}.ts",
+            }],
+        }));
+    let found = run(&repo, &["test"]);
+    assert_eq!(
+        found.status, 0,
+        "a row and the every-file-has-a-kind rule need no written example: {}{}",
+        found.stdout, found.stderr
+    );
+    assert!(
+        !found.stdout.contains("rule-unproven"),
+        "no rule-unproven diagnostic: {}",
+        found.stdout
+    );
+}
+
+#[test]
+fn a_written_table_example_names_the_row_that_rejected_it() {
+    let repo = FixtureRepo::new()
+        .file("apps/api/src/one.entity.ts", "")
+        .json_config(&json!({
+            "parts": { "api": "apps/api/**" },
+            "rules": [{
+                "kind": "mayImport", "name": "domain",
+                "rows": { "entity": [], "port": ["entity"] },
+                "kinds": "**/*.{kind}.ts",
+                "examples": {
+                    "rejected": ["apps/api/src/a.entity.ts imports apps/api/src/b.port.ts"],
+                },
+            }],
+        }));
+    let found = run(&repo, &["test"]);
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    assert_eq!(
+        found.stdout,
+        "pass  domain  rejected #1  apps/api/src/a.entity.ts, apps/api/src/b.port.ts  rejected by domain.entity\n\
+         1 examples, none failed; 0 rules without a rejected example\n",
+    );
+}

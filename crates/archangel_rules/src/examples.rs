@@ -3,7 +3,7 @@
 
 use std::collections::BTreeSet;
 
-use archangel_config::{Condition, Rule};
+use archangel_config::{Condition, Rule, RuleKind, TableId};
 use archangel_graph::{ImportGraph, OverlayFiles, Work};
 
 use crate::architecture::Architecture;
@@ -31,6 +31,8 @@ pub struct ExampleOutcome {
     pub failure: Option<Diagnostic>,
     /// What the example's files gave: violations of every rule, and parse and resolution problems.
     pub diagnostics: Vec<Diagnostic>,
+    /// For an example of a table, the row that rejected it, which is the first in config order.
+    pub rejected_by: Option<String>,
 }
 
 impl Architecture {
@@ -48,6 +50,40 @@ impl Architecture {
         self.check_example_with(graph, overlay, (rule, kind), &plugin, work)
     }
 
+    /// Checks one written example of a table against all its rules: `overlay` is the example's
+    /// files, laid over `graph`.
+    #[must_use]
+    pub fn check_table_example(
+        &self,
+        graph: &ImportGraph,
+        overlay: &OverlayFiles,
+        table: TableId,
+        kind: ExampleKind,
+        work: &mut Work,
+    ) -> ExampleOutcome {
+        let of_table = |row: bool| -> Vec<usize> {
+            self.config
+                .rules
+                .iter()
+                .enumerate()
+                .filter(|(_, rule)| match &rule.kind {
+                    RuleKind::TableRow { table: id, row: r } => {
+                        *id == table && (!row || r.is_some())
+                    }
+                    _ => false,
+                })
+                .map(|(index, _)| index)
+                .collect()
+        };
+        let proof = Proof {
+            subject: Subject::Table(&self.config.tables[table.index()].name),
+            judges: of_table(true),
+            rejects: of_table(false),
+            kind,
+        };
+        self.prove(graph, overlay, proof, &PluginFindings::default(), work)
+    }
+
     /// Checks one example of a rule, with what the plugin process found in the example's files
     /// for a plugin rule.
     #[must_use]
@@ -59,10 +95,27 @@ impl Architecture {
         plugin: &PluginFindings,
         work: &mut Work,
     ) -> ExampleOutcome {
+        let proof = Proof {
+            subject: Subject::Rule(rule),
+            judges: vec![rule],
+            rejects: vec![rule],
+            kind,
+        };
+        self.prove(graph, overlay, proof, plugin, work)
+    }
+
+    fn prove(
+        &self,
+        graph: &ImportGraph,
+        overlay: &OverlayFiles,
+        proof: Proof<'_>,
+        plugin: &PluginFindings,
+        work: &mut Work,
+    ) -> ExampleOutcome {
         let mut classes = Classes::new();
         let mut run = Run::new(self, graph, &mut classes, example_scope(graph, overlay));
         run.manifests = graph.manifests_with(Some(overlay));
-        run.watched = Some((rule, false));
+        run.watched = Some((proof.judges.clone(), false));
         run.imports(work);
         let checks = std::mem::take(&mut run.checks);
         run.absorb(checks.values());
@@ -72,7 +125,7 @@ impl Architecture {
         let example = Example {
             graph,
             overlay,
-            rule,
+            rules: &proof.judges,
         };
         let (structure, looked) = self.example_structure(example, run.classes, work);
         for diagnostic in structure
@@ -86,7 +139,7 @@ impl Architecture {
             }
         }
         let considered =
-            looked || plugin.considered || run.watched.is_some_and(|(_, considered)| considered);
+            looked || plugin.considered || run.watched.as_ref().is_some_and(|(_, seen)| *seen);
         let report = run.finish();
         let paths: BTreeSet<&str> = overlay
             .files
@@ -96,23 +149,28 @@ impl Architecture {
             .collect();
         let judge = Judge {
             architecture: self,
-            rule,
+            proof: &proof,
             paths: &paths,
         };
-        let failure = judge.failure(&report.diagnostics, kind, considered);
+        let failure = judge.failure(&report.diagnostics, considered);
+        let rejected_by = judge.rejecting_row(&report.diagnostics);
         ExampleOutcome {
             passed: failure.is_none(),
             failure,
             diagnostics: report.diagnostics,
+            rejected_by,
         }
     }
 
-    /// A `rule-unproven` diagnostic for each rule without a rejected example.
+    /// A `rule-unproven` diagnostic for each rule without a rejected example. A row of a table needs
+    /// none: the rows with no file, `table-empty` and the reach of `archangel rules` show that it
+    /// can fire.
     #[must_use]
     pub fn unproven_rules(&self) -> Vec<Diagnostic> {
         self.config
             .rules
             .iter()
+            .filter(|rule| !matches!(rule.kind, RuleKind::TableRow { .. }))
             .filter(|rule| rule.examples.rejected.is_empty())
             .map(|rule| {
                 let message = format!(
@@ -167,10 +225,28 @@ fn example_scope<'a>(graph: &'a ImportGraph, overlay: &'a OverlayFiles) -> Scope
     }
 }
 
+/// What one example must show.
+struct Proof<'p> {
+    subject: Subject<'p>,
+    /// The rules that can judge an import of the example, for "proves nothing".
+    judges: Vec<usize>,
+    /// The rules that can reject it.
+    rejects: Vec<usize>,
+    kind: ExampleKind,
+}
+
+/// Whose example it is.
+enum Subject<'p> {
+    /// A rule, by its index.
+    Rule(usize),
+    /// A table, by its name.
+    Table(&'p str),
+}
+
 /// Decides an example from the diagnostics its files gave.
 struct Judge<'j> {
     architecture: &'j Architecture,
-    rule: usize,
+    proof: &'j Proof<'j>,
     paths: &'j BTreeSet<&'j str>,
 }
 
@@ -190,13 +266,41 @@ impl Judge<'_> {
             || diagnostic.group.iter().any(|path| in_example(path))
     }
 
-    fn failure(
-        &self,
-        diagnostics: &[Diagnostic],
-        kind: ExampleKind,
-        considered: bool,
-    ) -> Option<Diagnostic> {
-        let name = &self.architecture.config.rules[self.rule].name;
+    fn name(&self) -> &str {
+        match self.proof.subject {
+            Subject::Rule(rule) => &self.architecture.config.rules[rule].name,
+            Subject::Table(name) => name,
+        }
+    }
+
+    /// The rules of the proof that the diagnostics name, in config order.
+    fn rejecting(&self, diagnostics: &[Diagnostic]) -> Vec<&str> {
+        let by = self.rejected_by(diagnostics);
+        self.proof
+            .rejects
+            .iter()
+            .map(|rule| self.architecture.config.rules[*rule].name.as_str())
+            .filter(|name| by.contains(name))
+            .collect()
+    }
+
+    /// For a table's example, the row that rejected it.
+    fn rejecting_row(&self, diagnostics: &[Diagnostic]) -> Option<String> {
+        matches!(self.proof.subject, Subject::Table(_))
+            .then(|| self.rejecting(diagnostics).first().map(|n| (*n).to_owned()))
+            .flatten()
+    }
+
+    fn rejected_by<'d>(&self, diagnostics: &'d [Diagnostic]) -> BTreeSet<&'d str> {
+        diagnostics
+            .iter()
+            .filter(|d| self.involves(d))
+            .filter_map(|d| d.rule.as_deref())
+            .collect()
+    }
+
+    fn failure(&self, diagnostics: &[Diagnostic], considered: bool) -> Option<Diagnostic> {
+        let name = self.name().to_owned();
         let problems: Vec<&str> = diagnostics
             .iter()
             .filter(|d| !d.code.is_rule())
@@ -208,36 +312,51 @@ impl Judge<'_> {
                 problems.join("; ")
             )));
         }
-        let rejected_by: BTreeSet<&str> = diagnostics
-            .iter()
-            .filter(|d| self.involves(d))
-            .filter_map(|d| d.rule.as_deref())
-            .collect();
-        match kind {
-            ExampleKind::Rejected if rejected_by.contains(name.as_str()) => None,
-            ExampleKind::Rejected => Some(self.failed(rejection_missing(name, &rejected_by))),
-            ExampleKind::Accepted if rejected_by.contains(name.as_str()) => {
-                Some(self.failed(format!(
-                    "\"{name}\" rejected an example it should accept; fix the rule or the example"
-                )))
-            }
+        let rejected_by = self.rejected_by(diagnostics);
+        let rejecting = self.rejecting(diagnostics);
+        match self.proof.kind {
+            ExampleKind::Rejected if !rejecting.is_empty() => None,
+            ExampleKind::Rejected => Some(self.failed(self.not_rejected(&name, &rejected_by))),
+            ExampleKind::Accepted if !rejecting.is_empty() => Some(self.failed(format!(
+                "\"{}\" rejected an example it should accept; fix the rule or the example",
+                rejecting[0]
+            ))),
             ExampleKind::Accepted if !considered => {
-                let rule = &self.architecture.config.rules[self.rule];
-                let message = match area_unchecked(rule) {
-                    Some(text) => format!("\"{name}\" {text}"),
-                    None => format!("\"{name}\" {}", unchecked(rule)),
-                };
-                let mut diagnostic = Diagnostic::new(Code::ExampleProvesNothing, message);
-                diagnostic.rule = Some(name.clone());
+                let mut diagnostic =
+                    Diagnostic::new(Code::ExampleProvesNothing, self.proves_nothing(&name));
+                diagnostic.rule = Some(name);
                 Some(diagnostic)
             }
             ExampleKind::Accepted => None,
         }
     }
 
+    fn not_rejected(&self, name: &str, rejected_by: &BTreeSet<&str>) -> String {
+        match self.proof.subject {
+            Subject::Rule(_) => rejection_missing(name, rejected_by),
+            Subject::Table(_) => {
+                format!("no row of \"{name}\" rejected the example; fix the table or the example")
+            }
+        }
+    }
+
+    fn proves_nothing(&self, name: &str) -> String {
+        let Subject::Rule(rule) = self.proof.subject else {
+            return format!(
+                "\"{name}\" never looked at an import of this example, so accepting it proves \
+                 nothing; give the example an import from a file of a row into the repository"
+            );
+        };
+        let rule = &self.architecture.config.rules[rule];
+        match area_unchecked(rule) {
+            Some(text) => format!("\"{name}\" {text}"),
+            None => format!("\"{name}\" {}", unchecked(rule)),
+        }
+    }
+
     fn failed(&self, message: String) -> Diagnostic {
         let mut diagnostic = Diagnostic::new(Code::ExampleFailed, message);
-        diagnostic.rule = Some(self.architecture.config.rules[self.rule].name.clone());
+        diagnostic.rule = Some(self.name().to_owned());
         diagnostic
     }
 }

@@ -45,12 +45,12 @@ pub struct Kept<'a> {
     pub structure: &'a mut Structure,
 }
 
-/// An example's files over the repository, and the rule whose example they are.
+/// An example's files over the repository, and the rules whose example they are.
 #[derive(Clone, Copy)]
 pub(crate) struct Example<'a> {
     pub(crate) graph: &'a ImportGraph,
     pub(crate) overlay: &'a OverlayFiles,
-    pub(crate) rule: usize,
+    pub(crate) rules: &'a [usize],
 }
 
 /// What changed since the structure was last evaluated.
@@ -155,7 +155,7 @@ impl Architecture {
         let Example {
             graph,
             overlay,
-            rule,
+            rules,
         } = example;
         let own: Vec<String> = overlay
             .files
@@ -176,7 +176,7 @@ impl Architecture {
             classes,
             structure: &mut structure,
             work,
-            watched: Some((rule, false)),
+            watched: Some((rules.to_vec(), false)),
         };
         evaluation.files(&refs);
         let sources: Vec<&str> = overlay.files.iter().map(|f| f.path.as_str()).collect();
@@ -347,8 +347,8 @@ struct Evaluation<'e, 'w> {
     classes: &'e mut Classes,
     structure: &'e mut Structure,
     work: &'w mut Work,
-    /// The rule whose example this evaluation checks, and whether it looked at anything.
-    watched: Option<(usize, bool)>,
+    /// The rules whose example this evaluation checks, and whether one looked at anything.
+    watched: Option<(Vec<usize>, bool)>,
 }
 
 impl<'e> Evaluation<'e, '_> {
@@ -411,7 +411,7 @@ impl<'e> Evaluation<'e, '_> {
     /// Notes that a rule looked at a file, folder or instance.
     fn looked(&mut self, rule: usize) {
         if let Some((watched, considered)) = &mut self.watched
-            && *watched == rule
+            && watched.contains(&rule)
         {
             *considered = true;
         }

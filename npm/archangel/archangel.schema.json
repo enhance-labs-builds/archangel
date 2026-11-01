@@ -1231,13 +1231,29 @@
         "accepted": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/exampleFiles"
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "One line, such as `src/a.ts imports src/b.ts`, for which archangel writes the files."
+              },
+              {
+                "$ref": "#/definitions/exampleFiles"
+              }
+            ]
           }
         },
         "rejected": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/exampleFiles"
+            "anyOf": [
+              {
+                "type": "string",
+                "description": "One line, such as `src/a.ts imports src/b.ts`, for which archangel writes the files."
+              },
+              {
+                "$ref": "#/definitions/exampleFiles"
+              }
+            ]
           }
         }
       }
@@ -1435,6 +1451,14 @@
       },
       "required": [
         "elements"
+      ]
+    },
+    {
+      "properties": {
+        "rules": true
+      },
+      "required": [
+        "rules"
       ]
     }
   ]

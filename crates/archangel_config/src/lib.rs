@@ -10,6 +10,7 @@
 //! `archangel` command can be installed with Cargo. Its API follows the command's needs and may
 //! change in any release; depend on the command, its JSON output or its language server instead.
 
+mod examples;
 mod load;
 mod locate;
 mod matcher;

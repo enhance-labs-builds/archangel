@@ -4,7 +4,7 @@
 
 use archangel_graph::{GraphOptions, ImportGraph, Work};
 use archangel_rules::{Architecture, Code, ExampleKind, ExampleOutcome};
-use archangel_testkit::FixtureRepo;
+use archangel_testkit::{FixtureRepo, table};
 use serde_json::{Value, json};
 
 fn elements() -> Value {
@@ -808,4 +808,231 @@ fn an_example_follows_verbatim_module_syntax() {
     }]);
     let (outcomes, _) = examples(&rules, &repo);
     assert_eq!(passed(&outcomes), [true], "the cycle runs: {outcomes:?}");
+}
+
+/// Every written example of every table, in config order, with its verdict.
+fn table_outcomes(config: &Value, repo: &FixtureRepo) -> Vec<ExampleOutcome> {
+    let config = archangel_config::parse_json(&config.to_string()).expect("a valid config");
+    let graph = ImportGraph::build(repo.path(), &GraphOptions::default(), &mut Work::default());
+    let architecture = Architecture::compile(config);
+    let mut work = Work::default();
+    let mut outcomes = Vec::new();
+    for (index, table) in architecture.config().tables.iter().enumerate() {
+        let id = archangel_config::TableId(u32::try_from(index).unwrap());
+        let sets = [
+            (ExampleKind::Accepted, &table.examples.accepted),
+            (ExampleKind::Rejected, &table.examples.rejected),
+        ];
+        for (kind, examples) in sets {
+            for files in examples {
+                let overlay = graph.overlay(files, &mut work);
+                outcomes
+                    .push(architecture.check_table_example(&graph, &overlay, id, kind, &mut work));
+            }
+        }
+    }
+    outcomes
+}
+
+fn domain_with(examples: &Value) -> Value {
+    json!({
+        "parts": { "api": "apps/api/**" },
+        "rules": [table(
+            "domain",
+            &json!({ "entity": ["value-object"], "use-case": [], "value-object": [] }),
+            &json!({ "kinds": "apps/api/**/*.{kind}.ts", "examples": examples }),
+        )],
+    })
+}
+
+fn domain_repo() -> FixtureRepo {
+    FixtureRepo::new().file("apps/api/src/b/one.value-object.ts", "")
+}
+
+const ENTITY: &str = "apps/api/src/b/a.entity.ts";
+
+#[test]
+fn a_written_table_example_passes_when_one_row_rejects_it() {
+    let config = domain_with(&json!({ "rejected": [{
+        ENTITY: "import './s.use-case';\n",
+        "apps/api/src/b/s.use-case.ts": "",
+    }] }));
+    let outcomes = table_outcomes(&config, &domain_repo());
+    assert_eq!(passed(&outcomes), [true], "{outcomes:?}");
+    assert_eq!(
+        outcomes[0].rejected_by.as_deref(),
+        Some("domain.entity"),
+        "archangel names the row that rejected the example"
+    );
+}
+
+#[test]
+fn a_written_table_example_fails_when_no_row_rejects_it() {
+    let config = domain_with(&json!({ "rejected": [{
+        ENTITY: "import './v.value-object';\n",
+        "apps/api/src/b/v.value-object.ts": "",
+    }] }));
+    let outcomes = table_outcomes(&config, &domain_repo());
+    assert_eq!(passed(&outcomes), [false], "{outcomes:?}");
+    let failure = outcomes[0].failure.as_ref().unwrap();
+    assert_eq!(failure.code, Code::ExampleFailed);
+    assert!(
+        failure.message.contains("no row of \"domain\" rejected"),
+        "the message says that no row of the table rejected it: {}",
+        failure.message
+    );
+}
+
+#[test]
+fn a_written_table_accepted_example_passes_when_no_row_rejects_it() {
+    let config = domain_with(&json!({ "accepted": [
+        { ENTITY: "import './v.value-object';\n", "apps/api/src/b/v.value-object.ts": "" },
+        { ENTITY: "import './s.use-case';\n", "apps/api/src/b/s.use-case.ts": "" },
+    ] }));
+    let outcomes = table_outcomes(&config, &domain_repo());
+    assert_eq!(passed(&outcomes), [true, false], "{outcomes:?}");
+    let failure = outcomes[1].failure.as_ref().unwrap();
+    assert!(
+        failure.message.contains("domain.entity"),
+        "the second names the row that rejected it: {}",
+        failure.message
+    );
+}
+
+#[test]
+fn a_table_accepted_example_that_no_row_judges_proves_nothing() {
+    let config = json!({
+        "parts": { "api": "src/**" },
+        "rules": [table(
+            "feature-code",
+            &json!({ "views": ["models"], "models": [] }),
+            &json!({
+                "kinds": "src/features/*/{kind}/**",
+                "examples": { "accepted": [{ "src/features/a/views/b.ts": "import 'react';\n" }] },
+            }),
+        )],
+    });
+    let repo = FixtureRepo::new()
+        .file("src/features/a/models/m.ts", "")
+        .file("node_modules/react/package.json", r#"{ "name": "react" }"#)
+        .file("node_modules/react/index.js", "");
+    let outcomes = table_outcomes(&config, &repo);
+    assert_eq!(passed(&outcomes), [false], "{outcomes:?}");
+    let failure = outcomes[0].failure.as_ref().unwrap();
+    assert_eq!(failure.code, Code::ExampleProvesNothing);
+    assert!(
+        failure.message.contains("feature-code")
+            && failure
+                .message
+                .contains("an import from a file of a row into the repository"),
+        "the message names the table and says what to give the example: {}",
+        failure.message
+    );
+}
+
+#[test]
+fn a_one_line_example_gives_the_verdict_of_its_file_set() {
+    let rule = |examples: Value| json!([{ "kind": "layers", "name": "l", "order": ["app", "feature", "shared"], "examples": examples }]);
+    let line = examples(
+        &rule(json!({ "rejected": ["src/shared/a.ts imports src/features/login/b.ts"] })),
+        &login(),
+    )
+    .0;
+    let set = examples(
+        &rule(json!({ "rejected": [{
+            "src/shared/a.ts": "import '../features/login/b.ts';\n",
+            "src/features/login/b.ts": "",
+        }] })),
+        &login(),
+    )
+    .0;
+    assert_eq!(passed(&line), [true], "{line:?}");
+    assert_eq!(passed(&set), [true], "{set:?}");
+    let messages = |outcome: &ExampleOutcome| -> Vec<String> {
+        outcome
+            .diagnostics
+            .iter()
+            .map(|d| d.message.clone())
+            .collect()
+    };
+    assert_eq!(
+        messages(&line[0]),
+        messages(&set[0]),
+        "both give the same messages"
+    );
+}
+
+#[test]
+fn a_rejected_one_liner_that_the_rule_permits_fails() {
+    let rules = json!([{
+        "kind": "layers", "name": "l", "order": ["app", "feature", "shared"],
+        "examples": { "rejected": ["src/features/a.ts imports src/shared/b.ts"] },
+    }]);
+    let (outcomes, _) = examples(&rules, &login());
+    assert_eq!(passed(&outcomes), [false], "{outcomes:?}");
+    let failure = outcomes[0].failure.as_ref().unwrap();
+    assert_eq!(failure.code, Code::ExampleFailed);
+    assert!(
+        failure.message.contains("no rule rejected the example"),
+        "the message of a file set that the rule does not reject: {}",
+        failure.message
+    );
+}
+
+#[test]
+fn an_accepted_one_liner_that_no_row_judges_proves_nothing() {
+    let config = json!({
+        "parts": { "api": "src/**" },
+        "rules": [table(
+            "feature-code",
+            &json!({ "views": ["models"], "models": [] }),
+            &json!({
+                "kinds": "src/features/*/{kind}/**",
+                "examples": { "accepted": ["src/features/a/views/b.ts imports react"] },
+            }),
+        )],
+    });
+    let repo = FixtureRepo::new()
+        .file("src/features/a/models/m.ts", "")
+        .file("node_modules/react/package.json", r#"{ "name": "react" }"#)
+        .file("node_modules/react/index.js", "");
+    let outcomes = table_outcomes(&config, &repo);
+    assert_eq!(
+        outcomes[0].failure.as_ref().map(|f| f.code),
+        Some(Code::ExampleProvesNothing),
+        "{outcomes:?}"
+    );
+}
+
+#[test]
+fn a_cycle_rule_is_proved_by_a_one_line_chain() {
+    let rules = json!([{
+        "name": "c", "files": "src/**", "noCycles": true,
+        "examples": { "rejected": ["src/a.ts imports src/b.ts imports src/a.ts"] },
+    }]);
+    let (outcomes, _) = examples(&rules, &login());
+    assert_eq!(passed(&outcomes), [true], "{outcomes:?}");
+}
+
+#[test]
+fn a_structure_rule_is_proved_by_one_path() {
+    let rules = json!([{
+        "name": "n", "files": "src/app/ui.*", "mustNotExist": true,
+        "examples": { "rejected": ["src/app/ui.ts"] },
+    }]);
+    let (outcomes, _) = examples(&rules, &login());
+    assert_eq!(passed(&outcomes), [true], "{outcomes:?}");
+}
+
+#[test]
+fn one_list_may_hold_both_forms() {
+    let rules = json!([{
+        "kind": "layers", "name": "l", "order": ["app", "feature", "shared"],
+        "examples": { "rejected": [
+            "src/shared/a.ts imports src/features/login/b.ts",
+            { "src/shared/c.ts": "import '../features/login/index';\n" },
+        ] },
+    }]);
+    let (outcomes, _) = examples(&rules, &login());
+    assert_eq!(passed(&outcomes), [true, true], "{outcomes:?}");
 }

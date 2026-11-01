@@ -14,6 +14,24 @@ The config MUST accept the key `parts` with the values of `elements`, and the ke
 - **THEN** the two checks give the same diagnostics, and each violation carries the reason
 - **TEST** `crates/archangel_config/tests/spellings.rs` › "the_new_spellings_mean_the_old_ones"
 
+### Requirement: A config needs a part or a rule, not both
+
+A config MUST load with a rule and no part, because a table with `kinds` or a rule of path patterns names no part. A config with no part, no rule and no preset checks nothing, and MUST be refused with a message that names `parts`.
+
+#### Scenario: A rule and no part
+
+- **GIVEN** in turn, a config with only a table with `kinds`, and a config with only a rule of path patterns
+- **WHEN** archangel loads the config
+- **THEN** the config is valid
+- **TEST** `crates/archangel_config/tests/merge.rs` › "a_config_with_a_rule_needs_no_part"
+
+#### Scenario: No part and no rule
+
+- **GIVEN** a config with no part, no rule and no preset
+- **WHEN** archangel loads the config
+- **THEN** archangel gives `config-invalid` at `parts`, and the message says to declare a part or write a rule
+- **TEST** `crates/archangel_config/tests/merge.rs` › "a_config_with_no_part_no_rule_and_no_preset_is_refused"
+
 ### Requirement: A config uses one spelling for each key
 
 A config that has both `parts` and `elements`, or both `groups` and `selectors`, MUST be refused with `config-invalid`. A rule of the config that has both `because` and `reason` MUST be refused with `config-invalid`. A rule builder call with a name as its first argument and a `name` key MUST be refused with `config-invalid`. The rules of a preset MAY use the other spelling.

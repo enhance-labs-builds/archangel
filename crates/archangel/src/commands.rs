@@ -192,9 +192,14 @@ fn examples_text(session: &Session, report: &ExampleReport, options: &Options) -
             ExampleKind::Accepted => "accepted",
             ExampleKind::Rejected => "rejected",
         };
+        let rejected_by = run
+            .outcome
+            .rejected_by
+            .as_ref()
+            .map_or_else(String::new, |row| format!("  rejected by {row}"));
         let _ = writeln!(
             out,
-            "{verdict}  {}  {kind} #{}  {}",
+            "{verdict}  {}  {kind} #{}  {}{rejected_by}",
             run.rule,
             run.number,
             run.files.join(", ")

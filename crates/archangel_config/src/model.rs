@@ -836,6 +836,8 @@ pub struct Examples {
     pub accepted: Vec<ExampleFiles>,
     /// File sets that the rule must reject.
     pub rejected: Vec<ExampleFiles>,
+    /// Whether the config writes one of them as one line, whose files hold nothing but imports.
+    pub one_line: bool,
 }
 
 impl Config {

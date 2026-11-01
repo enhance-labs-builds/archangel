@@ -435,14 +435,24 @@ fn a_preset_brings_its_plugins_and_the_configs_plugin_of_the_same_name_replaces_
 }
 
 #[test]
-fn a_config_without_elements_or_a_preset_is_refused() {
+fn a_config_with_no_part_no_rule_and_no_preset_is_refused() {
     let problem = loader_problem(&json!({ "rules": [] }));
-    assert_eq!(problem.field.as_deref(), Some("elements"), "{problem:?}");
+    assert_eq!(problem.field.as_deref(), Some("parts"), "{problem:?}");
     assert!(
-        problem.message.contains("declare at least one element"),
+        problem.message.contains("declare a part"),
         "{}",
         problem.message
     );
+}
+
+#[test]
+fn a_config_with_a_rule_needs_no_part() {
+    for rules in [
+        json!([{ "kind": "mayImport", "name": "t", "rows": { "a": [] }, "kinds": "**/*.{kind}.ts" }]),
+        json!([{ "name": "r", "files": "src/**", "mustBeNamed": "kebab-case" }]),
+    ] {
+        from_value(&json!({ "rules": rules })).expect("a rule is enough");
+    }
 }
 
 #[test]

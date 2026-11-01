@@ -409,7 +409,7 @@ fn a_capture_name_is_letters_digits_and_underscores_and_does_not_start_with_a_di
                 "elements.x",
                 (2, 17),
                 &format!(
-                    "the pattern `src/{{1a}}/x` of element \"x\" is invalid: the capture `{{1a}}` \
+                    "the pattern `src/{{1a}}/x` of \"x\" is invalid: the capture `{{1a}}` \
                      {needs}"
                 )
             ),
@@ -418,7 +418,7 @@ fn a_capture_name_is_letters_digits_and_underscores_and_does_not_start_with_a_di
                 "elements.y",
                 (2, 36),
                 &format!(
-                    "the pattern `src/{{a-b}}/y` of element \"y\" is invalid: the capture \
+                    "the pattern `src/{{a-b}}/y` of \"y\" is invalid: the capture \
                      `{{a-b}}` {needs}"
                 )
             ),

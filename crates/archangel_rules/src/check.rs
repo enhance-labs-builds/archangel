@@ -219,8 +219,8 @@ pub(crate) struct Run<'a> {
     pub(crate) manifests: Manifests<'a>,
     pub(crate) classes: &'a mut Classes,
     pub(crate) scope: Scope<'a>,
-    /// The rule whose example this run checks, and whether it considered an import of it.
-    pub(crate) watched: Option<(usize, bool)>,
+    /// The rules whose example this run checks, and whether one considered an import of it.
+    pub(crate) watched: Option<(Vec<usize>, bool)>,
     pub(crate) violations: Vec<Diagnostic>,
     pub(crate) other: Vec<Diagnostic>,
     used_elements: BTreeSet<ElementId>,
@@ -411,11 +411,15 @@ impl<'a> Run<'a> {
 
     /// Notes whether the rule whose example this run checks looked at an import.
     fn watch(&mut self, from: u32, to: u32, import: &Import) {
-        if let Some((rule, considered)) = &mut self.watched {
-            *considered |= covers(self.architecture.config.rules[*rule].imports, import.kind)
-                && self
-                    .architecture
-                    .considers(*rule, self.classes.key(from), self.classes.key(to));
+        if let Some((rules, considered)) = &mut self.watched {
+            *considered |= rules.iter().any(|rule| {
+                covers(self.architecture.config.rules[*rule].imports, import.kind)
+                    && self.architecture.considers(
+                        *rule,
+                        self.classes.key(from),
+                        self.classes.key(to),
+                    )
+            });
         }
     }
 
@@ -518,7 +522,7 @@ impl<'a> Run<'a> {
             let (graph, first_step) = self.cycle_graph(rule.imports, &index, &selected);
             work.cycle_files_visited += graph.file_count() as u64;
             if let Some((watched, considered)) = &mut self.watched
-                && *watched == compiled.rule
+                && watched.contains(&compiled.rule)
             {
                 let evaluated = self.scope.evaluated.len();
                 *considered |= first_step.keys().any(|&(from, _)| from < evaluated);
