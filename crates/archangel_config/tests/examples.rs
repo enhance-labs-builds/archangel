@@ -215,6 +215,11 @@ fn a_specifier_climbs_one_step_for_each_folder_left() {
         text("a/e.ts imports a/d.ts", "a/e.ts"),
         "import './d.ts';\n"
     );
+    assert_eq!(
+        text("a/d.ts/e.ts imports a/d.ts", "a/d.ts/e.ts"),
+        "import '../d.ts';\n",
+        "a folder with the name of the target"
+    );
 }
 
 #[test]

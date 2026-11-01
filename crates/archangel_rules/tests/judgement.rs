@@ -71,12 +71,12 @@ fn refuses(text: &str) -> Verdict {
 }
 
 /// The verdict of the only rule of a config on the import on line 1 of `src/a.ts`.
-fn verdict_of(rule: &Value, repo: FixtureRepo) -> Verdict {
+fn verdict_of(rule: &Value, repo: &FixtureRepo) -> Verdict {
     let config = json!({
         "elements": { "src": "src/**", "lib": "lib/**", "other": "other/**" },
         "rules": [rule],
     });
-    let world = world(&config, &repo);
+    let world = world(&config, repo);
     let judged = world.judge("src/a.ts", 1);
     judged.rules[0].verdict.clone()
 }
@@ -93,12 +93,12 @@ fn a_imports_lib() -> FixtureRepo {
 fn may_not_import_refuses_what_it_names_and_permits_the_rest() {
     let refused = json!({ "name": "r", "files": "src", "mayNotImport": "lib" });
     assert_eq!(
-        verdict_of(&refused, a_imports_lib()),
+        verdict_of(&refused, &a_imports_lib()),
         refuses("files in src may not import lib")
     );
     let permitted = json!({ "name": "r", "files": "src", "mayNotImport": "other" });
     assert_eq!(
-        verdict_of(&permitted, a_imports_lib()),
+        verdict_of(&permitted, &a_imports_lib()),
         permits("the target is not in other")
     );
 }
@@ -107,7 +107,7 @@ fn may_not_import_refuses_what_it_names_and_permits_the_rest() {
 fn may_only_import_permits_its_list_and_its_own_files() {
     let in_list = json!({ "name": "r", "files": "src", "mayOnlyImport": ["lib"] });
     assert_eq!(
-        verdict_of(&in_list, a_imports_lib()),
+        verdict_of(&in_list, &a_imports_lib()),
         permits("the target is in lib")
     );
 
@@ -117,7 +117,7 @@ fn may_only_import_permits_its_list_and_its_own_files() {
         .file("lib/b.ts", "")
         .file("other/c.ts", "");
     let own = json!({ "name": "r", "files": "src", "mayOnlyImport": ["lib"] });
-    assert_eq!(verdict_of(&own, repo), permits("the target is in src"));
+    assert_eq!(verdict_of(&own, &repo), permits("the target is in src"));
 }
 
 #[test]
@@ -141,19 +141,19 @@ fn may_only_import_on_a_captured_part_says_that_the_instance_is_the_same() {
 fn may_only_be_imported_by_judges_the_target_and_permits_its_list_and_its_own_files() {
     let by_list = json!({ "name": "r", "files": "lib", "mayOnlyBeImportedBy": ["src"] });
     assert_eq!(
-        verdict_of(&by_list, a_imports_lib()),
+        verdict_of(&by_list, &a_imports_lib()),
         permits("the file is in src")
     );
 
     let refused = json!({ "name": "r", "files": "lib", "mayOnlyBeImportedBy": ["other"] });
     assert_eq!(
-        verdict_of(&refused, a_imports_lib()),
+        verdict_of(&refused, &a_imports_lib()),
         refuses("files in lib may only be imported by other")
     );
 
     let target_elsewhere = json!({ "name": "r", "files": "other", "mayOnlyBeImportedBy": ["src"] });
     assert_eq!(
-        verdict_of(&target_elsewhere, a_imports_lib()),
+        verdict_of(&target_elsewhere, &a_imports_lib()),
         skips("the target is not in other")
     );
 
@@ -215,7 +215,7 @@ fn a_rule_that_judges_no_single_import_says_why() {
         ),
     ];
     for (rule, text) in cases {
-        assert_eq!(verdict_of(&rule, a_imports_lib()), skips(text), "{rule}");
+        assert_eq!(verdict_of(&rule, &a_imports_lib()), skips(text), "{rule}");
     }
 }
 
@@ -223,7 +223,7 @@ fn a_rule_that_judges_no_single_import_says_why() {
 fn a_rule_skips_a_file_that_is_not_in_its_files_and_an_import_that_does_not_resolve() {
     let elsewhere = json!({ "name": "r", "files": "other", "mayNotImport": "lib" });
     assert_eq!(
-        verdict_of(&elsewhere, a_imports_lib()),
+        verdict_of(&elsewhere, &a_imports_lib()),
         skips("the file is not in other")
     );
 
@@ -233,7 +233,7 @@ fn a_rule_skips_a_file_that_is_not_in_its_files_and_an_import_that_does_not_reso
         .file("other/c.ts", "");
     let rule = json!({ "name": "r", "files": "src", "mayNotImport": "lib" });
     assert_eq!(
-        verdict_of(&rule, repo),
+        verdict_of(&rule, &repo),
         skips("the import does not resolve")
     );
 }
@@ -242,7 +242,7 @@ fn a_rule_skips_a_file_that_is_not_in_its_files_and_an_import_that_does_not_reso
 fn a_rule_skips_a_kind_of_import_that_it_does_not_count() {
     let rule = json!({ "name": "r", "files": "src", "mayNotImport": "lib", "imports": "types" });
     assert_eq!(
-        verdict_of(&rule, a_imports_lib()),
+        verdict_of(&rule, &a_imports_lib()),
         skips("the rule does not count this kind of import")
     );
 }
@@ -253,14 +253,14 @@ fn a_rule_with_an_area_says_which_end_is_outside_it() {
         "name": "r", "files": "src", "mayOnlyImport": ["other"], "within": "other/**",
     });
     assert_eq!(
-        verdict_of(&importer, a_imports_lib()),
+        verdict_of(&importer, &a_imports_lib()),
         skips("lib/b.ts is outside the area other/**")
     );
     let target = json!({
         "name": "r", "files": "lib", "mayOnlyBeImportedBy": ["other"], "within": "other/**",
     });
     assert_eq!(
-        verdict_of(&target, a_imports_lib()),
+        verdict_of(&target, &a_imports_lib()),
         skips("src/a.ts is outside the area other/**")
     );
 }
@@ -299,7 +299,7 @@ fn a_limit_says_which_fact_of_the_import_passes_it_by() {
         for (key, value) in limit.as_object().expect("an object") {
             rule[key] = value.clone();
         }
-        assert_eq!(verdict_of(&rule, a_imports_lib()), skips(text), "{rule}");
+        assert_eq!(verdict_of(&rule, &a_imports_lib()), skips(text), "{rule}");
     }
 }
 

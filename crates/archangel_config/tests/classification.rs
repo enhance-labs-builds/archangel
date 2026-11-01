@@ -346,3 +346,17 @@ fn a_config_calls_its_parts_what_it_writes() {
         old
     );
 }
+
+#[test]
+fn a_config_that_writes_parts_or_groups_with_a_preset_calls_them_so() {
+    let with_preset = |key: &str| {
+        let mut config = json!({
+            "extends": [preset("p", &json!({ "a": "a/**" }))],
+            "rules": [{ "name": "r", "files": "x/**", "mustNotExist": true }],
+        });
+        config[key] = json!({ "own": "own/**" });
+        valid(&config).part_word()
+    };
+    assert_eq!(with_preset("parts"), "part");
+    assert_eq!(with_preset("groups"), "part");
+}
