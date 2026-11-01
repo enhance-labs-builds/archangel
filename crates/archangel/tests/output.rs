@@ -5,6 +5,8 @@
 #[path = "support/cli.rs"]
 mod support;
 
+use std::fmt::Write as _;
+
 use archangel_testkit::FixtureRepo;
 use serde_json::{Value, json};
 use support::{Finished, command, run};
@@ -482,12 +484,14 @@ fn configs_without_the_new_forms_give_the_recorded_output() {
                     "{name}: a config without a table has no rowsWithNoFile: {document}"
                 );
             }
-            all.push_str(&format!(
-                "$ archangel {}\nstatus: {}\n{}\n",
+            writeln!(
+                all,
+                "$ archangel {}\nstatus: {}\n{}",
                 args.join(" "),
                 found.status,
                 recorded(&found.stdout)
-            ));
+            )
+            .expect("a String takes the text");
         }
         insta::assert_snapshot!(format!("recorded_{name}"), all);
     }
