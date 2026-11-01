@@ -53,6 +53,7 @@ const builders = {
   layers: (order, options = {}) => ({ ...options, kind: 'layers', order: list(order) }),
   isolate: (element, options = {}) => ({ ...options, kind: 'isolate', element }),
   entry: (element, files, options = {}) => ({ ...options, kind: 'entry', element, files: list(files) }),
+  mayImport: (name, rows, options = {}) => ({ ...options, kind: 'mayImport', name, rows }),
   // @justified intent
   // A name first and a `name` key is two spellings of one key, which the parser refuses, so the
   // second name goes to the parser under a key that no config writes.

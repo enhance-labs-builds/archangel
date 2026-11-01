@@ -18,6 +18,8 @@ pub enum Code {
     MayOnlyImport,
     /// A `mayOnlyBeImportedBy` condition.
     MayOnlyBeImportedBy,
+    /// A row of an import table.
+    MayImport,
     /// A `mustNotExist` condition.
     MustNotExist,
     /// A `mustBeNamed` condition.
@@ -58,6 +60,10 @@ pub enum Code {
     PresetEmpty,
     /// A file in two of the config's own parts.
     PartOverlap,
+    /// A file in two rows of one table.
+    TableRowOverlap,
+    /// A table with no row, or whose rows together have no file.
+    TableEmpty,
     /// A file whose exports an export rule needs, which an `export *` chain hides.
     ExportsUnknown,
     /// A file or folder that cannot be opened, or a file that is not text.
@@ -91,13 +97,14 @@ pub enum Code {
 }
 
 /// The names of the codes, in declaration order, so a code's discriminant indexes its name.
-const NAMES: [&str; 41] = [
+const NAMES: [&str; 44] = [
     "layers",
     "isolate",
     "entry",
     "may-not-import",
     "may-only-import",
     "may-only-be-imported-by",
+    "may-import",
     "must-not-exist",
     "must-be-named",
     "must-contain",
@@ -118,6 +125,8 @@ const NAMES: [&str; 41] = [
     "selector-empty",
     "preset-empty",
     "part-overlap",
+    "table-row-overlap",
+    "table-empty",
     "exports-unknown",
     "file-unreadable",
     "parse-failed",
@@ -136,13 +145,14 @@ const NAMES: [&str; 41] = [
 ];
 
 /// Each code's documentation page, in the order of [`NAMES`].
-const PAGES: [&str; 41] = [
+const PAGES: [&str; 44] = [
     include_str!("../docs/layers.md"),
     include_str!("../docs/isolate.md"),
     include_str!("../docs/entry.md"),
     include_str!("../docs/may-not-import.md"),
     include_str!("../docs/may-only-import.md"),
     include_str!("../docs/may-only-be-imported-by.md"),
+    include_str!("../docs/may-import.md"),
     include_str!("../docs/must-not-exist.md"),
     include_str!("../docs/must-be-named.md"),
     include_str!("../docs/must-contain.md"),
@@ -163,6 +173,8 @@ const PAGES: [&str; 41] = [
     include_str!("../docs/selector-empty.md"),
     include_str!("../docs/preset-empty.md"),
     include_str!("../docs/part-overlap.md"),
+    include_str!("../docs/table-row-overlap.md"),
+    include_str!("../docs/table-empty.md"),
     include_str!("../docs/exports-unknown.md"),
     include_str!("../docs/file-unreadable.md"),
     include_str!("../docs/parse-failed.md"),
@@ -182,13 +194,14 @@ const PAGES: [&str; 41] = [
 
 impl Code {
     /// Every code, in the order the documentation lists them.
-    pub const ALL: [Self; 41] = [
+    pub const ALL: [Self; 44] = [
         Self::Layers,
         Self::Isolate,
         Self::Entry,
         Self::MayNotImport,
         Self::MayOnlyImport,
         Self::MayOnlyBeImportedBy,
+        Self::MayImport,
         Self::MustNotExist,
         Self::MustBeNamed,
         Self::MustContain,
@@ -209,6 +222,8 @@ impl Code {
         Self::SelectorEmpty,
         Self::PresetEmpty,
         Self::PartOverlap,
+        Self::TableRowOverlap,
+        Self::TableEmpty,
         Self::ExportsUnknown,
         Self::FileUnreadable,
         Self::ParseFailed,
@@ -264,6 +279,7 @@ impl Code {
                 | Self::MayNotImport
                 | Self::MayOnlyImport
                 | Self::MayOnlyBeImportedBy
+                | Self::MayImport
                 | Self::MustNotExist
                 | Self::MustBeNamed
                 | Self::MustContain

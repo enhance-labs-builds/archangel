@@ -623,3 +623,24 @@ fn an_area_pattern_that_matches_nothing_is_an_error() {
     assert_eq!(empty[0].rule.as_deref(), Some("entities"), "{empty:?}");
     assert!(empty[0].message.contains("apps/apii/src/**"), "{empty:?}");
 }
+
+#[test]
+fn a_kind_of_a_table_that_matches_nothing_is_not_selector_empty() {
+    let repo = FixtureRepo::new().file("src/a.entity.ts", "");
+    let config = json!({
+        "parts": { "src": "src/**" },
+        "rules": [{
+            "kind": "mayImport",
+            "name": "t",
+            "rows": { "aggregate-root": [], "entity": [] },
+            "kinds": "**/*.{kind}.ts",
+        }],
+    });
+    let (report, _) = support::check(&config, &repo, None);
+    let empty: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == Code::SelectorEmpty)
+        .collect();
+    assert!(empty.is_empty(), "{empty:?}");
+}

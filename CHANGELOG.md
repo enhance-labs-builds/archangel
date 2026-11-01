@@ -7,6 +7,13 @@ guarantee.
 
 ## Unreleased
 
+### Added
+
+- Import tables: `mayImport('<table>', rows, options)`, where each row is a rule named
+  `<table>.<row>`, and each table makes the rule `<table>.every-file-has-a-kind`. A kind pattern,
+  such as `**/*.{kind}.ts`, gives each file its kind. The new diagnostic codes are `may-import`,
+  `table-empty` and `table-row-overlap`.
+
 ### Changed
 
 - `mayOnlyImport` on a part with a capture permits only the files of its own instance. In 0.1, it

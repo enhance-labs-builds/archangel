@@ -5,7 +5,7 @@
 
 use serde_json::{Map, Value};
 
-use crate::model::{Preset, Rule};
+use crate::model::{Preset, Rule, RuleKind, Table};
 use crate::parse::{nearest, string_list};
 use crate::problem::{ConfigProblem, ProblemCode};
 use crate::selectors::Placement;
@@ -189,14 +189,17 @@ pub(crate) fn replace(
     rules
 }
 
-/// The rules without those `off` names, after refusing a name that matches none.
+/// The rules without those `off` names, and the rules it removes, after refusing a name that
+/// matches none. A table's name removes every rule of the table.
 pub(crate) fn off(
     root: &Map<String, Value>,
     rules: Vec<Rule>,
+    tables: &[Table],
     problems: &mut Vec<ConfigProblem>,
-) -> Vec<Rule> {
+) -> (Vec<Rule>, Vec<Rule>) {
     let names = string_list(root.get("off"), "off", problems);
-    let known: Vec<&str> = rules.iter().map(|r| r.name.as_str()).collect();
+    let mut known: Vec<&str> = rules.iter().map(|r| r.name.as_str()).collect();
+    known.extend(tables.iter().map(|table| table.name.as_str()));
     for name in &names {
         if !known.contains(&name.as_str()) {
             problems.push(invalid(
@@ -208,10 +211,13 @@ pub(crate) fn off(
             ));
         }
     }
-    rules
-        .into_iter()
-        .filter(|rule| !names.contains(&rule.name))
-        .collect()
+    rules.into_iter().partition(|rule| {
+        let of_a_table = match &rule.kind {
+            RuleKind::TableRow { table, .. } => names.contains(&tables[table.index()].name),
+            _ => false,
+        };
+        !of_a_table && !names.contains(&rule.name)
+    })
 }
 
 fn suggestion(name: &str, known: &[&str]) -> String {

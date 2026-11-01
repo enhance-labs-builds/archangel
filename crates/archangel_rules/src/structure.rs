@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use archangel_config::{Classification, Condition, ElementId, NameRule, Rule};
+use archangel_config::{Classification, Condition, ElementId, NameRule, Rule, RuleKind};
 use archangel_graph::{ImportGraph, OverlayFiles, Work};
 
 use crate::architecture::{Architecture, Compiled};
@@ -458,8 +458,22 @@ impl<'e> Evaluation<'e, '_> {
                 let (rule, sentence) = architecture.sentence_of(compiled);
                 self.work.structure_evaluations += 1;
                 self.looked(compiled.rule);
-                match &sentence.condition {
-                    Condition::MustBeNamed(name) => found.extend(file_name(rule, name, path)),
+                match (&sentence.condition, &rule.kind) {
+                    (Condition::MustBeNamed(name), _) => found.extend(file_name(rule, name, path)),
+                    (_, RuleKind::TableRow { table, .. }) => {
+                        let kind = self.classes.kind_place(path, *table);
+                        let (message, help) = crate::messages::no_row(
+                            architecture,
+                            *table,
+                            kind.map(|place| place.kind.as_str()),
+                            path,
+                        );
+                        found.push(About { rule, path }.violation(
+                            Code::MustNotExist,
+                            message,
+                            &help,
+                        ));
+                    }
                     _ => found.push(self.must_not_exist(rule, &sentence.files_text, path)),
                 }
             }

@@ -129,6 +129,14 @@ A row MUST permit an import of its own name in the same instance. The instance M
 - **THEN** archangel gives one violation of `domain.domain-event` for that import
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "may_not_import_itself_removes_the_permission"
 
+#### Scenario: A row with a capture that may not import itself
+
+- **GIVEN** the part `feature` as `src/features/{feature}/**`, and a table whose mayNotImportItself lists `feature`
+- **AND** a file in the instance `cart` that imports a file in the instance `login`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation of the row `feature`
+- **TEST** `crates/archangel_rules/tests/tables.rs` › "a_row_with_a_capture_that_may_not_import_itself_gives_one_violation"
+
 #### Scenario: A kind that may import its own kind
 
 - **GIVEN** the same config, and the file `apps/api/src/board/domain/board.entity.ts`, which imports `apps/api/src/board/domain/column.entity.ts`
@@ -480,6 +488,7 @@ A kind row whose files are empty MUST NOT give a diagnostic. The check summary M
 - **AND** the text summary has the line `domain.aggregate-root has no file in this repository`
 - **AND** the JSON summary lists `domain.aggregate-root` under `rowsWithNoFile`
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_row_with_no_file_is_listed_in_the_summary"
+- **TEST** `crates/archangel/tests/cli.rs` › "a_row_with_no_file_is_listed_in_the_summary_as_text_and_json"
 
 #### Scenario: A misspelt part in a row
 
@@ -558,21 +567,21 @@ The reason, link, import kinds, names, specifier, dependency and instance of a t
 - **GIVEN** a table with `imports: 'runtime'`, and a file of a row that has `import type` of a file that the row does not list
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of the row
-- **TEST** `crates/archangel_rules/tests/tables.rs` › "the_import_kinds_of_a_table_apply_to_each_row"
+- **TEST** `crates/archangel_rules/tests/table_options.rs` › "the_import_kinds_of_a_table_apply_to_each_row"
 
 #### Scenario: Because and link
 
 - **GIVEN** a table `domain` with `because: 'Domain stays pure'` and `link: 'https://example.test/adr/7'`, and an import that breaks the row `entity`
 - **WHEN** archangel makes a check
 - **THEN** the violation of `domain.entity` carries that reason and that link
-- **TEST** `crates/archangel_rules/tests/tables.rs` › "the_reason_and_link_of_a_table_apply_to_each_row"
+- **TEST** `crates/archangel_rules/tests/table_options.rs` › "the_reason_and_link_of_a_table_apply_to_each_row"
 
 #### Scenario: An import limit
 
 - **GIVEN** a table with `specifier: 'parent'`, and a file of the row `entity` that imports a use case through `../application/save.use-case` and another through the alias `@api/application/load.use-case`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of the row `entity`, for the import that starts with `../`
-- **TEST** `crates/archangel_rules/tests/tables.rs` › "the_import_limits_of_a_table_apply_to_each_row"
+- **TEST** `crates/archangel_rules/tests/table_options.rs` › "the_import_limits_of_a_table_apply_to_each_row"
 
 #### Scenario: Names and dependency
 
@@ -581,7 +590,7 @@ The reason, link, import kinds, names, specifier, dependency and instance of a t
 - **WHEN** archangel makes a check with each
 - **THEN** the first check gives no violation of `entity`
 - **AND** the second check gives one violation of `entity`, for `vitest`, and none for `zod`, because `dependency: 'dev'` makes each row judge only the imports of dev dependencies
-- **TEST** `crates/archangel_rules/tests/tables.rs` › "the_names_and_dependency_of_a_table_apply_to_each_row"
+- **TEST** `crates/archangel_rules/tests/table_options.rs` › "the_names_and_dependency_of_a_table_apply_to_each_row"
 
 #### Scenario: A table with instance
 
@@ -589,7 +598,7 @@ The reason, link, import kinds, names, specifier, dependency and instance of a t
 - **AND** a file in the instance `cart` that imports a file in the instance `login`, and a file in `src/features/cart/views` that imports a file in `src/features/cart/models`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of the row `feature`, for the import into `login`, and does not judge the import inside `cart`
-- **TEST** `crates/archangel_rules/tests/tables.rs` › "the_instance_of_a_table_applies_to_each_row"
+- **TEST** `crates/archangel_rules/tests/table_options.rs` › "the_instance_of_a_table_applies_to_each_row"
 
 #### Scenario: Instance on a row without a capture
 

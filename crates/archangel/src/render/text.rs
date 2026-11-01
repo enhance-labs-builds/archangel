@@ -170,10 +170,21 @@ pub(crate) fn summary(summary: &Summary, problems: usize) -> String {
             "  {repository} is a repository of its own, checked as part of this one"
         );
     }
-    for name in &summary.preset_names_matching_nothing {
-        let _ = writeln!(out, "  {name} matches nothing in this repository");
-    }
+    push_tables(&mut out, summary);
     out
+}
+
+/// The lines about what presets and tables declare and no file has.
+fn push_tables(out: &mut String, summary: &Summary) {
+    for name in &summary.preset_names_matching_nothing {
+        let _ = match summary.preset_tables_matching_nothing.get(name) {
+            Some(why) => writeln!(out, "  {name} matches no file: {why}"),
+            None => writeln!(out, "  {name} matches nothing in this repository"),
+        };
+    }
+    for row in summary.rows_with_no_file.iter().flatten() {
+        let _ = writeln!(out, "  {row} has no file in this repository");
+    }
 }
 
 /// Where to read about the codes of the diagnostics printed, or nothing when there are none.

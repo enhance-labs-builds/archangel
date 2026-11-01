@@ -578,3 +578,38 @@ fn two_parts_that_match_one_file_exit_one() {
     assert_eq!(found.status, 1, "{}{}", found.stdout, found.stderr);
     assert!(found.stdout.contains("part-overlap"), "{}", found.stdout);
 }
+
+/// A table with one kind that has files and one that has none.
+fn table_repo() -> FixtureRepo {
+    FixtureRepo::new()
+        .file("apps/api/a.entity.ts", "")
+        .json_config(&json!({
+            "parts": { "api": "apps/api/**" },
+            "rules": [{
+                "kind": "mayImport",
+                "name": "domain",
+                "rows": { "entity": [], "aggregate-root": [] },
+                "kinds": "**/*.{kind}.ts",
+            }],
+        }))
+}
+
+#[test]
+fn a_row_with_no_file_is_listed_in_the_summary_as_text_and_json() {
+    let repo = table_repo();
+    let text = run(&repo, &["check"]);
+    assert_eq!(text.status, 0, "{}{}", text.stdout, text.stderr);
+    assert!(
+        text.stdout
+            .contains("domain.aggregate-root has no file in this repository"),
+        "{}",
+        text.stdout
+    );
+    let json: Value =
+        serde_json::from_str(&run(&repo, &["check", "--format", "json"]).stdout).unwrap();
+    assert_eq!(
+        json["summary"]["rowsWithNoFile"],
+        json!(["domain.aggregate-root"]),
+        "a row with no file is listed in the summary as text and json"
+    );
+}

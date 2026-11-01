@@ -54,6 +54,7 @@ pub(crate) fn check_document(
     counts: &Work,
     timings: Option<Timings>,
 ) -> String {
+    let rows_with_no_file = summary.rows_with_no_file.clone();
     let mut summary = json!({
         "files": summary.files,
         "imports": summary.imports,
@@ -66,6 +67,9 @@ pub(crate) fn check_document(
         "presetNamesMatchingNothing": summary.preset_names_matching_nothing,
         "work": counts.counts_json(),
     });
+    if let Some(rows) = rows_with_no_file {
+        summary["rowsWithNoFile"] = json!(rows);
+    }
     if let Some(timings) = timings {
         summary["durations"] = durations(timings);
     }

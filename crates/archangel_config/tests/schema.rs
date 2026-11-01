@@ -190,7 +190,7 @@ fn the_published_schema_has_exactly_the_fields_the_parser_knows() {
         .collect();
     assert_eq!(
         kinds,
-        ["layers", "isolate", "entry"],
+        ["layers", "isolate", "entry", "mayImport"],
         "one schema per shorthand"
     );
     for (rule, kind) in shorthands.iter().zip(kinds) {

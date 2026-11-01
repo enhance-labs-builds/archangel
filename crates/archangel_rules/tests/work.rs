@@ -41,16 +41,23 @@ fn evaluations(extra: usize) -> u64 {
         .rule_evaluations
 }
 
-/// The counts the scenario states, or what differs from them.
-fn counts_match() -> Result<(), String> {
-    let (five, five_hundred) = (evaluations(0), evaluations(495));
-    if five == five_hundred {
+/// Whether two counts of work are the same, or what differs.
+fn same_work<T: PartialEq + std::fmt::Debug>(
+    (few, many): (T, T),
+    (few_name, many_name): (&str, &str),
+) -> Result<(), String> {
+    if few == many {
         Ok(())
     } else {
         Err(format!(
-            "{five} evaluations with 5 rules, {five_hundred} with 500"
+            "{few:?} with {few_name}, {many:?} with {many_name}"
         ))
     }
+}
+
+/// The counts the scenario states, or what differs from them.
+fn counts_match() -> Result<(), String> {
+    same_work((evaluations(0), evaluations(495)), ("5 rules", "500"))
 }
 
 #[test]
@@ -277,14 +284,10 @@ fn area_evaluations(imports: usize) -> u64 {
 }
 
 fn area_counts_match() -> Result<(), String> {
-    let (few, many) = (area_evaluations(10), area_evaluations(1000));
-    if few == many {
-        Ok(())
-    } else {
-        Err(format!(
-            "{few} evaluations for 10 imports, {many} for 1,000"
-        ))
-    }
+    same_work(
+        (area_evaluations(10), area_evaluations(1000)),
+        ("10 imports", "1,000"),
+    )
 }
 
 #[test]
@@ -332,5 +335,170 @@ fn imports_inside_a_captured_part_cost_one_evaluation_each() {
         (captured_evaluations(10), captured_evaluations(30)),
         (10, 30),
         "one evaluation for each import inside the instance"
+    );
+}
+
+/// One table of `rows` kind rows, and one import between two files of the first of them.
+fn table_counts(rows: usize) -> (u64, u64) {
+    let repo = FixtureRepo::new()
+        .file("src/a.k0.ts", "import './b.k1';\n")
+        .file("src/b.k1.ts", "");
+    let mut cells = serde_json::Map::new();
+    for row in 0..rows {
+        cells.insert(format!("k{row}"), json!([]));
+    }
+    let config = json!({
+        "parts": { "src": "src/**" },
+        "rules": [{ "kind": "mayImport", "name": "t", "rows": cells, "kinds": "**/*.{kind}.ts" }],
+    });
+    let (_, work) = support::check(&config, &repo, None);
+    (work.rule_evaluations, work.pattern_passes)
+}
+
+fn table_counts_match() -> Result<(), String> {
+    same_work((table_counts(5), table_counts(50)), ("5 rows", "50"))
+}
+
+#[test]
+fn rule_evaluations_do_not_grow_with_rows_that_cannot_apply() {
+    #[cfg(feature = "failpoints")]
+    let _quiet = fail::FailScenario::setup();
+    assert_eq!(
+        table_counts_match(),
+        Ok(()),
+        "the same work for 5 rows and 50"
+    );
+}
+
+#[cfg(feature = "failpoints")]
+#[test]
+fn rule_evaluation_count_rejects_a_test_of_every_row() {
+    let scenario = fail::FailScenario::setup();
+    fail::cfg("rules::every_row", "return").unwrap();
+    let result = table_counts_match();
+    scenario.teardown();
+    assert!(result.is_err(), "the count catches a test of every row");
+}
+
+#[test]
+fn a_kind_pattern_adds_no_pattern_pass() {
+    let repo = FixtureRepo::new()
+        .file("src/a.entity.ts", "import './b.entity';\n")
+        .file("src/b.entity.ts", "");
+    let without = json!({ "parts": { "src": "src/**" } });
+    let mut with = without.clone();
+    with["rules"] = json!([{
+        "kind": "mayImport", "name": "t", "rows": { "entity": [] }, "kinds": "**/*.{kind}.ts",
+    }]);
+    let (_, plain) = support::check(&without, &repo, None);
+    let (_, kinds) = support::check(&with, &repo, None);
+    assert_eq!(
+        plain.pattern_passes, kinds.pattern_passes,
+        "the same passes"
+    );
+    assert_eq!(
+        plain.files_classified, kinds.files_classified,
+        "the same files"
+    );
+}
+
+#[test]
+fn every_file_has_a_kind_costs_one_structure_evaluation_per_file_with_no_row() {
+    let repo = FixtureRepo::new()
+        .file("src/d/a.entity.ts", "import './b.entity';\n")
+        .file("src/d/b.entity.ts", "")
+        .file("src/d/one.ts", "")
+        .file("src/d/two.ts", "")
+        .file("src/d/three.ts", "");
+    let config = |off: Value| {
+        json!({
+            "parts": { "src": "src/**" },
+            "off": off,
+            "rules": [{
+                "kind": "mayImport",
+                "name": "domain",
+                "rows": { "entity": [] },
+                "files": "src/d/**",
+                "kinds": "**/*.{kind}.ts",
+            }],
+        })
+    };
+    let (_, on) = support::check(&config(json!([])), &repo, None);
+    let (_, off) = support::check(
+        &config(json!(["domain.every-file-has-a-kind"])),
+        &repo,
+        None,
+    );
+    assert_eq!(
+        on.rule_evaluations, off.rule_evaluations,
+        "no rule evaluation"
+    );
+    assert_eq!(
+        on.structure_evaluations,
+        off.structure_evaluations + 3,
+        "one for each file with no row"
+    );
+}
+
+/// N imports inside one feature, M between entities, and P between the entities of one context.
+fn inside_rows(n: u64, m: u64, p: u64) -> FixtureRepo {
+    let mut repo = FixtureRepo::new()
+        .file("src/features/cart/target.ts", "")
+        .file("src/entities/target.entity.ts", "")
+        .file("apps/api/src/board/domain/target.entity.ts", "");
+    for index in 0..n {
+        repo = repo.file(
+            &format!("src/features/cart/f{index}.ts"),
+            "import './target';\n",
+        );
+    }
+    for index in 0..m {
+        repo = repo.file(
+            &format!("src/entities/e{index}.entity.ts"),
+            "import './target.entity';\n",
+        );
+    }
+    for index in 0..p {
+        repo = repo.file(
+            &format!("apps/api/src/board/domain/c{index}.entity.ts"),
+            "import './target.entity';\n",
+        );
+    }
+    repo
+}
+
+#[test]
+fn imports_inside_a_captured_row_cost_one_evaluation_each() {
+    let (n, m, p) = (3, 4, 2);
+    let repo = inside_rows(n, m, p);
+    let first = json!({
+        "kind": "mayImport",
+        "name": "first",
+        "rows": { "feature": [], "entity": [] },
+        "kinds": "**/*.{kind}.ts",
+    });
+    let contexts = json!({
+        "kind": "mayImport",
+        "name": "contexts",
+        "rows": { "entity": [] },
+        "kinds": "apps/api/src/{context}/domain/**/*.{kind}.ts",
+    });
+    let parts = json!({ "feature": "src/features/{feature}/**" });
+    let without = json!({ "parts": parts, "rules": [first] });
+    let with = json!({ "parts": parts, "rules": [first, contexts] });
+    let (_, one) = support::check(&without, &repo, None);
+    let (_, two) = support::check(&with, &repo, None);
+    assert_eq!(
+        one.rule_evaluations, n,
+        "N for the feature, 0 for the entities"
+    );
+    assert_eq!(
+        two.rule_evaluations,
+        n + p,
+        "and P for the kind row with a capture"
+    );
+    assert_eq!(
+        one.pattern_passes, two.pattern_passes,
+        "no pattern per import"
     );
 }

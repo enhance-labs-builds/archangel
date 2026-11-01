@@ -4,10 +4,10 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use archangel_config::{Classification, ElementId, FileSet, Term};
+use archangel_config::{Classification, ElementId, FileSet, KindPlace, TableId, Term};
 use archangel_graph::{ImportGraph, SourceFile, Work};
 
-use crate::architecture::{Architecture, Check};
+use crate::architecture::{Architecture, Check, Edge};
 
 /// What makes two files, or two packages, alike to every rule.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -28,6 +28,8 @@ pub(crate) enum ClassKey {
 #[derive(Debug, Clone)]
 struct FileClass {
     classification: Option<Classification>,
+    /// The file's place in each table's kind pattern, by the table's index.
+    kinds: Vec<Option<KindPlace>>,
     class: u32,
     /// Whether the walk visited the file, as a source file or another, which the counts of each
     /// class hold.
@@ -233,8 +235,10 @@ impl Classes {
             work.pattern_passes += found.passes;
             found.patterns
         };
+        let kinds = kinds_of(architecture, placed.path, &patterns);
         let mut place = Place {
             patterns: &patterns,
+            kinds: &kinds,
             classification: found.classification.as_ref(),
             directive: placed.directive,
             selectors: vec![false; architecture.config.selectors.len()],
@@ -270,6 +274,7 @@ impl Classes {
         }
         let file = FileClass {
             classification: found.classification,
+            kinds,
             class,
             counted: placed.counted,
         };
@@ -298,12 +303,51 @@ impl Classes {
         &self.keys[class as usize]
     }
 
-    /// The checks of the cell for a pair of classes, filled the first time the pair is met.
-    pub(crate) fn cell(&mut self, architecture: &Architecture, from: u32, to: u32) -> &[Check] {
+    /// Fills the cell for a pair of classes, the first time the pair is met.
+    pub(crate) fn fill_cell(&mut self, architecture: &Architecture, from: u32, to: u32) {
         let keys = &self.keys;
         self.cells
             .entry((from, to))
-            .or_insert_with(|| architecture.fill(&keys[from as usize], &keys[to as usize]))
+            .or_insert_with(|| architecture.fill(&keys[from as usize], &keys[to as usize]));
+    }
+
+    /// The checks of a filled cell.
+    pub(crate) fn cell(&self, from: u32, to: u32) -> &[Check] {
+        self.cells.get(&(from, to)).map_or(&[], Vec::as_slice)
+    }
+
+    /// The place of a file with a class in a table's kind pattern.
+    pub(crate) fn kind_place(&self, path: &str, table: TableId) -> Option<&KindPlace> {
+        self.files.get(path)?.kinds.get(table.index())?.as_ref()
+    }
+
+    /// Whether the two ends of an import are in one instance of a table's kind, from the values
+    /// that classification stored; `None` when an end has no kind in the table.
+    pub(crate) fn kind_instances(&self, edge: &Edge<'_>, table: TableId) -> Option<bool> {
+        let from = self.kind_place(edge.from.path?, table)?;
+        let to = self.kind_place(edge.to.path?, table)?;
+        Some(from.instance == to.instance)
+    }
+
+    /// The paths the walk visited in each class for which `keep` holds, in path order.
+    pub(crate) fn counted_files_in(&self, keep: impl Fn(&ClassKey) -> bool) -> Vec<&str> {
+        let mut paths: Vec<&str> = self
+            .files
+            .iter()
+            .filter(|(_, file)| file.counted && keep(&self.keys[file.class as usize]))
+            .map(|(path, _)| path.as_str())
+            .collect();
+        paths.sort_unstable();
+        paths
+    }
+
+    /// Each class that holds a file the walk visited.
+    pub(crate) fn counted_classes(&self) -> impl Iterator<Item = &ClassKey> {
+        self.keys
+            .iter()
+            .zip(&self.counts)
+            .filter(|(_, count)| **count > 0)
+            .map(|(key, _)| key)
     }
 
     /// The number of files the walk visited in a set of files, from the counts of each class.
@@ -357,9 +401,24 @@ impl Classes {
     }
 }
 
+/// The place of a path in each table's kind pattern, by the table's index.
+fn kinds_of(architecture: &Architecture, path: &str, patterns: &[bool]) -> Vec<Option<KindPlace>> {
+    architecture
+        .config
+        .tables
+        .iter()
+        .map(|table| {
+            let kinds = table.kinds.as_ref()?;
+            kinds.place(path, patterns[kinds.id.0 as usize])
+        })
+        .collect()
+}
+
 /// What one pass over a path found, from which every set's membership follows.
 struct Place<'a> {
     patterns: &'a [bool],
+    /// The file's place in each table's kind pattern.
+    kinds: &'a [Option<KindPlace>],
     classification: Option<&'a Classification>,
     directive: Option<&'a str>,
     /// Whether the file is in each declared selector, filled in the order that puts each selector
@@ -407,6 +466,10 @@ impl Place<'_> {
             Term::AnyElement => self.classification.is_some(),
             Term::Directive(text) => self.directive == Some(text.as_str()),
             Term::Selector(id) => self.selectors[id.0 as usize],
+            Term::Kind { table, kind } => self.kinds[table.index()]
+                .as_ref()
+                .is_some_and(|place| place.kind == *kind),
+            Term::AnyKind(table) => self.kinds[table.index()].is_some(),
             Term::All(_) | Term::Any(_) | Term::Not => false,
         }
     }

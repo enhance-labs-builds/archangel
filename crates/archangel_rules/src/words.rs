@@ -99,6 +99,13 @@ impl Architecture {
             Term::AnyElement => "any element".to_owned(),
             Term::Directive(text) => format!("'{text}' files"),
             Term::Selector(id) => self.config.selectors[id.0 as usize].name.clone(),
+            Term::Kind { kind, .. } => kind.clone(),
+            Term::AnyKind(table) => {
+                format!(
+                    "the files with a kind in {}",
+                    self.config.tables[table.index()].name
+                )
+            }
             Term::All(_) | Term::Any(_) | Term::Not => String::new(),
         }
     }

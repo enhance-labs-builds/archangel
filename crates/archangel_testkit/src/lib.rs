@@ -392,3 +392,17 @@ pub fn pnp_manifest(packages: &[(&str, &str)]) -> String {
     let escaped = state.to_string().replace('\\', "\\\\").replace('\'', "\\'");
     format!("#!/usr/bin/env node\nconst RAW_RUNTIME_STATE =\n'{escaped}';\n")
 }
+
+/// An import table as a JSON config writes it: its name, its rows and its options.
+#[must_use]
+pub fn table(
+    name: &str,
+    rows: &serde_json::Value,
+    options: &serde_json::Value,
+) -> serde_json::Value {
+    let mut table = options.clone();
+    table["kind"] = serde_json::json!("mayImport");
+    table["name"] = serde_json::json!(name);
+    table["rows"] = rows.clone();
+    table
+}

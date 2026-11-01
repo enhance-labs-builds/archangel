@@ -487,3 +487,99 @@ fn an_entry_pattern_starts_at_the_root_of_a_part_without_a_capture() {
         "one violation, for the import of grid.ts"
     );
 }
+
+/// A domain table, and a rule that keeps the domain out of the application.
+fn table_and_rule() -> Value {
+    json!({
+        "parts": { "api": "apps/api/**" },
+        "groups": { "domain": "apps/api/src/*/domain/**", "application": "apps/api/src/*/application/**" },
+        "externals": { "driver": ["pg"] },
+        "rules": [
+            {
+                "kind": "mayImport",
+                "name": "domain",
+                "rows": { "entity": ["value-object"], "value-object": [] },
+                "files": "domain",
+                "kinds": "**/*.{kind}.ts",
+            },
+            { "name": "domain-not-to-application", "files": "domain", "mayNotImport": "application" },
+            { "name": "core-not-to-driver", "files": "domain", "mayNotImport": "driver" },
+        ],
+    })
+}
+
+/// The names of the rules that gave a violation, in order of name.
+fn broken_rules(report: &Report) -> std::collections::BTreeSet<&str> {
+    report
+        .diagnostics
+        .iter()
+        .filter(|d| d.code.is_rule())
+        .filter_map(|d| d.rule.as_deref())
+        .collect()
+}
+
+fn names(expected: &[&'static str]) -> std::collections::BTreeSet<&'static str> {
+    expected.iter().copied().collect()
+}
+
+#[test]
+fn a_table_row_and_a_rule_each_count_for_one_import() {
+    let repo = FixtureRepo::new()
+        .file("apps/api/src/b/application/save.use-case.ts", "")
+        .file("apps/api/src/b/domain/a.value-object.ts", "")
+        .file(
+            "apps/api/src/b/domain/board.entity.ts",
+            "import '../application/save.use-case';\n",
+        );
+    let (report, _) = support::check(&table_and_rule(), &repo, None);
+    assert_eq!(
+        broken_rules(&report),
+        names(&["domain-not-to-application", "domain.entity"]),
+        "{:?}",
+        report.diagnostics
+    );
+}
+
+#[test]
+fn an_exception_permits_only_the_row_that_it_names() {
+    let repo = FixtureRepo::new()
+        .file("apps/api/src/b/application/save.use-case.ts", "")
+        .file("apps/api/src/b/domain/a.value-object.ts", "")
+        .file(
+            "apps/api/src/b/domain/board.entity.ts",
+            "// archangel-allow domain.entity: the move to a port is in progress\nimport '../application/save.use-case';\n",
+        );
+    let (report, _) = support::check(&table_and_rule(), &repo, None);
+    assert_eq!(
+        broken_rules(&report),
+        names(&["domain-not-to-application"]),
+        "{:?}",
+        report.diagnostics
+    );
+    assert_eq!(
+        report.summary.exceptions.get("domain.entity"),
+        Some(&1),
+        "an exception permits only the row that it names"
+    );
+}
+
+#[test]
+fn a_table_that_names_no_externals_set_leaves_a_package_to_other_rules() {
+    let repo = FixtureRepo::new()
+        .file(".gitignore", "node_modules/\n")
+        .file(
+            "node_modules/pg/package.json",
+            r#"{ "name": "pg", "main": "index.js" }"#,
+        )
+        .file("node_modules/pg/index.js", "")
+        .file("apps/api/src/b/application/save.use-case.ts", "")
+        .file("apps/api/src/b/domain/a.value-object.ts", "")
+        .file("apps/api/src/b/domain/board.entity.ts", "import 'pg';\n");
+    let (report, _) = support::check(&table_and_rule(), &repo, None);
+    assert_eq!(
+        broken_rules(&report),
+        names(&["core-not-to-driver"]),
+        "{:?}",
+        report.diagnostics
+    );
+}

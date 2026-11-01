@@ -254,6 +254,116 @@
           },
           {
             "type": "object",
+            "description": "An import table: for each row, what its files may import. Each row is a rule named `<table>.<row>`.",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "name",
+              "rows"
+            ],
+            "properties": {
+              "kind": {
+                "const": "mayImport"
+              },
+              "name": {
+                "type": "string",
+                "description": "The table's name, which starts the name of each row. It has no colon and no slash."
+              },
+              "rows": {
+                "type": "object",
+                "description": "Each row: a part, a group or a kind, and what its files may import.",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Names of rows, parts, groups and externals sets, or path patterns."
+                }
+              },
+              "files": {
+                "$ref": "#/definitions/selector",
+                "description": "The files whose imports the table judges. By default, the files of its rows."
+              },
+              "kinds": {
+                "type": "string",
+                "description": "The pattern that gives each file its kind, with the capture `{kind}`."
+              },
+              "within": {
+                "$ref": "#/definitions/side",
+                "description": "An area: the rows judge only imports whose target is in it."
+              },
+              "everyRowMayImport": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Cells that every row also has."
+              },
+              "mayNotImportItself": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The rows that do not permit their own name."
+              },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
+              },
+              "reason": {
+                "type": "string",
+                "description": "Why the rule exists, shown with each violation."
+              },
+              "link": {
+                "type": "string",
+                "description": "Where to read more, shown with each violation."
+              },
+              "imports": {
+                "enum": [
+                  "all",
+                  "runtime",
+                  "types"
+                ],
+                "description": "Which imports the rule checks: all of them, those that stay at runtime, or type imports."
+              },
+              "names": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "description": "Only imports that bring in one of these names."
+              },
+              "specifier": {
+                "enum": [
+                  "relative",
+                  "parent",
+                  "alias",
+                  "package"
+                ],
+                "description": "Only imports whose specifier is written this way."
+              },
+              "dependency": {
+                "enum": [
+                  "dev",
+                  "undeclared"
+                ],
+                "description": "Only imports of packages that the nearest package.json lists this way."
+              },
+              "instance": {
+                "enum": [
+                  "same",
+                  "different"
+                ],
+                "description": "Only imports whose two ends compare this way, in the row's name."
+              },
+              "examples": {
+                "$ref": "#/definitions/examples"
+              }
+            }
+          },
+          {
+            "type": "object",
             "description": "The files may not import the other side.",
             "additionalProperties": false,
             "required": [

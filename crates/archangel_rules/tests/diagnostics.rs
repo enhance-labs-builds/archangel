@@ -222,6 +222,11 @@ fn each_shorthand_page_shows_its_sentences() {
             Code::Entry,
             "mayOnlyBeImportedBy: { element: 'entity', capture: { entity: 'canvas' } }",
         ),
+        (Code::MayImport, "mayOnlyImport: ['models', 'shared'],"),
+        (
+            Code::MayImport,
+            "rule({ files: 'port', mayNotImport: 'port' })",
+        ),
     ] {
         assert!(
             code.docs().contains(sentence),

@@ -10,6 +10,10 @@ use serde_json::{Value, json};
 
 const ELEMENTS: usize = 4;
 
+/// What a rule side may name beyond [`side_name`]: two externals sets, the second of which also
+/// lists what the first lists.
+const SIDES: usize = ELEMENTS + 2;
+
 /// e0 and e1 capture a name, e2 and e3 do not.
 fn elements() -> Value {
     json!({ "e0": "a/{x}/**", "e1": "b/{x}/**", "e2": "c/**", "e3": "d/**" })
@@ -29,6 +33,15 @@ fn side_name(index: usize) -> String {
     }
 }
 
+/// The other side of a rule or an area: what `side_name` names, or an externals set.
+fn other_side(index: usize) -> String {
+    match index {
+        5 => "x0".to_owned(),
+        6 => "x1".to_owned(),
+        index => side_name(index),
+    }
+}
+
 fn imports() -> impl Strategy<Value = &'static str> {
     prop::sample::select(vec!["all", "runtime", "types"])
 }
@@ -40,19 +53,19 @@ fn sentence() -> impl Strategy<Value = Value> {
     (
         0..=ELEMENTS,
         condition,
-        prop::collection::vec(0..=ELEMENTS, 1..3),
+        prop::collection::vec(0..=SIDES, 1..3),
         imports(),
         instance,
-        prop::option::of(0..=ELEMENTS),
+        prop::option::of(0..=SIDES),
     )
         .prop_map(|(files, condition, side, imports, instance, area)| {
             let mut rule = json!({
                 "files": side_name(files),
-                condition: side.into_iter().map(side_name).collect::<Vec<_>>(),
+                condition: side.into_iter().map(other_side).collect::<Vec<_>>(),
                 "imports": imports,
             });
             if let (Some(area), true) = (area, condition != "mayNotImport") {
-                rule["within"] = json!(side_name(area));
+                rule["within"] = json!(other_side(area));
             }
             // `instance` needs `files` to name an element with a capture.
             if files < 2 && !instance.is_empty() {
@@ -98,7 +111,27 @@ fn path(end: Option<(usize, usize, bool)>) -> String {
 struct Case {
     from: Option<(usize, usize, bool)>,
     to: Option<(usize, usize, bool)>,
+    /// A package that the import names in place of `to`.
+    package: Option<&'static str>,
     kind: ImportKind,
+}
+
+impl Case {
+    /// Whether the target of the import is on a side.
+    fn target_in(&self, side: &str) -> bool {
+        match self.package {
+            Some(package) => matches!((side, package), ("x0", "pg") | ("x1", "pg" | "zod")),
+            None => in_side(side, self.to),
+        }
+    }
+
+    fn target_in_list(&self, rule: &Value, key: &str) -> bool {
+        rule[key].as_array().is_some_and(|sides| {
+            sides
+                .iter()
+                .any(|side| self.target_in(side.as_str().unwrap()))
+        })
+    }
 }
 
 fn element_of(end: Option<(usize, usize, bool)>) -> Option<usize> {
@@ -167,7 +200,7 @@ fn breaks_definition(rule: &Value, case: &Case) -> bool {
 
 fn sentence_breaks(rule: &Value, case: &Case, same_instance: bool) -> bool {
     let files = rule["files"].as_str().unwrap();
-    let (from_in, to_in) = (in_side(files, case.from), in_side(files, case.to));
+    let (from_in, to_in) = (in_side(files, case.from), case.target_in(files));
     let instance_holds = match rule["instance"].as_str() {
         None => true,
         Some(wanted) => {
@@ -176,19 +209,21 @@ fn sentence_breaks(rule: &Value, case: &Case, same_instance: bool) -> bool {
             both && (wanted == "same") == same_instance
         }
     };
-    // Its own files are the files of the same instance when `files` is an element with a capture.
-    let captured = files == name(0) || files == name(1);
-    let own = to_in && (!captured || same_instance);
-    let in_area = |end| {
-        rule.get("within")
-            .is_none_or(|area| in_side(area.as_str().unwrap(), end))
-    };
+    let area = rule.get("within").map(|area| area.as_str().unwrap());
     let condition = if rule.get("mayNotImport").is_some() {
-        from_in && in_list(rule, "mayNotImport", case.to)
+        from_in && case.target_in_list(rule, "mayNotImport")
     } else if rule.get("mayOnlyImport").is_some() {
-        from_in && in_area(case.to) && !in_list(rule, "mayOnlyImport", case.to) && !own
+        // Its own files are the files of the same instance when `files` is an element with a capture.
+        let captured = files == name(0) || files == name(1);
+        from_in
+            && area.is_none_or(|area| case.target_in(area))
+            && !case.target_in_list(rule, "mayOnlyImport")
+            && !(to_in && (!captured || same_instance))
     } else {
-        to_in && in_area(case.from) && !in_list(rule, "mayOnlyBeImportedBy", case.from) && !from_in
+        to_in
+            && area.is_none_or(|area| in_side(area, case.from))
+            && !in_list(rule, "mayOnlyBeImportedBy", case.from)
+            && !from_in
     };
     condition && instance_holds
 }
@@ -218,7 +253,12 @@ fn compile(rules: &[Value]) -> Architecture {
         })
         .collect();
     let config = archangel_config::parse_json(
-        &json!({ "elements": elements(), "rules": named }).to_string(),
+        &json!({
+            "elements": elements(),
+            "externals": { "x0": ["pg"], "x1": ["pg", "zod"] },
+            "rules": named,
+        })
+        .to_string(),
     )
     .expect("a valid config");
     Architecture::compile(config)
@@ -227,7 +267,8 @@ fn compile(rules: &[Value]) -> Architecture {
 /// The rules an import breaks, in config order.
 fn broken(architecture: &Architecture, case: &Case) -> Vec<usize> {
     let (from, to) = (path(case.from), path(case.to));
-    let mut found = architecture.broken_rules(&from, Target::File(&to), &import(case.kind));
+    let target = case.package.map_or(Target::File(&to), Target::Package);
+    let mut found = architecture.broken_rules(&from, target, &import(case.kind));
     found.sort_unstable();
     found
 }
@@ -315,6 +356,193 @@ fn reference_chain(
     best
 }
 
+/// The names a table in the property may use: the part with a capture, the part without one, a
+/// group, and two kinds.
+const ROW_KEYS: [&str; 5] = ["e0", "e2", "g0", "k0", "k1"];
+
+/// A name in a hand-written rule: a kind is the pattern of its files.
+fn hand_name(key: &str) -> String {
+    match key {
+        "k0" | "k1" => format!("**/*.{key}.ts"),
+        other => other.to_owned(),
+    }
+}
+
+/// A random table: for each row key that it has, its cells; the cells of every row; the rows that
+/// may not import themselves; and an area.
+#[derive(Debug, Clone)]
+struct RandomTable {
+    rows: Vec<(usize, Vec<usize>)>,
+    every: Vec<usize>,
+    itself: Vec<usize>,
+    area: Option<usize>,
+}
+
+/// The cells: the row keys, an externals set, and a pattern.
+const CELLS: [&str; 7] = ["e0", "e2", "g0", "k0", "k1", "x0", "other/**"];
+
+fn random_table() -> impl Strategy<Value = RandomTable> {
+    (
+        prop::collection::btree_map(
+            0..ROW_KEYS.len(),
+            prop::collection::vec(0..CELLS.len(), 0..3),
+            1..5,
+        ),
+        prop::collection::vec(0..CELLS.len(), 0..2),
+        prop::collection::vec(0..ROW_KEYS.len(), 0..2),
+        prop::option::of(prop::sample::select(vec![1_usize, 2])),
+    )
+        .prop_map(|(rows, every, itself, area)| {
+            let keys: Vec<usize> = rows.keys().copied().collect();
+            // A kind is a cell only when it is a row, and any other cell that names nothing is refused.
+            let known = |cell: &usize| {
+                !matches!(CELLS[*cell], "k0" | "k1")
+                    || keys.iter().any(|key| ROW_KEYS[*key] == CELLS[*cell])
+            };
+            let rows: Vec<(usize, Vec<usize>)> = rows
+                .into_iter()
+                .map(|(key, cells)| (key, cells.into_iter().filter(|cell| known(cell)).collect()))
+                .collect();
+            let every: Vec<usize> = every.into_iter().filter(|cell| known(cell)).collect();
+            // A row in `mayNotImportItself` that names itself is refused, so those lists stay apart.
+            let itself: Vec<usize> = itself
+                .into_iter()
+                .filter(|key| {
+                    rows.iter().any(|(row, cells)| {
+                        row == key && !cells.iter().any(|cell| CELLS[*cell] == ROW_KEYS[*key])
+                    })
+                })
+                .collect();
+            RandomTable {
+                rows,
+                every,
+                itself,
+                area,
+            }
+        })
+}
+
+fn cell_names(cells: &[usize]) -> Vec<&'static str> {
+    cells.iter().map(|cell| CELLS[*cell]).collect()
+}
+
+/// The area of a row as a hand-written rule: the table's area, or every file and the externals
+/// sets that the table names.
+fn hand_area(table: &RandomTable) -> Value {
+    if let Some(area) = table.area {
+        return json!(CELLS[area]);
+    }
+    let names_set = table
+        .every
+        .iter()
+        .chain(table.rows.iter().flat_map(|(_, cells)| cells))
+        .any(|cell| CELLS[*cell] == "x0");
+    if names_set {
+        json!(["**", "x0"])
+    } else {
+        json!("**")
+    }
+}
+
+fn table_config(table: &RandomTable) -> Value {
+    let rows: serde_json::Map<String, Value> = table
+        .rows
+        .iter()
+        .map(|(key, cells)| (ROW_KEYS[*key].to_owned(), json!(cell_names(cells))))
+        .collect();
+    let itself: Vec<&str> = table.itself.iter().map(|key| ROW_KEYS[*key]).collect();
+    let mut written = json!({
+        "kind": "mayImport",
+        "name": "t",
+        "rows": rows,
+        "kinds": "**/*.{kind}.ts",
+        "everyRowMayImport": cell_names(&table.every),
+        "mayNotImportItself": itself,
+    });
+    if let Some(area) = table.area {
+        written["within"] = json!(CELLS[area]);
+    }
+    table_elements(&[written])
+}
+
+/// The rules that the design says a table means, written by hand.
+fn hand_config(table: &RandomTable) -> Value {
+    let area = hand_area(table);
+    let cell_text = |cell: &str| {
+        if matches!(cell, "k0" | "k1") {
+            hand_name(cell)
+        } else {
+            cell.to_owned()
+        }
+    };
+    let rules: Vec<Value> = table
+        .rows
+        .iter()
+        .map(|(key, cells)| {
+            let key = ROW_KEYS[*key];
+            let mut side: Vec<String> = cell_names(cells)
+                .into_iter()
+                .chain(cell_names(&table.every))
+                .map(cell_text)
+                .collect();
+            let captured = key == "e0";
+            let refused = table.itself.iter().any(|other| ROW_KEYS[*other] == key);
+            // A row without a capture permits its own name everywhere, and so does a sentence's list.
+            if refused || !captured {
+                side.push(hand_name(key));
+            }
+            let only = json!({ "files": hand_name(key), "mayOnlyImport": side, "within": area });
+            if refused {
+                let in_area = table.area.map_or_else(
+                    || json!(hand_name(key)),
+                    |area| json!({ "all": [hand_name(key), CELLS[area]] }),
+                );
+                let refusal = json!({ "files": hand_name(key), "mayNotImport": in_area });
+                json!({ "name": format!("t.{key}"), "sentences": [only, refusal] })
+            } else {
+                let mut only = only;
+                only["name"] = json!(format!("t.{key}"));
+                only
+            }
+        })
+        .collect();
+    table_elements(&rules)
+}
+
+fn table_elements(rules: &[Value]) -> Value {
+    json!({
+        "parts": { "e0": "a/{x}/**", "e1": "b/{x}/**", "e2": "c/**" },
+        "groups": { "g0": "*/i0/**" },
+        "externals": { "x0": ["pg"] },
+        "rules": rules,
+    })
+}
+
+/// What an import in the table property breaks, by rule name, with no diagnostic but its rows.
+fn broken_names(config: &Value, from: &str, target: Target<'_>) -> Vec<String> {
+    let parsed = archangel_config::parse_json(&config.to_string()).expect("a valid config");
+    let architecture = Architecture::compile(parsed);
+    let mut names: Vec<String> = architecture
+        .broken_rules(from, target, &import(ImportKind::Runtime))
+        .into_iter()
+        .map(|rule| architecture.config().rules[rule].name.clone())
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+}
+
+const TABLE_FILES: [&str; 8] = [
+    "a/i0/f.k0.ts",
+    "a/i0/g.ts",
+    "a/i1/f.k1.ts",
+    "b/i0/f.ts",
+    "c/i0/f.k0.ts",
+    "c/h.ts",
+    "other/f.ts",
+    "plain.k1.ts",
+];
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(1000))]
 
@@ -323,15 +551,31 @@ proptest! {
         rules in prop::collection::vec(rule(), 1..6),
         from in end(),
         to in end(),
+        package in prop::option::of(prop::sample::select(vec!["pg", "zod", "other"])),
         typed in any::<bool>(),
     ) {
         let architecture = compile(&rules);
-        let case = Case { from, to, kind: if typed { ImportKind::Type } else { ImportKind::Runtime } };
+        let to = if package.is_some() { None } else { to };
+        let case = Case { from, to, package, kind: if typed { ImportKind::Type } else { ImportKind::Runtime } };
         let expected: Vec<usize> = rules.iter().enumerate()
             .filter(|(_, rule)| breaks(rule, &case))
             .map(|(index, _)| index)
             .collect();
         prop_assert_eq!(broken(&architecture, &case), expected);
+    }
+
+    #[test]
+    fn a_table_agrees_with_one_rule_per_row(
+        table in random_table(),
+        from in prop::sample::select(TABLE_FILES.to_vec()),
+        to in prop::sample::select(TABLE_FILES.to_vec()),
+        package in prop::option::of(prop::sample::select(vec!["pg", "zod"])),
+    ) {
+        let target = package.map_or(Target::File(to), Target::Package);
+        prop_assert_eq!(
+            broken_names(&table_config(&table), from, target),
+            broken_names(&hand_config(&table), from, target)
+        );
     }
 
     #[test]
@@ -352,7 +596,7 @@ proptest! {
             "mayNotImport": { "all": [area, { "not": { "any": side.iter().chain([&files]).collect::<Vec<_>>() } }] },
             "imports": "all",
         });
-        let case = Case { from, to, kind: ImportKind::Runtime };
+        let case = Case { from, to, package: None, kind: ImportKind::Runtime };
         prop_assert_eq!(
             broken(&compile(&[with_area]), &case),
             broken(&compile(&[double_negative]), &case)
@@ -367,7 +611,7 @@ proptest! {
         typed in any::<bool>(),
     ) {
         let sentences = sentences_of(&shorthand);
-        let case = Case { from, to, kind: if typed { ImportKind::Type } else { ImportKind::Runtime } };
+        let case = Case { from, to, package: None, kind: if typed { ImportKind::Type } else { ImportKind::Runtime } };
         let by_shorthand = !broken(&compile(&[shorthand]), &case).is_empty();
         let by_sentences = !sentences.is_empty() && !broken(&compile(&sentences), &case).is_empty();
         prop_assert_eq!(by_shorthand, by_sentences);

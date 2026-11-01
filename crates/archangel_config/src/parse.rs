@@ -8,12 +8,13 @@ use serde_json::{Map, Value};
 use crate::merge::{self, ConfigPart};
 use crate::model::{
     AllowUnresolved, Config, Element, ElementId, ElementKind, ExampleFiles, Examples, Preset, Rule,
-    SelectorId,
+    SelectorId, Table,
 };
 use crate::pattern::Pattern;
 use crate::plugins::{LoadedPlugins, parse_plugins};
 use crate::problem::{ConfigProblem, ProblemCode};
 use crate::selectors::{Declared, Names, Placement, parse_selectors};
+use crate::tables::TableReader;
 
 /// Parses config text in JSON.
 ///
@@ -127,6 +128,7 @@ pub fn from_value(value: &Value) -> Result<Config, Vec<ConfigProblem>> {
     let Found {
         preset: preset_rules,
         config: config_rules,
+        tables,
     } = found;
     check_unique_names(&preset_rules, &mut problems);
     let own: Vec<Rule> = config_rules
@@ -135,7 +137,7 @@ pub fn from_value(value: &Value) -> Result<Config, Vec<ConfigProblem>> {
         .collect();
     check_unique_names(&own, &mut problems);
     let rules = merge::replace(preset_rules, config_rules, &presets, &mut problems);
-    let rules = merge::off(root, rules, &mut problems);
+    let (rules, off) = merge::off(root, rules, &tables, &mut problems);
     let patterns = names.patterns;
     let config = Config {
         selectors,
@@ -147,6 +149,8 @@ pub fn from_value(value: &Value) -> Result<Config, Vec<ConfigProblem>> {
         rules,
         plugins,
         presets,
+        off,
+        tables,
     };
     finish(config, problems)
 }
@@ -206,6 +210,7 @@ fn presets_of(
 struct Found {
     preset: Vec<Rule>,
     config: Vec<(Rule, String, bool)>,
+    tables: Vec<Table>,
 }
 
 fn id(index: usize) -> u32 {
@@ -478,7 +483,22 @@ fn rules_field(
     };
     for (index, item) in items.iter().enumerate() {
         let field = source.at(&format!("rules[{index}]"));
-        if source.scope.prefix.is_some() {
+        if item.get("kind").and_then(Value::as_str) == Some("mayImport") {
+            let rules = TableReader {
+                source,
+                names: &mut *names,
+                tables: &mut found.tables,
+                problems: &mut *problems,
+            }
+            .read(item, &field);
+            if source.scope.prefix.is_some() {
+                found.preset.extend(rules);
+            } else {
+                found
+                    .config
+                    .extend(rules.into_iter().map(|rule| (rule, field.clone(), true)));
+            }
+        } else if source.scope.prefix.is_some() {
             let Some(name) = merge::preset_rule_name(source, item, &field, problems) else {
                 continue;
             };
@@ -494,7 +514,7 @@ fn rules_field(
 }
 
 /// A preset's examples, with their paths moved from its root to the config folder.
-fn rooted(examples: Examples, scope: &Placement) -> Examples {
+pub(crate) fn rooted(examples: Examples, scope: &Placement) -> Examples {
     let move_set = |files: ExampleFiles| -> ExampleFiles {
         files
             .into_iter()
@@ -657,7 +677,8 @@ const ROOT_FIELDS: [&str; 12] = [
 ];
 
 /// The known name nearest to a misspelt one, when one is near enough to be the likely intent.
-pub(crate) fn nearest<'n>(name: &str, known: &[&'n str]) -> Option<&'n str> {
+#[must_use]
+pub fn nearest<'n>(name: &str, known: &[&'n str]) -> Option<&'n str> {
     known
         .iter()
         .map(|candidate| (strsim::damerau_levenshtein(name, candidate), *candidate))

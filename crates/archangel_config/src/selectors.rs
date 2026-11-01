@@ -93,7 +93,7 @@ impl<'a> Names<'a> {
         }
     }
 
-    fn intern(&mut self, pattern: Pattern) -> PatternId {
+    pub(crate) fn intern(&mut self, pattern: Pattern) -> PatternId {
         if let Some(&id) = self.index.get(pattern.source()) {
             return id;
         }
@@ -101,6 +101,20 @@ impl<'a> Names<'a> {
         self.index.insert(pattern.source().to_owned(), id);
         self.patterns.push(pattern);
         id
+    }
+
+    /// The declared selector with this name in the merged config.
+    pub(crate) fn selector_id(&self, name: &str) -> Option<SelectorId> {
+        self.selectors
+            .iter()
+            .position(|selector| selector == name)
+            .map(|index| SelectorId(u32::try_from(index).unwrap_or(u32::MAX)))
+    }
+
+    /// Whether a name, as the scope writes it, is a declared part, group or externals set.
+    pub(crate) fn declares(&self, written: &str) -> bool {
+        let name = self.scope.name(written);
+        self.elements.iter().any(|e| e.name == name) || self.selector_id(&name).is_some()
     }
 
     /// A string as a declared name first, and then as a path pattern when it has `/` or `*`.

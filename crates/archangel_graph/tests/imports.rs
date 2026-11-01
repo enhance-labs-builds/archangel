@@ -449,7 +449,10 @@ fn an_edit_under_verbatim_module_syntax_keeps_the_runtime_mark() {
         .file("tsconfig.json", WITH_OPTION);
     let mut graph = ImportGraph::build(repo.path(), &GraphOptions::default(), &mut Work::default());
     let text = "import { type B } from './b';\n";
-    assert!(graph.replace_file("src/x.ts", Some(text), &mut Work::default()));
+    assert!(
+        graph.replace_file("src/x.ts", Some(text), &mut Work::default()),
+        "an edit under verbatim module syntax keeps the runtime mark"
+    );
     let facts = graph.file("src/x.ts").and_then(|f| f.facts.as_ref());
     assert_eq!(
         facts.expect("the file parses").imports[0].kind,

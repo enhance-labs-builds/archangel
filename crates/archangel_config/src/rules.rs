@@ -87,9 +87,9 @@ const OPTIONS: [&str; 7] = [
 ];
 
 /// One rule object, with its location in the config.
-struct Input<'a> {
-    object: &'a Map<String, Value>,
-    field: String,
+pub(crate) struct Input<'a> {
+    pub(crate) object: &'a Map<String, Value>,
+    pub(crate) field: String,
 }
 
 pub(crate) fn parse_rule(
@@ -142,7 +142,7 @@ pub(crate) fn parse_rule(
 type Parsed = (RuleKind, Vec<Sentence>, String, bool);
 
 impl Input<'_> {
-    fn at(&self, key: &str) -> String {
+    pub(crate) fn at(&self, key: &str) -> String {
         format!("{}.{key}", self.field)
     }
 
@@ -798,7 +798,7 @@ impl Input<'_> {
         names.side(value, &field, problems)
     }
 
-    fn read_options(
+    pub(crate) fn read_options(
         &self,
         names: &mut Names<'_>,
         problems: &mut Vec<ConfigProblem>,
@@ -831,6 +831,7 @@ impl Input<'_> {
                 .get("stopAt")
                 .and_then(|value| names.file_set(value, &self.at("stopAt"), problems)),
             within: self.area(names, problems),
+            own: None,
         }
     }
 
@@ -887,7 +888,7 @@ impl Input<'_> {
         found
     }
 
-    fn imports(
+    pub(crate) fn imports(
         &self,
         sentences: &[Sentence],
         transitive: bool,

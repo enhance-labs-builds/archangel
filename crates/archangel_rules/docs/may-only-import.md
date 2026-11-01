@@ -23,6 +23,10 @@ import { save } from '../application/save.use-case'; // reported
 import { z } from 'zod'; // outside the area, so not judged
 ```
 
+## Instances
+
+When `files` names exactly one part with a capture, the rule permits its own files only in the same instance. With a list, such as `files: ['feature']`, the rule permits all instances of its own files. To permit all instances of one part, list the part in `mayOnlyImport`.
+
 ## What to do
 
 Import only what the rule lists, or add the import's target to the list if the architecture permits it.

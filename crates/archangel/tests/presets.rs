@@ -332,3 +332,69 @@ fn nextjs_permits_server_actions_in_client_components() {
         found.stdout
     );
 }
+
+/// A preset that declares a table, with the rest of the config's own text.
+fn with_preset_table(repo: FixtureRepo, kinds: &str, own: &str) -> FixtureRepo {
+    with_config(
+        repo,
+        &format!(
+            "{{ extends: [{{ name: 'fsd-x', parts: {{ src: 'src/**' }}, rules: ({{ mayImport }}) => \
+             [mayImport('roles', {{ entity: [] }}, {{ kinds: '{kinds}' }})] }}], {own} }}"
+        ),
+    )
+}
+
+#[test]
+fn a_presets_table_row_is_named_with_the_preset_prefix() {
+    let files = || {
+        FixtureRepo::new()
+            .file("src/b.use-case.ts", "")
+            .file("src/a.entity.ts", "import './b.use-case';\n")
+    };
+    let repo = with_preset_table(files(), "**/*.{kind}.ts", "");
+    let found = diagnostics(&repo);
+    assert!(
+        found
+            .iter()
+            .any(|(_, rule, _)| rule == "fsd-x/roles.entity"),
+        "{found:?}"
+    );
+    let repo = with_preset_table(
+        files(),
+        "**/*.{kind}.ts",
+        "rules: ({ rule }) => [rule('fsd-x/roles.entity', { files: 'src/**/*.entity.ts', mustBeNamed: 'kebab-case' })],",
+    );
+    let found = diagnostics(&repo);
+    assert!(
+        !found
+            .iter()
+            .any(|(_, rule, _)| rule == "fsd-x/roles.entity"),
+        "a config rule of that name replaces the row: {found:?}"
+    );
+}
+
+#[test]
+fn a_presets_table_with_no_file_is_listed_not_failed() {
+    let repo = with_preset_table(
+        FixtureRepo::new().file("src/plain.ts", ""),
+        "**/*.{kind}.ts",
+        "",
+    );
+    let found = run(&repo, &["check"]);
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    assert!(
+        found.stdout.contains(
+            "fsd-x/roles matches no file: no file matches its kind pattern **/*.{kind}.ts"
+        ),
+        "{}",
+        found.stdout
+    );
+    let checked = document(&run(&repo, &["check", "--format", "json"]).stdout);
+    let listed: Vec<&str> = checked["summary"]["presetNamesMatchingNothing"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    assert!(listed.contains(&"fsd-x/roles"), "{listed:?}");
+}

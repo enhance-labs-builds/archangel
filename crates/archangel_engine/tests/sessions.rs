@@ -965,3 +965,100 @@ fn a_part_overlap_appears_and_goes_with_the_file_in_the_editor() {
         "the same as a full check"
     );
 }
+
+/// A table with an entity row and an aggregate-root row, on a repository with no aggregate root.
+fn table_repo() -> FixtureRepo {
+    FixtureRepo::new()
+        .file("apps/api/src/board/application/save.use-case.ts", "")
+        .file("apps/api/src/board/domain/board.entity.ts", "")
+        .json_config(&json!({
+            "parts": { "api": "apps/api/**" },
+            "rules": [{
+                "kind": "mayImport",
+                "name": "domain",
+                "rows": { "entity": [], "aggregate-root": ["entity"], "use-case": [] },
+                "kinds": "**/*.{kind}.ts",
+            }],
+        }))
+}
+
+fn rows_with_no_file(report: &archangel_rules::Report) -> Vec<String> {
+    report.summary.rows_with_no_file.clone().unwrap_or_default()
+}
+
+/// The files of the violations of one rule.
+fn files_breaking(report: &archangel_rules::Report, rule: &str) -> Vec<String> {
+    report
+        .diagnostics
+        .iter()
+        .filter(|d| d.code.is_rule() && d.rule.as_deref() == Some(rule))
+        .filter_map(|d| d.file.clone())
+        .collect()
+}
+
+#[test]
+fn a_row_becomes_active_when_its_first_file_is_created() {
+    let repo = table_repo();
+    let mut session = Session::open(repo.path(), None).expect("the session opens");
+    assert_eq!(
+        rows_with_no_file(session.report()),
+        ["domain.aggregate-root"],
+        "a row becomes active when its first file is created"
+    );
+    let path = "apps/api/src/board/domain/board.aggregate-root.ts";
+    repo.write(path, "import '../application/save.use-case';\n");
+    let (found, full) = after_events(
+        &repo,
+        &mut session,
+        vec![PathEvent::Created(repo.join(path))],
+    );
+    assert_eq!(
+        files_breaking(&found, "domain.aggregate-root"),
+        [path],
+        "the import in the new file breaks its row"
+    );
+    assert_eq!(
+        rows_with_no_file(&found),
+        [] as [String; 0],
+        "the row is active"
+    );
+    assert_eq!(
+        found.diagnostics, full.diagnostics,
+        "the same as a full check"
+    );
+    assert_eq!(
+        found.summary, full.summary,
+        "the same summary as a full check"
+    );
+}
+
+#[test]
+fn a_row_is_listed_again_when_its_last_file_is_deleted() {
+    let repo = table_repo().file("apps/api/src/board/domain/board.aggregate-root.ts", "");
+    let mut session = Session::open(repo.path(), None).expect("the session opens");
+    assert_eq!(
+        rows_with_no_file(session.report()),
+        [] as [String; 0],
+        "a row is listed again when its last file is deleted"
+    );
+    let path = "apps/api/src/board/domain/board.aggregate-root.ts";
+    repo.remove(path);
+    let (found, full) = after_events(
+        &repo,
+        &mut session,
+        vec![PathEvent::Deleted(repo.join(path))],
+    );
+    assert_eq!(
+        rows_with_no_file(&found),
+        ["domain.aggregate-root"],
+        "a row is listed again when its last file is deleted"
+    );
+    assert_eq!(
+        found.diagnostics, full.diagnostics,
+        "the same as a full check"
+    );
+    assert_eq!(
+        found.summary, full.summary,
+        "the same summary as a full check"
+    );
+}
