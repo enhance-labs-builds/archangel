@@ -27,7 +27,7 @@ config author.
 
 ### Requirement: The npm package gives types for the config
 
-The npm package MUST export `defineConfig` and the types of the config. With these types, the TypeScript compiler MUST report an error for a rule that names an undeclared element or selector, for an isolate rule on an element without a capture, for a sentence with more than one condition, for a rule name with a slash that does not follow the name of a preset it extends, for a table cell that names no row, declared name or path pattern, for a row of a table without a kind pattern that names no declared part or group, for a table or row name with a refused character, for an area on a condition that checks no import, and for a config that has both spellings of one key. The types MUST accept `parts`, `groups`, `externals`, `because`, and a rule name as the first argument of the rule builder.
+The npm package MUST export `defineConfig` and the types of the config. With these types, the TypeScript compiler MUST report an error for a rule that names an undeclared element or selector, for an isolate rule on an element without a capture, for a sentence with more than one condition, and for a rule name with a slash that does not follow the name of a preset it extends.
 
 #### Scenario: A rule names an undeclared element
 
@@ -65,6 +65,10 @@ The npm package MUST export `defineConfig` and the types of the config. With the
 - **AND** a rule named `fsd-admin/public-api` in a config that extends `fsd({ root: 'src', name: 'fsd-admin' })` has no error, and the rules inside the preset are not checked
 - **TEST** `npm/archangel/test/types.test-d.ts` › "a config's own rule name cannot contain a slash, which separates a preset's name from its rule's"
 
+### Requirement: The types check tables
+
+The TypeScript compiler MUST report an error for a table cell that names no row, declared name or path pattern, for a row of a table without a kind pattern that names no declared part or group, and for a table or row name with a refused character.
+
 #### Scenario: A table cell that names nothing
 
 - **GIVEN** a config that uses `defineConfig` and a table with the kind pattern `**/*.{kind}.ts` and the rows `entity` and `value-object`, whose row `entity` has the cell `value-objects`
@@ -88,6 +92,10 @@ The npm package MUST export `defineConfig` and the types of the config. With the
 - **THEN** the compiler reports an error on each name, which says that the name of a table or a row has no colon or slash
 - **AND** a table named `api.domain` with the row `my views` has no error
 - **TEST** `npm/archangel/test/types.test-d.ts` › "a table or row name with a colon or slash is a type error"
+
+### Requirement: The types check the new spellings
+
+The TypeScript compiler MUST report an error for an area on a condition that checks no import, and for a config that has both spellings of one key. The types MUST accept `parts`, `groups`, `externals`, `because`, and a rule name as the first argument of the rule builder.
 
 #### Scenario: An area on a naming sentence
 

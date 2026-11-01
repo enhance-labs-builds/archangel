@@ -290,7 +290,7 @@ Archangel MUST refuse a pattern that has an empty folder name, a `**` that is no
 
 ### Requirement: Each file is in one element at most
 
-With `elements`, archangel MUST put each repository file in the first file element, in declaration order, that has a pattern which matches the file. With `parts`, a file that two of the config's own parts match MUST give one `part-overlap` diagnostic, which names the file and both parts, and the check MUST fail. The message MUST say to narrow one of the two patterns with `not` or to make one of them a group, and that every overlap is fixed in the config because the baseline does not hold it. The parts of each preset MUST be a separate set, so a file MAY be in one of the config's parts and in one part of each preset. A file that no pattern matches MUST be in no element.
+With `elements`, archangel MUST put each repository file in the first file element, in declaration order, that has a pattern which matches the file. A file that no pattern matches MUST be in no element.
 
 #### Scenario: Two elements match the same file
 
@@ -298,6 +298,10 @@ With `elements`, archangel MUST put each repository file in the first file eleme
 - **WHEN** archangel classifies `src/features/login/session.model.ts`
 - **THEN** the file is in the element "model" only
 - **TEST** `crates/archangel_config/tests/pattern.rs` › "first_declared_element_wins"
+
+### Requirement: Two parts that match one file fail the check
+
+With `parts`, a file that two of the config's own parts match MUST give one `part-overlap` diagnostic, which names the file and both parts, and the check MUST fail. The message MUST say to narrow one of the two patterns with `not` or to make one of them a group, and that every overlap is fixed in the config because the baseline does not hold it.
 
 #### Scenario: Two parts match the same file
 
@@ -315,6 +319,10 @@ With `elements`, archangel MUST put each repository file in the first file eleme
 - **THEN** the language server reports `part-overlap` for that file, and the result is the same as a full check
 - **AND** when the developer deletes the file, the diagnostic is gone, and the result is the same as a full check
 - **TEST** `crates/archangel_engine/tests/sessions.rs` › "a_part_overlap_appears_and_goes_with_the_file_in_the_editor"
+
+### Requirement: Each preset has its own set of parts
+
+The parts of each preset MUST be a separate set, so a file MAY be in one of the config's parts and in one part of each preset.
 
 #### Scenario: A part of the config and a part of a preset
 
