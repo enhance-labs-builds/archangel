@@ -37,7 +37,7 @@ are listed in 1.24 and must still pass unchanged.
 
 ## 2. Terms
 
-- [ ] 2.1 Add Part, Group, Externals set, Area, Table, Row, Cell, Kind, Kind pattern, Reach and Unjudged to `openspec/glossary.md`; rename Element instance to Instance, widened to a kind pattern's other captures and to a name without a capture, with Element instance pointing at it; point Element to Part and Selector to Group; make Shorthand kind and Rule builder name four kinds; verify every new term in the change's specs has an entry
+- [x] 2.1 Add Part, Group, Externals set, Area, Table, Row, Cell, Kind, Kind pattern, Reach and Unjudged to `openspec/glossary.md`; rename Element instance to Instance, widened to a kind pattern's other captures and to a name without a capture, with Element instance pointing at it; point Element to Part and Selector to Group; make Shorthand kind and Rule builder name four kinds; verify every new term in the change's specs has an entry
 
 ## 3. Spellings, externals, parts and patterns
 
