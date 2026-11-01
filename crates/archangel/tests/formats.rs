@@ -438,27 +438,34 @@ fn rules_as_json_gives_each_rule_with_its_reach() {
         .find(|rule| rule["name"] == "feature-code.views")
         .expect("an entry for the row");
     assert_eq!(
-        views["sentences"][0],
-        "views may import only models, shared, and itself"
+        views["sentences"][0], "views may import only models, shared, and itself",
+        "a row reads as its sentence"
     );
-    assert_eq!(views["table"], "feature-code");
-    assert_eq!(views["row"], "views");
-    assert_eq!(views["file"], "archangel.config.ts");
+    assert_eq!(views["table"], "feature-code", "{views}");
+    assert_eq!(views["row"], "views", "{views}");
+    assert_eq!(views["file"], "archangel.config.ts", "{views}");
     assert!(views["line"].as_u64().unwrap() > 1, "{views}");
     assert!(
         views["because"]
             .as_str()
             .unwrap()
-            .contains("A view shows a model")
+            .contains("A view shows a model"),
+        "{views}"
     );
     assert_eq!(
         views["reach"],
-        json!({ "files": 2, "importsJudged": 3, "problems": 1, "exceptions": 0, "baselineMatches": 0 })
+        json!({ "files": 2, "importsJudged": 3, "problems": 1, "exceptions": 0, "baselineMatches": 0 }),
+        "the reach counts what the row judged"
     );
-    assert_eq!(doc["notJudged"], json!({ "files": [], "imports": [] }));
+    assert_eq!(
+        doc["notJudged"],
+        json!({ "files": [], "imports": [] }),
+        "each file and import of the fixture has a rule"
+    );
     assert_eq!(
         doc["outsidePackages"],
-        json!([{ "name": "react", "imports": 2 }])
+        json!([{ "name": "react", "imports": 2 }]),
+        "no rule names react"
     );
 }
 
@@ -494,6 +501,11 @@ fn explain_of_one_import_as_json() {
         json!([{ "table": "feature-code", "kind": "api" }]),
         "the kind of the target"
     );
+    assert_verdicts_of_the_small_app(import);
+}
+
+/// The verdict of three rules on the import of an api file by a view.
+fn assert_verdicts_of_the_small_app(import: &Value) {
     let of = |name: &str| {
         let rules = import["rules"].as_array().unwrap();
         rules
@@ -502,13 +514,26 @@ fn explain_of_one_import_as_json() {
             .unwrap()
             .clone()
     };
-    assert_eq!(of("feature-code.views")["verdict"], "refuses");
-    assert_eq!(of("app.feature")["verdict"], "permits");
-    assert_eq!(of("app.shared")["verdict"], "skips");
+    assert_eq!(
+        of("feature-code.views")["verdict"],
+        "refuses",
+        "the row of the importer refuses"
+    );
+    assert_eq!(
+        of("app.feature")["verdict"],
+        "permits",
+        "the import stays in one feature"
+    );
+    assert_eq!(
+        of("app.shared")["verdict"],
+        "skips",
+        "the importer is not in shared"
+    );
     assert!(
         of("app.shared")["reason"]
             .as_str()
             .unwrap()
-            .contains("not in shared")
+            .contains("not in shared"),
+        "the reason says why the rule skips"
     );
 }

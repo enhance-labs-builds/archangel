@@ -28,7 +28,7 @@ fn package_url() -> String {
 
 /// Writes `archangel.config.mjs`, whose default export is `body`, a JavaScript object that may
 /// call `fsd` and `nextjs`.
-fn with_config(repo: FixtureRepo, body: &str) -> FixtureRepo {
+fn config_file(repo: FixtureRepo, body: &str) -> FixtureRepo {
     let url = package_url();
     repo.file(
         "archangel.config.mjs",
@@ -90,7 +90,7 @@ fn diagnostics(repo: &FixtureRepo) -> Vec<(String, String, String)> {
 
 #[test]
 fn off_drops_a_preset_rule() {
-    let on = with_config(
+    let on = config_file(
         fsd_app(FixtureRepo::new(), "src"),
         "{ extends: [fsd({ root: 'src' })] }",
     );
@@ -101,7 +101,7 @@ fn off_drops_a_preset_rule() {
         "without off the repository has an insignificant slice: {:?}",
         diagnostics(&on)
     );
-    let off = with_config(
+    let off = config_file(
         fsd_app(FixtureRepo::new(), "src"),
         "{ extends: [fsd({ root: 'src' })], off: ['fsd/insignificant-slice'] }",
     );
@@ -123,7 +123,7 @@ fn one_preset_twice_under_two_roots() {
             "apps/web/src/features/login/model/admin.ts",
             "import { login } from '../../../../../admin/src/features/login';\nexport const admin = login;\n",
         );
-    let repo = with_config(
+    let repo = config_file(
         repo,
         "{ extends: [fsd({ root: 'apps/web/src' }), fsd({ root: 'apps/admin/src', name: 'fsd-admin' })] }",
     );
@@ -159,7 +159,7 @@ fn one_preset_twice_under_two_roots() {
 
 #[test]
 fn a_presets_unused_layers_are_listed_not_failed() {
-    let repo = with_config(
+    let repo = config_file(
         fsd_app(FixtureRepo::new(), "src"),
         "{ extends: [fsd({ root: 'src' })] }",
     );
@@ -193,7 +193,7 @@ fn a_presets_unused_layers_are_listed_not_failed() {
 
 #[test]
 fn a_preset_that_matches_nothing_is_preset_empty() {
-    let repo = with_config(
+    let repo = config_file(
         fsd_app(FixtureRepo::new(), "src"),
         "{ extends: [fsd({ root: 'scr' })] }",
     );
@@ -220,7 +220,7 @@ fn a_preset_that_matches_nothing_is_preset_empty() {
 
 #[test]
 fn preset_examples_are_checked_under_the_presets_root() {
-    let repo = with_config(
+    let repo = config_file(
         fsd_app(FixtureRepo::new(), "apps/web/src"),
         "{ extends: [fsd({ root: 'apps/web/src', strict: true })] }",
     );
@@ -268,7 +268,7 @@ fn nextjs_app(imported: &str) -> FixtureRepo {
             "app/helper.ts",
             &format!("import '{imported}';\nexport const helper = 1;\n"),
         );
-    with_config(repo, "{ extends: [nextjs()] }")
+    config_file(repo, "{ extends: [nextjs()] }")
 }
 
 /// The one violation of `nextjs/client-stays-client`, with its chain.
@@ -335,7 +335,7 @@ fn nextjs_permits_server_actions_in_client_components() {
 
 /// A preset that declares a table, with the rest of the config's own text.
 fn with_preset_table(repo: FixtureRepo, kinds: &str, own: &str) -> FixtureRepo {
-    with_config(
+    config_file(
         repo,
         &format!(
             "{{ extends: [{{ name: 'fsd-x', parts: {{ src: 'src/**' }}, rules: ({{ mayImport }}) => \

@@ -25,10 +25,11 @@ fn rejected_of(strings: &[&str]) -> Vec<ExampleFiles> {
 }
 
 fn files(pairs: &[(&str, &str)]) -> ExampleFiles {
-    pairs
-        .iter()
-        .map(|(path, text)| ((*path).to_owned(), (*text).to_owned()))
-        .collect()
+    let mut set = ExampleFiles::new();
+    for (path, text) in pairs {
+        set.insert((*path).to_owned(), (*text).to_owned());
+    }
+    set
 }
 
 fn problems(rules: &Value) -> Vec<ConfigProblem> {

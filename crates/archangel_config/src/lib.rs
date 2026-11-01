@@ -23,6 +23,7 @@ mod plugins;
 mod problem;
 mod rules;
 mod selectors;
+mod shorthand;
 mod tables;
 
 pub use load::{

@@ -360,21 +360,7 @@ impl<'a> Run<'a> {
                 (class, classification, Some(path.as_str()), None)
             }
             Resolution::Package(name) => {
-                let (class, classification) = self.classes.package(self.architecture, name);
-                if let Some(class) = &classification {
-                    for place in class.all() {
-                        self.used_elements.insert(place.element);
-                        self.touched.insert(place.element);
-                    }
-                }
-                if let ClassKey::Package { names, .. } = self.classes.key(class) {
-                    let reached = names
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, n)| **n)
-                        .map(|(i, _)| i);
-                    self.touched_names.extend(reached);
-                }
+                let (class, classification) = self.package_target(name);
                 (class, classification, None, Some(name.as_str()))
             }
             Resolution::Unresolved(reason) => {
@@ -407,6 +393,26 @@ impl<'a> Run<'a> {
             let violation = self.violation(sentence, from, to.as_ref(), site, (path, package));
             self.violations.push(violation);
         }
+    }
+
+    /// The class of a package that an import names, which notes the sets and names it reaches.
+    fn package_target(&mut self, name: &str) -> (u32, Option<Classification>) {
+        let (class, classification) = self.classes.package(self.architecture, name);
+        if let Some(class) = &classification {
+            for place in class.all() {
+                self.used_elements.insert(place.element);
+                self.touched.insert(place.element);
+            }
+        }
+        if let ClassKey::Package { names, .. } = self.classes.key(class) {
+            let reached = names
+                .iter()
+                .enumerate()
+                .filter(|(_, n)| **n)
+                .map(|(i, _)| i);
+            self.touched_names.extend(reached);
+        }
+        (class, classification)
     }
 
     /// Notes whether the rule whose example this run checks looked at an import.
@@ -577,7 +583,7 @@ impl<'a> Run<'a> {
     /// What a preset declared is listed in the summary instead.
     fn empty_selectors(&mut self) {
         for (set, origin) in &self.architecture.reported {
-            if self.classes.files_in(*set) > 0 {
+            if self.classes.files_of_set(*set) > 0 {
                 continue;
             }
             let name = match origin {
@@ -664,7 +670,7 @@ impl<'a> Run<'a> {
             }
             let files = rows
                 .iter()
-                .map(|(_, set)| self.classes.files_in(*set))
+                .map(|(_, set)| self.classes.files_of_set(*set))
                 .sum::<u64>();
             if files == 0 && (table.rows.is_empty() || !rows.is_empty()) {
                 self.table_checks_nothing(table);
@@ -674,7 +680,7 @@ impl<'a> Run<'a> {
                 let is_kind = table.rows.iter().any(|(key, files)| {
                     key == row && matches!(files.terms.as_slice(), [Term::Kind { .. }])
                 });
-                if is_kind && self.classes.files_in(*set) == 0 {
+                if is_kind && self.classes.files_of_set(*set) == 0 {
                     no_file.push(format!("{}.{row}", table.name));
                 }
             }
@@ -733,7 +739,7 @@ impl<'a> Run<'a> {
         let architecture = self.architecture;
         let empty_pattern = architecture.reported.iter().any(|(set, origin)| {
             matches!(origin, Origin::Inline(name) if *name == table.name)
-                && self.classes.files_in(*set) == 0
+                && self.classes.files_of_set(*set) == 0
         });
         let areas = architecture.config.rules.iter().flat_map(|rule| {
             let of_table = matches!(
@@ -765,7 +771,7 @@ impl<'a> Run<'a> {
                 .sets
                 .iter()
                 .position(|set| set.terms == [Term::Selector(*id)])
-                .is_some_and(|set| self.classes.files_in(set) == 0),
+                .is_some_and(|set| self.classes.files_of_set(set) == 0),
             _ => false,
         }
     }

@@ -18,11 +18,9 @@ pub(crate) fn run_rules(options: &Options, path: Option<&Path>) -> Answer {
         Ok(session) => session,
         Err(answer) => return answer,
     };
-    let under = path.map(|path| paths::config_relative(&session, path));
-    let under = under.as_deref().filter(|under| !under.is_empty());
-    if let Some(folder) = under
-        && !holds_a_file(&session, folder)
-    {
+    let written = path.map(|path| paths::config_relative(&session, path));
+    let under = written.as_deref().filter(|under| !under.is_empty());
+    if under.is_some_and(|folder| !holds_a_file(&session, folder)) {
         let shown = path.map_or_else(String::new, |path| path.display().to_string());
         return Answer::stopped(format!("error: no source file is under {shown}\n"));
     }
@@ -50,10 +48,9 @@ fn holds_a_file(session: &Session, folder: &str) -> bool {
 
 /// Where a rule is written: the file of its builder call with the line, or the config file.
 fn location(session: &Session, rule: &Rule) -> (String, Option<u32>) {
-    let dir = session.config_dir();
     if let Some(source) = &rule.source {
         let file = Path::new(&source.file);
-        let shown = file.strip_prefix(dir).unwrap_or(file);
+        let shown = file.strip_prefix(session.config_dir()).unwrap_or(file);
         return (
             shown.to_string_lossy().replace('\\', "/"),
             Some(source.line),
@@ -307,7 +304,6 @@ fn footer(reach: &Reach) -> String {
 }
 
 fn rule_json(session: &Session, rule: &Rule, reach: Option<&RuleReach>) -> Value {
-    let config = session.architecture().config();
     let (file, line) = location(session, rule);
     let mut entry = json!({
         "name": rule.name,
@@ -320,7 +316,8 @@ fn rule_json(session: &Session, rule: &Rule, reach: Option<&RuleReach>) -> Value
         "off": reach.is_none(),
     });
     if let RuleKind::TableRow { table, row } = &rule.kind {
-        entry["table"] = json!(config.tables[table.index()].name);
+        let tables = &session.architecture().config().tables;
+        entry["table"] = json!(tables[table.index()].name);
         entry["row"] = json!(row);
     }
     if let Some(reach) = reach {

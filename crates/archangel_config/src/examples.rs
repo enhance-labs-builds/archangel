@@ -180,15 +180,22 @@ fn needs_file_text(config: &Config, rule: &Rule) -> Option<String> {
     })
 }
 
-// @justified intent
-// Validation refuses a cycle of selectors, so the depth is at most the number of selectors.
+/// Whether a set, or a group that it names at any depth, selects by directive.
 fn uses_directive(config: &Config, set: &FileSet) -> bool {
-    set.terms.iter().any(|term| match term {
-        Term::Directive(_) => true,
-        Term::Selector(id) => config
-            .selectors
-            .get(id.0 as usize)
-            .is_some_and(|selector| uses_directive(config, &selector.definition)),
-        _ => false,
-    })
+    let mut pending = vec![set];
+    while let Some(next) = pending.pop() {
+        for term in &next.terms {
+            match term {
+                Term::Directive(_) => return true,
+                Term::Selector(id) => pending.extend(
+                    config
+                        .selectors
+                        .get(id.0 as usize)
+                        .map(|selector| &selector.definition),
+                ),
+                _ => {}
+            }
+        }
+    }
+    false
 }

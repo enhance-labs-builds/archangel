@@ -330,8 +330,8 @@ fn example_repo(rules: &Value) -> FixtureRepo {
         }))
 }
 
-/// Each fixture of this file and of `test_command.rs`, by name.
-fn recorded_fixtures() -> Vec<(&'static str, FixtureRepo)> {
+/// The repository with exceptions and a baseline.
+fn permitted_repo() -> FixtureRepo {
     let allow = "// archangel-allow layers: the old router\nimport '../app/main';\n";
     let permitted = base()
         .file("src/shared/x1.ts", allow)
@@ -344,7 +344,12 @@ fn recorded_fixtures() -> Vec<(&'static str, FixtureRepo)> {
         0,
         "a baseline"
     );
-    let unresolved = FixtureRepo::new()
+    permitted
+}
+
+/// A repository with imports that do not resolve and imports that no one can follow.
+fn unresolved_repo() -> FixtureRepo {
+    FixtureRepo::new()
         .file(
             "src/a.ts",
             "import 'virtual:a';\nimport 'virtual:b';\nconst m = require(name);\n\
@@ -355,42 +360,34 @@ fn recorded_fixtures() -> Vec<(&'static str, FixtureRepo)> {
             "elements": { "src": "src/**" },
             "allowUnresolved": { "virtual:*": "made by the bundler" },
             "rules": [],
-        }));
-    let cycles = (0..12)
+        }))
+}
+
+/// A repository of files with a no-cycles rule, whose `--stats` show its work.
+fn cycles_repo() -> FixtureRepo {
+    (0..12)
         .fold(FixtureRepo::new(), |repo, i| {
             repo.file(&format!("src/shared/f{i}.ts"), "")
         })
         .json_config(&json!({
             "elements": { "shared": "src/shared/**" },
             "rules": [{ "name": "no-cycles", "files": "**", "noCycles": true }],
-        }));
-    let sorted = base()
-        .file("src/shared/b.ts", "\nimport '../app/main';\n")
-        .file(
-            "src/shared/a.ts",
-            "\nimport '../app/main';\n\n\n\n\n\n\nimport '../features/login/index';\n",
-        );
-    let layers = |examples: Value| json!({ "kind": "layers", "name": "layers", "order": ["app", "shared"], "examples": examples });
+        }))
+}
+
+/// A `layers` rule with these examples.
+fn layers_with(examples: &Value) -> Value {
+    json!({ "kind": "layers", "name": "layers", "order": ["app", "shared"], "examples": examples })
+}
+
+/// The recorded repositories of `archangel test`, by name.
+fn example_fixtures() -> Vec<(&'static str, FixtureRepo)> {
     let accepted = json!([{ "src/app/x.ts": "import '../shared/s';\n" }]);
-    let ten: Vec<Value> = (0..9)
-        .map(|i| json!({ format!("src/shared/e{i}.ts"): "import '../app/main';\n" }))
-        .chain(std::iter::once(
-            json!({ "src/shared/s.ts": "import '../app/main';\n" }),
-        ))
-        .collect();
     vec![
-        ("base", base()),
-        ("one_entry_violation", one_entry_violation()),
-        ("work_counts", cycles),
-        ("unresolved_and_computed", unresolved),
-        ("exceptions_and_baseline", permitted),
-        ("sorted", sorted),
-        ("many", many()),
-        ("very_many", very_many()),
         (
             "examples_passing",
             example_repo(&json!([
-                layers(json!({
+                layers_with(&json!({
                     "accepted": accepted,
                     "rejected": [{ "src/shared/x.ts": "import '../app/main';\n" }],
                 })),
@@ -403,7 +400,7 @@ fn recorded_fixtures() -> Vec<(&'static str, FixtureRepo)> {
         (
             "examples_one_failed_two_unproven",
             example_repo(&json!([
-                layers(json!({
+                layers_with(&json!({
                     "accepted": accepted,
                     "rejected": [
                         { "src/shared/x.ts": "import '../app/main';\n" },
@@ -416,10 +413,25 @@ fn recorded_fixtures() -> Vec<(&'static str, FixtureRepo)> {
         ),
         (
             "examples_failed",
-            example_repo(&json!([layers(json!({
+            example_repo(&json!([layers_with(&json!({
                 "rejected": [{ "src/shared/x.ts": "import './s';\n" }],
             }))])),
         ),
+    ]
+    .into_iter()
+    .chain(other_example_fixtures())
+    .collect()
+}
+
+/// The recorded repositories of `archangel test` with no passing `layers` rule.
+fn other_example_fixtures() -> Vec<(&'static str, FixtureRepo)> {
+    let ten: Vec<Value> = (0..9)
+        .map(|i| json!({ format!("src/shared/e{i}.ts"): "import '../app/main';\n" }))
+        .chain(std::iter::once(
+            json!({ "src/shared/s.ts": "import '../app/main';\n" }),
+        ))
+        .collect();
+    vec![
         (
             "examples_replace_a_file",
             example_repo(&json!([
@@ -439,9 +451,32 @@ fn recorded_fixtures() -> Vec<(&'static str, FixtureRepo)> {
         ),
         (
             "examples_ten",
-            example_repo(&json!([layers(json!({ "rejected": ten }))])),
+            example_repo(&json!([layers_with(&json!({ "rejected": ten }))])),
         ),
     ]
+}
+
+/// Each fixture of this file and of `test_command.rs`, by name.
+fn recorded_fixtures() -> Vec<(&'static str, FixtureRepo)> {
+    let sorted = base()
+        .file("src/shared/b.ts", "\nimport '../app/main';\n")
+        .file(
+            "src/shared/a.ts",
+            "\nimport '../app/main';\n\n\n\n\n\n\nimport '../features/login/index';\n",
+        );
+    vec![
+        ("base", base()),
+        ("one_entry_violation", one_entry_violation()),
+        ("work_counts", cycles_repo()),
+        ("unresolved_and_computed", unresolved_repo()),
+        ("exceptions_and_baseline", permitted_repo()),
+        ("sorted", sorted),
+        ("many", many()),
+        ("very_many", very_many()),
+    ]
+    .into_iter()
+    .chain(example_fixtures())
+    .collect()
 }
 
 /// Fixtures whose recorded output 0.2.0 changes, each with the reason. A change to a recorded

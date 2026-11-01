@@ -62,32 +62,7 @@ impl Architecture {
     }
 
     fn options_text(&self, options: &ImportOptions, text: &mut String) {
-        match options.instance {
-            Some(InstanceMatch::Different) => text.push_str(" in a different instance"),
-            Some(InstanceMatch::Same) => text.push_str(" in the same instance"),
-            None => {}
-        }
-        if let Some(names) = &options.names {
-            let _ = write!(text, " when the import brings in {}", names.join(", "));
-        }
-        if let Some(form) = options.specifier {
-            let form = match form {
-                SpecifierForm::Relative => "relative",
-                SpecifierForm::Parent => "parent",
-                SpecifierForm::Alias => "alias",
-                SpecifierForm::Package => "package",
-            };
-            let _ = write!(text, " through a {form} specifier");
-        }
-        match options.dependency {
-            Some(DependencyKind::Dev) => {
-                text.push_str(" that the nearest package.json lists only for development");
-            }
-            Some(DependencyKind::Undeclared) => {
-                text.push_str(" that the nearest package.json does not list");
-            }
-            None => {}
-        }
+        limits_text(options, text);
         if let Some(area) = &options.within {
             let _ = write!(text, " within {}", area.text);
         }
@@ -261,4 +236,34 @@ pub(crate) fn either(patterns: &[Pattern]) -> String {
         .map(Pattern::source)
         .collect::<Vec<_>>()
         .join(" or ")
+}
+
+/// The limits of an import condition, in words.
+fn limits_text(options: &ImportOptions, text: &mut String) {
+    match options.instance {
+        Some(InstanceMatch::Different) => text.push_str(" in a different instance"),
+        Some(InstanceMatch::Same) => text.push_str(" in the same instance"),
+        None => {}
+    }
+    if let Some(names) = &options.names {
+        let _ = write!(text, " when the import brings in {}", names.join(", "));
+    }
+    if let Some(form) = options.specifier {
+        let form = match form {
+            SpecifierForm::Relative => "relative",
+            SpecifierForm::Parent => "parent",
+            SpecifierForm::Alias => "alias",
+            SpecifierForm::Package => "package",
+        };
+        let _ = write!(text, " through a {form} specifier");
+    }
+    match options.dependency {
+        Some(DependencyKind::Dev) => {
+            text.push_str(" that the nearest package.json lists only for development");
+        }
+        Some(DependencyKind::Undeclared) => {
+            text.push_str(" that the nearest package.json does not list");
+        }
+        None => {}
+    }
 }

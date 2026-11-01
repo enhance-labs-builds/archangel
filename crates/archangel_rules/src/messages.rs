@@ -192,11 +192,7 @@ impl Texts<'_> {
             .side()
             .map(|side| self.side(side))
             .unwrap_or_default();
-        let area_text = sentence.options.within.as_ref().map(|area| &area.text);
-        let area = area_text.map_or_else(String::new, |area| format!(", within \"{area}\""));
-        let importers = area_text.map_or_else(String::new, |area| {
-            format!(", among the importers in \"{area}\"")
-        });
+        let (area, importers) = area_words(sentence);
         let manifest = sentence
             .options
             .dependency
@@ -204,18 +200,7 @@ impl Texts<'_> {
             .unwrap_or_default();
         match &sentence.condition {
             Condition::MayOnlyImport(_) => {
-                let own = if sentence.files.element().is_some_and(|element| {
-                    self.architecture.config.elements[element.index()].has_capture()
-                }) {
-                    "other files in the same instance"
-                } else {
-                    "each other"
-                };
-                let may = if side.is_empty() {
-                    own.to_owned()
-                } else {
-                    format!("{side} and {own}")
-                };
+                let may = self.may_only(sentence, &side);
                 (
                     Code::MayOnlyImport,
                     format!(
@@ -243,6 +228,23 @@ impl Texts<'_> {
                 ),
                 "remove the import, or move the code to files that may import it".to_owned(),
             ),
+        }
+    }
+
+    /// What a `mayOnlyImport` sentence permits: its side, and its own files.
+    fn may_only(&self, sentence: &Sentence, side: &str) -> String {
+        let captured = sentence.files.element().is_some_and(|element| {
+            self.architecture.config.elements[element.index()].has_capture()
+        });
+        let own = if captured {
+            "other files in the same instance"
+        } else {
+            "each other"
+        };
+        if side.is_empty() {
+            own.to_owned()
+        } else {
+            format!("{side} and {own}")
         }
     }
 
@@ -555,4 +557,18 @@ fn definition_of(architecture: &Architecture, files: &archangel_config::FileSet)
         }
         _ => architecture.describe(files),
     }
+}
+
+/// The words of a sentence's area: after what files may import, and after who may import them.
+fn area_words(sentence: &Sentence) -> (String, String) {
+    sentence.options.within.as_ref().map_or_else(
+        || (String::new(), String::new()),
+        |area| {
+            let area = &area.text;
+            (
+                format!(", within \"{area}\""),
+                format!(", among the importers in \"{area}\""),
+            )
+        },
+    )
 }

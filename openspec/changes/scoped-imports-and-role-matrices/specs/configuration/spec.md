@@ -102,7 +102,7 @@ An externals set with the name of a part or a group MUST be refused with `config
 - **GIVEN** the group `driver` as `src/drivers/**` and the externals set `driver` as `['pg']`
 - **WHEN** archangel loads the config
 - **THEN** archangel gives `config-invalid` at the externals set `driver`, saying that it is also a group
-- **TEST** `crates/archangel_config/tests/validate.rs` › "an_externals_set_with_the_name_of_a_part_or_group_is_refused"
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_externals_set_with_the_name_of_a_part_or_group_is_refused"
 
 ### Requirement: An externals name that could never match is refused
 
@@ -115,7 +115,7 @@ A bare name of a built-in module MUST be refused with `config-invalid` and the f
 - **THEN** archangel gives `config-invalid` for `fs` with the fix `node:fs`
 - **AND** archangel gives `config-invalid` for `@types/react`, saying that archangel judges the package that an import names, such as `react`
 - **AND** archangel gives `config-invalid` for `@enhance/contract`, saying that it resolves to a repository file and its part judges it
-- **TEST** `crates/archangel_config/tests/validate.rs` › "an_externals_name_that_could_never_match_is_refused"
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_externals_name_that_could_never_match_is_refused"
 
 ### Requirement: An externals name with a subpath is refused
 
@@ -126,7 +126,7 @@ A name with a subpath, such as `pg/lib/client`, MUST be refused with `config-inv
 - **GIVEN** the externals sets `a` as `['pg/lib/client']` and `b` as `['node:fs/promises']`
 - **WHEN** archangel loads the config
 - **THEN** archangel gives `config-invalid` for `pg/lib/client` with the fix `pg`, and accepts `node:fs/promises`
-- **TEST** `crates/archangel_config/tests/validate.rs` › "an_externals_name_with_a_subpath_is_refused_unless_it_is_a_built_in"
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_externals_name_with_a_subpath_is_refused_unless_it_is_a_built_in"
 
 ### Requirement: A part holds no packages
 
@@ -137,7 +137,7 @@ A value of `parts` with packages MUST be refused with `config-invalid` and the f
 - **GIVEN** a config with `parts: { react: { packages: ['react'] } }`
 - **WHEN** archangel loads the config
 - **THEN** archangel gives `config-invalid` at the part, saying to move it to `externals`
-- **TEST** `crates/archangel_config/tests/validate.rs` › "parts_refuse_packages"
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "parts_refuse_packages"
 
 ### Requirement: Every pattern starts at the config folder
 

@@ -209,23 +209,37 @@ fn sentence_breaks(rule: &Value, case: &Case, same_instance: bool) -> bool {
             both && (wanted == "same") == same_instance
         }
     };
-    let area = rule.get("within").map(|area| area.as_str().unwrap());
     let condition = if rule.get("mayNotImport").is_some() {
         from_in && case.target_in_list(rule, "mayNotImport")
     } else if rule.get("mayOnlyImport").is_some() {
-        // Its own files are the files of the same instance when `files` is an element with a capture.
-        let captured = files == name(0) || files == name(1);
-        from_in
-            && area.is_none_or(|area| case.target_in(area))
-            && !case.target_in_list(rule, "mayOnlyImport")
-            && !(to_in && (!captured || same_instance))
+        only_import_breaks(rule, case, (from_in, to_in), same_instance)
     } else {
         to_in
-            && area.is_none_or(|area| in_side(area, case.from))
+            && rule
+                .get("within")
+                .is_none_or(|area| in_side(area.as_str().unwrap(), case.from))
             && !in_list(rule, "mayOnlyBeImportedBy", case.from)
             && !from_in
     };
     condition && instance_holds
+}
+
+/// Its own files are the files of the same instance when `files` is an element with a capture.
+fn only_import_breaks(
+    rule: &Value,
+    case: &Case,
+    (from_in, to_in): (bool, bool),
+    same_instance: bool,
+) -> bool {
+    let files = rule["files"].as_str().unwrap();
+    let captured = files == name(0) || files == name(1);
+    let in_area = rule
+        .get("within")
+        .is_none_or(|area| case.target_in(area.as_str().unwrap()));
+    from_in
+        && in_area
+        && !case.target_in_list(rule, "mayOnlyImport")
+        && !(to_in && (!captured || same_instance))
 }
 
 fn import(kind: ImportKind) -> Import {
@@ -492,18 +506,16 @@ fn hand_config(table: &RandomTable) -> Value {
             if refused || !captured {
                 side.push(hand_name(key));
             }
-            let only = json!({ "files": hand_name(key), "mayOnlyImport": side, "within": area });
             if refused {
                 let in_area = table.area.map_or_else(
                     || json!(hand_name(key)),
                     |area| json!({ "all": [hand_name(key), CELLS[area]] }),
                 );
                 let refusal = json!({ "files": hand_name(key), "mayNotImport": in_area });
+                let only = json!({ "files": hand_name(key), "mayOnlyImport": side, "within": area });
                 json!({ "name": format!("t.{key}"), "sentences": [only, refusal] })
             } else {
-                let mut only = only;
-                only["name"] = json!(format!("t.{key}"));
-                only
+                json!({ "name": format!("t.{key}"), "files": hand_name(key), "mayOnlyImport": side, "within": area })
             }
         })
         .collect();

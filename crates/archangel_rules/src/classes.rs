@@ -236,26 +236,14 @@ impl Classes {
             found.patterns
         };
         let kinds = kinds_of(architecture, placed.path, &patterns);
-        let mut place = Place {
+        let place = Place {
             patterns: &patterns,
             kinds: &kinds,
             classification: found.classification.as_ref(),
             directive: placed.directive,
             selectors: vec![false; architecture.config.selectors.len()],
         };
-        let mut answers = Vec::new();
-        for id in &architecture.config.selector_order {
-            let index = id.0 as usize;
-            place.selectors[index] = place.contains(
-                &architecture.config.selectors[index].definition,
-                &mut answers,
-            );
-        }
-        let bits = architecture
-            .sets
-            .iter()
-            .map(|set| place.contains(set, &mut answers))
-            .collect();
+        let bits = set_bits(architecture, place);
         let class = self.intern(ClassKey::File {
             elements: found
                 .classification
@@ -351,7 +339,7 @@ impl Classes {
     }
 
     /// The number of files the walk visited in a set of files, from the counts of each class.
-    pub(crate) fn files_in(&self, set: usize) -> u64 {
+    pub(crate) fn files_of_set(&self, set: usize) -> u64 {
         self.keys
             .iter()
             .zip(&self.counts)
@@ -490,4 +478,21 @@ fn capture<'c>(class: &'c Classification, name: &str) -> Option<&'c str> {
 fn match_per_selector() -> bool {
     fail::fail_point!("rules::match_per_selector", |_| true);
     false
+}
+
+/// Whether a file is in each compiled set: each group in its order, then each set.
+fn set_bits(architecture: &Architecture, mut place: Place<'_>) -> Vec<bool> {
+    let mut answers = Vec::new();
+    for id in &architecture.config.selector_order {
+        let index = id.0 as usize;
+        place.selectors[index] = place.contains(
+            &architecture.config.selectors[index].definition,
+            &mut answers,
+        );
+    }
+    architecture
+        .sets
+        .iter()
+        .map(|set| place.contains(set, &mut answers))
+        .collect()
 }

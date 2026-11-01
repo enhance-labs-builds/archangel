@@ -82,14 +82,14 @@ Archangel MUST refuse `within` on a rule whose condition is not `mayOnlyImport` 
 - **GIVEN** a rule `{ files: 'entity', mayNotImport: 'use-case', within: 'apps/api/src/**' }`
 - **WHEN** archangel loads the config
 - **THEN** archangel gives `config-invalid` at `within`, whose message says to write `mayNotImport: { all: ['use-case', 'apps/api/src/**'] }`
-- **TEST** `crates/archangel_config/tests/validate.rs` › "within_on_may_not_import_is_refused_with_the_narrowed_side_as_the_fix"
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "within_on_may_not_import_is_refused_with_the_narrowed_side_as_the_fix"
 
 #### Scenario: An area on a naming rule
 
 - **GIVEN** a rule `{ files: 'entity', mustBeNamed: 'kebab-case', within: 'apps/api/src/**' }`
 - **WHEN** archangel loads the config
 - **THEN** archangel gives `config-invalid` at `within`, saying that `mustBeNamed` checks no import
-- **TEST** `crates/archangel_config/tests/validate.rs` › "within_on_a_condition_that_checks_no_import_is_refused"
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "within_on_a_condition_that_checks_no_import_is_refused"
 
 ### Requirement: An empty area is refused
 
@@ -100,7 +100,7 @@ An area with no value, such as an empty list or an `any` with no member, MUST be
 - **GIVEN** a rule `{ files: 'entity', mayOnlyImport: ['value-object'], within: [] }`
 - **WHEN** archangel loads the config
 - **THEN** archangel gives `config-invalid` at `within`, saying that an area needs at least one value
-- **TEST** `crates/archangel_config/tests/validate.rs` › "an_empty_area_is_refused"
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_empty_area_is_refused"
 
 ### Requirement: An area that names an undeclared selector is refused
 
@@ -111,7 +111,7 @@ A name in an area that names no declared element or selector MUST give `rule-unk
 - **GIVEN** the declared selector `api-src` and a rule `{ files: 'entity', mayOnlyImport: ['value-object'], within: 'api-scr' }`
 - **WHEN** archangel loads the config
 - **THEN** archangel gives `rule-unknown-element` at `within`, and names `api-src` as the closest name
-- **TEST** `crates/archangel_config/tests/validate.rs` › "within_naming_an_undeclared_selector_is_refused_with_the_closest_name"
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "within_naming_an_undeclared_selector_is_refused_with_the_closest_name"
 
 ### Requirement: An area that matches no file is an error
 
@@ -172,7 +172,7 @@ An area MUST accept the name of an externals set. A `mayOnlyImport` rule whose a
 - **AND** the same rule with `within: 'src/**'`
 - **WHEN** archangel loads each config
 - **THEN** the first gives `config-invalid` at `mayOnlyImport`, whose message names `within`, and the second loads
-- **TEST** `crates/archangel_config/tests/validate.rs` › "an_empty_may_only_import_needs_an_area"
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_empty_may_only_import_needs_an_area"
 
 ### Requirement: A package in an area must exist somewhere
 

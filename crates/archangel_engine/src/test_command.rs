@@ -1,6 +1,6 @@
 //! `archangel test`: every example of every rule, each in memory against the repository.
 
-use archangel_config::{ExampleFiles, RuleKind, TableId};
+use archangel_config::{ExampleFiles, Examples, RuleKind, TableId};
 use archangel_graph::{GraphOptions, ImportGraph, Work};
 use archangel_rules::{Diagnostic, ExampleKind, ExampleOutcome, PluginFindings};
 
@@ -52,29 +52,8 @@ impl Session {
         let mut runs = Vec::new();
         let rules = self.architecture.config().rules.clone();
         for (index, rule) in rules.iter().enumerate() {
-            let sets = [
-                (ExampleKind::Accepted, &rule.examples.accepted),
-                (ExampleKind::Rejected, &rule.examples.rejected),
-            ];
-            for (kind, examples) in sets {
-                for (number, files) in examples.iter().enumerate() {
-                    let example = Example {
-                        of: Of::Rule(index),
-                        kind,
-                        files,
-                    };
-                    let outcome = self.outcome(&example, &mut work);
-                    work.examples_checked += 1;
-                    runs.push(ExampleRun {
-                        rule: rule.name.clone(),
-                        kind,
-                        number: number + 1,
-                        files: files.keys().cloned().collect(),
-                        texts: files.clone(),
-                        outcome,
-                    });
-                }
-            }
+            let owner = (Of::Rule(index), rule.name.as_str());
+            self.run_set(owner, &rule.examples, (&mut runs, &mut work));
         }
         let tables = self.architecture.config().tables.clone();
         for (index, table) in tables.iter().enumerate() {
@@ -82,34 +61,43 @@ impl Session {
             let live = rules
                 .iter()
                 .any(|rule| matches!(&rule.kind, RuleKind::TableRow { table, .. } if *table == id));
-            let sets = [
-                (ExampleKind::Accepted, &table.examples.accepted),
-                (ExampleKind::Rejected, &table.examples.rejected),
-            ];
-            for (kind, examples) in sets.into_iter().filter(|_| live) {
-                for (number, files) in examples.iter().enumerate() {
-                    let example = Example {
-                        of: Of::Table(id),
-                        kind,
-                        files,
-                    };
-                    let outcome = self.outcome(&example, &mut work);
-                    work.examples_checked += 1;
-                    runs.push(ExampleRun {
-                        rule: table.name.clone(),
-                        kind,
-                        number: number + 1,
-                        files: files.keys().cloned().collect(),
-                        texts: files.clone(),
-                        outcome,
-                    });
-                }
+            if live {
+                let owner = (Of::Table(id), table.name.as_str());
+                self.run_set(owner, &table.examples, (&mut runs, &mut work));
             }
         }
         ExampleReport {
             runs,
             unproven: self.architecture.unproven_rules(),
             work,
+        }
+    }
+
+    /// Runs the accepted and the rejected examples of one rule or table.
+    fn run_set(
+        &mut self,
+        (of, name): (Of, &str),
+        examples: &Examples,
+        (runs, work): (&mut Vec<ExampleRun>, &mut Work),
+    ) {
+        let sets = [
+            (ExampleKind::Accepted, &examples.accepted),
+            (ExampleKind::Rejected, &examples.rejected),
+        ];
+        for (kind, written) in sets {
+            for (number, files) in written.iter().enumerate() {
+                let example = Example { of, kind, files };
+                let outcome = self.outcome(&example, work);
+                work.examples_checked += 1;
+                runs.push(ExampleRun {
+                    rule: name.to_owned(),
+                    kind,
+                    number: number + 1,
+                    files: files.keys().cloned().collect(),
+                    texts: files.clone(),
+                    outcome,
+                });
+            }
         }
     }
 

@@ -82,43 +82,33 @@ impl Architecture {
         let mut work = Work::default();
         let lookup = Lookup::new(self, graph);
         let (from_class, from) = classes.file(lookup, path, &mut work);
-        let (to_class, to, to_path, package) = match resolution {
-            Resolution::File(to) => {
-                let (class, found) = classes.file(lookup, to, &mut work);
-                (Some(class), found, Some(to.as_str()), None)
-            }
-            Resolution::Package(name) => {
-                let (class, found) = classes.package(self, name);
-                (Some(class), found, None, Some(name.as_str()))
-            }
-            Resolution::Unresolved(_) => (None, None, None, None),
-        };
+        let (to_class, to, to_path, package) = self.target(&mut classes, lookup, resolution);
         if let Some(to_class) = to_class {
             classes.fill_cell(self, from_class, to_class);
         }
-        let edge = to_class.map(|to_class| Edge {
-            from: End {
+        let edge = to_class.map(|to_class| {
+            let from = End {
                 class: from_class,
                 classification: from.as_ref(),
                 path: Some(path),
                 package: None,
-            },
-            to: End {
+            };
+            let to = End {
                 class: to_class,
                 classification: to.as_ref(),
                 path: to_path,
                 package,
-            },
-            file: path,
-            import,
-            resolution,
-            manifests: Some(graph.manifests_with(None)),
+            };
+            Edge {
+                from,
+                to,
+                file: path,
+                import,
+                resolution,
+                manifests: Some(graph.manifests_with(None)),
+            }
         });
-        let found = graph
-            .file(path)
-            .and_then(|file| file.facts.as_ref())
-            .map(|facts| exceptions::read(&facts.allow_comments))
-            .unwrap_or_default();
+        let found = exceptions_of(graph, path);
         let judged = Judged {
             architecture: self,
             classes: &classes,
@@ -131,6 +121,41 @@ impl Architecture {
             exceptions: &found,
             target: to_path.or(package).unwrap_or_default(),
         };
+        let rules = self.rule_judgements(&judged);
+        ImportJudgement {
+            from: self.end_of(from.as_ref(), Some(path), &classes),
+            to: self.end_of(to.as_ref(), to_path, &classes),
+            rules,
+        }
+    }
+
+    /// The class, the place and the name of what an import resolves to.
+    fn target<'r>(
+        &self,
+        classes: &mut Classes,
+        lookup: Lookup<'_>,
+        resolution: &'r Resolution,
+    ) -> (
+        Option<u32>,
+        Option<Classification>,
+        Option<&'r str>,
+        Option<&'r str>,
+    ) {
+        match resolution {
+            Resolution::File(to) => {
+                let (class, found) = classes.file(lookup, to, &mut Work::default());
+                (Some(class), found, Some(to.as_str()), None)
+            }
+            Resolution::Package(name) => {
+                let (class, found) = classes.package(self, name);
+                (Some(class), found, None, Some(name.as_str()))
+            }
+            Resolution::Unresolved(_) => (None, None, None, None),
+        }
+    }
+
+    /// The verdict of each rule on one import, and of each rule that `off` removes.
+    fn rule_judgements(&self, judged: &Judged<'_>) -> Vec<RuleJudgement> {
         let mut rules: Vec<RuleJudgement> = self
             .config
             .rules
@@ -143,11 +168,7 @@ impl Architecture {
             verdict: Verdict::Skips("the rule is off".to_owned()),
             permitted_by: None,
         }));
-        ImportJudgement {
-            from: self.end_of(from.as_ref(), Some(path), &classes),
-            to: self.end_of(to.as_ref(), to_path, &classes),
-            rules,
-        }
+        rules
     }
 
     fn end_of(
@@ -224,14 +245,13 @@ impl Judged<'_> {
         {
             return skip(&self.outside_area(about_target, &written.text));
         }
-        self.decided(place, compiled, edge, other_end)
+        self.decided((place, compiled), edge, other_end)
     }
 
     /// The verdict on an import that the sentence looks at.
     fn decided(
         &self,
-        place: usize,
-        compiled: &Compiled,
+        (place, compiled): (usize, &Compiled),
         edge: &Edge<'_>,
         other_end: &ClassKey,
     ) -> Verdict {
@@ -406,4 +426,13 @@ fn permission(architecture: &Architecture, compiled: &Compiled, other_end: &Clas
         Condition::MayOnlyBeImportedBy(_) => format!("the file is in {}", sentence.files_text),
         _ => "the import stays in one instance, or reaches an entry file".to_owned(),
     }
+}
+
+/// The exception comments of a file.
+fn exceptions_of(graph: &ImportGraph, path: &str) -> Vec<exceptions::Exception> {
+    graph
+        .file(path)
+        .and_then(|file| file.facts.as_ref())
+        .map(|facts| exceptions::read(&facts.allow_comments))
+        .unwrap_or_default()
 }

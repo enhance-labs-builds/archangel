@@ -7,7 +7,7 @@ use std::path::Path;
 
 use archangel_config::{Classification, ElementKind, Pattern};
 use archangel_engine::Session;
-use archangel_graph::{Import, Resolution};
+use archangel_graph::{FileFacts, Import, Resolution};
 use archangel_rules::{Code, ImportEnd, ImportJudgement, RuleJudgement, Target, Verdict};
 
 use serde_json::{Value, json};
@@ -101,52 +101,13 @@ fn rules_that_apply<'s>(session: &'s Session, path: &str) -> Vec<&'s str> {
 
 /// The same answer as the text, as one JSON document.
 fn json_document(session: &Session, path: &str, class: Option<&Classification>) -> String {
-    let element = |class: &Classification| {
-        let mut found = json!({
-            "name": session.architecture().config().elements[class.element.index()].name,
-            "instance": class.captures,
-        });
-        if !class.also.is_empty() {
-            found["also"] = class
-                .also
-                .iter()
-                .map(|place| {
-                    json!({
-                        "name": session.architecture().config().elements[place.element.index()].name,
-                        "instance": place.captures,
-                    })
-                })
-                .collect();
-        }
-        found
-    };
     let graph = session.graph();
     let facts = graph.file(path).and_then(|f| f.facts.as_ref());
-    let imports: Option<Vec<Value>> = facts.zip(graph.resolutions(path)).map(|(facts, resolutions)| {
-        facts
-            .imports
-            .iter()
-            .zip(resolutions)
-            .map(|(import, resolution)| {
-                let found = resolved(session, path, import, resolution);
-                json!({
-                    "line": import.line,
-                    "specifier": import.specifier,
-                    "resolution": match resolution {
-                        Resolution::File(file) => json!({ "file": file }),
-                        Resolution::Package(name) => json!({ "package": name }),
-                        Resolution::Unresolved(reason) => json!({ "unresolved": reason.message(&import.specifier) }),
-                    },
-                    "element": found.class.as_ref().map(element),
-                    "breaks": found.broken,
-                })
-            })
-            .collect()
-    });
+    let imports = facts.map(|facts| imports_json(session, path, facts));
     let document = json!({
         "schemaVersion": SCHEMA_VERSION,
         "file": path,
-        "element": class.map(element),
+        "element": class.map(|class| element_json(session, class)),
         "selectors": session.architecture().selectors_of(graph, path),
         "rules": rules_that_apply(session, path),
         "sentences": session
@@ -168,6 +129,52 @@ fn json_document(session: &Session, path: &str, class: Option<&Classification>) 
         document["kinds"] = kinds_json(&kinds).into();
     }
     json_text(&document)
+}
+
+/// The part of a file or a target, with its instance, and any other part of a preset that has it.
+fn element_json(session: &Session, class: &Classification) -> Value {
+    let elements = &session.architecture().config().elements;
+    let mut found = json!({
+        "name": elements[class.element.index()].name,
+        "instance": class.captures,
+    });
+    if !class.also.is_empty() {
+        found["also"] = class
+            .also
+            .iter()
+            .map(|place| {
+                json!({
+                    "name": elements[place.element.index()].name,
+                    "instance": place.captures,
+                })
+            })
+            .collect();
+    }
+    found
+}
+
+/// Each import of a file, with its resolution, its target's part and the rules that it breaks.
+fn imports_json(session: &Session, path: &str, facts: &FileFacts) -> Vec<Value> {
+    let resolutions = session.graph().resolutions(path).unwrap_or_default();
+    facts
+        .imports
+        .iter()
+        .zip(resolutions)
+        .map(|(import, resolution)| {
+            let found = resolved(session, path, import, resolution);
+            json!({
+                "line": import.line,
+                "specifier": import.specifier,
+                "resolution": match resolution {
+                    Resolution::File(file) => json!({ "file": file }),
+                    Resolution::Package(name) => json!({ "package": name }),
+                    Resolution::Unresolved(reason) => json!({ "unresolved": reason.message(&import.specifier) }),
+                },
+                "element": found.class.as_ref().map(|class| element_json(session, class)),
+                "breaks": found.broken,
+            })
+        })
+        .collect()
 }
 
 fn list(items: &[&str]) -> String {
@@ -307,6 +314,19 @@ fn imports(session: &Session, path: &str) -> String {
     out
 }
 
+/// The answer for a line that holds no import.
+fn no_import_on_line(options: &Options, path: &str, line: u32) -> Answer {
+    let message = format!("line {line} of {path} has no import");
+    let stdout = if options.format == Format::Json {
+        json_text(
+            &json!({ "schemaVersion": SCHEMA_VERSION, "file": path, "line": line, "imports": [], "message": message }),
+        )
+    } else {
+        format!("{message}\n")
+    };
+    Answer::out(stdout, Outcome::Found)
+}
+
 /// One import, or each import on a line, against every rule.
 fn explain_line(options: &Options, session: &Session, path: &str, line: u32) -> Answer {
     let graph = session.graph();
@@ -323,15 +343,7 @@ fn explain_line(options: &Options, session: &Session, path: &str, line: u32) -> 
         .filter(|(import, _)| (import.statement_line..=import.line).contains(&line))
         .collect();
     if on_line.is_empty() {
-        let message = format!("line {line} of {path} has no import");
-        let stdout = if options.format == Format::Json {
-            json_text(
-                &json!({ "schemaVersion": SCHEMA_VERSION, "file": path, "line": line, "imports": [], "message": message }),
-            )
-        } else {
-            format!("{message}\n")
-        };
-        return Answer::out(stdout, Outcome::Found);
+        return no_import_on_line(options, path, line);
     }
     let blocks: Vec<(&Import, &Resolution, ImportJudgement)> = on_line
         .into_iter()
