@@ -25,7 +25,7 @@ A table MAY have written examples. They MUST run once against all its rules. A r
 - **GIVEN** a table with the rows `infra` and `domain`, the kind pattern `src/{kind}/**`, and the rejected example `'src/domian/a.ts imports src/infra/b.ts'`
 - **WHEN** the developer runs `archangel test`
 - **THEN** the example fails, and the message says that no row rejected it and names `src/domian/a.ts`
-- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_rejected_table_example_with_a_misspelt_path_fails"
+- **TEST** `crates/archangel_rules/tests/table_proof.rs` › "a_rejected_table_example_with_a_misspelt_path_fails"
 
 ### Requirement: A written accepted example of a table passes only when a row judged it
 
@@ -55,14 +55,14 @@ A row MUST NOT count as judging an import that its `names`, `specifier`, `instan
 - **GIVEN** a table with `specifier: 'parent'`, and an accepted example whose only import is `./y`
 - **WHEN** the developer runs `archangel test`
 - **THEN** the example fails with `example-proves-nothing`
-- **TEST** `crates/archangel_rules/tests/examples.rs` › "an_accepted_table_example_that_every_row_skips_proves_nothing"
+- **TEST** `crates/archangel_rules/tests/table_proof.rs` › "an_accepted_table_example_that_every_row_skips_proves_nothing"
 
 #### Scenario: A plain rule whose limit skips the import of its accepted example
 
 - **GIVEN** a `mayNotImport` rule with `specifier: 'parent'`, and an accepted example whose only import goes through an alias to the rule's target
 - **WHEN** the developer runs `archangel test`
 - **THEN** the example passes, as in 0.1
-- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_plain_rule_keeps_its_accepted_example_whose_import_a_limit_skips"
+- **TEST** `crates/archangel_rules/tests/table_proof.rs` › "a_plain_rule_keeps_its_accepted_example_whose_import_a_limit_skips"
 
 ### Requirement: An accepted example outside a rule's area proves nothing
 

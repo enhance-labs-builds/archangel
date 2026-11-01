@@ -5,7 +5,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use archangel_config::{ConfigProblem, ProblemCode};
+use archangel_config::{Config, ConfigProblem, ProblemCode};
 use archangel_graph::{GraphOptions, ImportGraph, Work};
 use archangel_rules::{
     Architecture, Baseline, Classes, Code, Diagnostic, FileCheck, Report, Results, Structure,
@@ -110,8 +110,7 @@ impl Session {
         let started = Instant::now();
         let graph = ImportGraph::build(&config_dir, &options, &mut work);
         let graph_time = started.elapsed();
-        let architecture =
-            Architecture::compile(loaded).with_config_file(relative_config(&config_path));
+        let architecture = compiled(loaded, &config_path);
         let started = Instant::now();
         let mut classes = Classes::new();
         classes.sync(&architecture, &graph, &mut work);
@@ -319,12 +318,14 @@ fn find_config(start: &Path, config: Option<&Path>) -> Result<PathBuf, Stop> {
 }
 
 /// The config's problems as diagnostics, in the config file.
-/// The config file, relative to the config folder: its name.
-pub(crate) fn relative_config(config_path: &Path) -> String {
-    config_path
+/// The architecture of a config, which holds its file's name: the config file is at the config
+/// folder, and it is in no table.
+pub(crate) fn compiled(config: Config, config_path: &Path) -> Architecture {
+    let name = config_path
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    Architecture::compile(config).with_config_file(name)
 }
 
 pub(crate) fn config_problems(config_path: &Path, problems: &[ConfigProblem]) -> Vec<Diagnostic> {

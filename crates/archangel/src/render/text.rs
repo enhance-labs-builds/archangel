@@ -54,7 +54,7 @@ fn group<'a>(diagnostic: &'a Diagnostic, source: Option<&'a str>) -> Group<'a> {
     // the text read, as when the file changed after the check, is shown without the snippet.
     let marked =
         |text: &str, (start, end): (u32, u32)| text.get(start as usize..end as usize).is_some();
-    let mut group = match (&diagnostic.file, diagnostic.span, source) {
+    let group = match (&diagnostic.file, diagnostic.span, source) {
         (Some(file), Some(span), Some(text)) if marked(text, span) => {
             let (start, end) = span;
             let mut annotation = AnnotationKind::Primary.span(start as usize..end as usize);
@@ -84,6 +84,11 @@ fn group<'a>(diagnostic: &'a Diagnostic, source: Option<&'a str>) -> Group<'a> {
             diagnostic.help.as_deref(),
         ),
     };
+    notes(group, diagnostic)
+}
+
+/// The lines under an error: what to do, its rule, its reason and its link.
+fn notes<'a>(mut group: Group<'a>, diagnostic: &'a Diagnostic) -> Group<'a> {
     if diagnostic.code == Code::MayImport {
         group =
             group.element(Level::HELP.message(

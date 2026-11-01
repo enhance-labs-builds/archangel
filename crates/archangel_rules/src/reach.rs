@@ -219,35 +219,7 @@ impl Tally<'_> {
                 .filter(|rule| architecture.may_judge(*rule, classes.key(from), classes.key(to)))
                 .collect()
         });
-        let target = match resolution {
-            Resolution::File(to) => classes.place_of(to),
-            Resolution::Package(name) => classes.package_place_of(name),
-            Resolution::Unresolved(_) => None,
-        };
-        let edge = Edge {
-            from: End {
-                class: from,
-                classification: classes.place_of(path),
-                path: Some(path),
-                package: None,
-            },
-            to: End {
-                class: to,
-                classification: target,
-                path: match resolution {
-                    Resolution::File(to) => Some(to.as_str()),
-                    _ => None,
-                },
-                package: match resolution {
-                    Resolution::Package(name) => Some(name.as_str()),
-                    _ => None,
-                },
-            },
-            file: path,
-            import,
-            resolution,
-            manifests: Some(self.graph.manifests_with(None)),
-        };
+        let edge = edge_of(self.graph, classes, (path, from, to), (import, resolution));
         let mut in_a_rule = false;
         for rule in of_pair.iter() {
             if covers(architecture.config.rules[*rule].imports, import.kind)
@@ -324,6 +296,38 @@ impl Tally<'_> {
                     .any(|set| self.classes.file_in(&file.path, *set))
             })
             .count() as u64
+    }
+}
+
+/// One import with its two classes, as a check sees it.
+fn edge_of<'e>(
+    graph: &'e ImportGraph,
+    classes: &'e Classes,
+    (path, from, to): (&'e str, u32, u32),
+    (import, resolution): (&'e Import, &'e Resolution),
+) -> Edge<'e> {
+    let (classification, to_path, package) = match resolution {
+        Resolution::File(to) => (classes.place_of(to), Some(to.as_str()), None),
+        Resolution::Package(name) => (classes.package_place_of(name), None, Some(name.as_str())),
+        Resolution::Unresolved(_) => (None, None, None),
+    };
+    Edge {
+        from: End {
+            class: from,
+            classification: classes.place_of(path),
+            path: Some(path),
+            package: None,
+        },
+        to: End {
+            class: to,
+            classification,
+            path: to_path,
+            package,
+        },
+        file: path,
+        import,
+        resolution,
+        manifests: Some(graph.manifests_with(None)),
     }
 }
 

@@ -16,7 +16,7 @@ use crate::pattern::Pattern;
 use crate::plugins::plugin_use;
 use crate::problem::{ConfigProblem, ProblemCode};
 use crate::selectors::{Names, Placement, written};
-use crate::shorthand::{KIND_LIST, element_names, layer_sentences, removed_kind};
+use crate::shorthand::{KIND_LIST, element_names, layer_sentences, or_list, removed_kind};
 
 const COMMON_FIELDS: [&str; 6] = ["name", "reason", "because", "link", "imports", "examples"];
 
@@ -122,7 +122,6 @@ pub(crate) fn parse_rule(
     let reason_key = one_spelling(object, ["because", "reason"], |key| input.at(key), problems)
         .map_or("reason", |(key, _)| key);
     let reason = optional_string(object, reason_key, &input.field, problems);
-    let because = reason_key == "because";
     let link = optional_string(object, "link", &input.field, problems);
     let examples = parse_examples(object.get("examples"), &input.field, problems);
     let (kind, sentences, default_name, transitive) = parsed?;
@@ -135,7 +134,7 @@ pub(crate) fn parse_rule(
         kind,
         sentences,
         reason,
-        because,
+        because: reason_key == "because",
         link,
         imports,
         examples,
@@ -1045,13 +1044,6 @@ fn captured_element(files: &FileSet, elements: &[Element]) -> bool {
     files
         .element()
         .is_some_and(|id| elements[id.index()].has_capture())
-}
-
-fn or_list(items: &[String]) -> String {
-    match items.split_last() {
-        Some((last, rest)) if !rest.is_empty() => format!("{} or {last}", rest.join(", ")),
-        _ => items.concat(),
-    }
 }
 
 /// An element by name, for a shorthand.

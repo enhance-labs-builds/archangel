@@ -1,5 +1,8 @@
 //! Shared by the tests of import tables: the enhance3 slice, and what a check gives.
 #![cfg(test)]
+// @justified intent
+// Each test crate includes this file and uses only some of its helpers.
+#![allow(dead_code, reason = "each test crate uses only some of these helpers")]
 
 use archangel_rules::{Diagnostic, Report};
 use archangel_testkit::{FixtureRepo, table};

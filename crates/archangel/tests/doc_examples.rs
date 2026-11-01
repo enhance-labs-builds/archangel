@@ -93,9 +93,8 @@ fn fragments(text: &str) -> Vec<(usize, String)> {
         if line.starts_with("```") {
             match block.take() {
                 Some((at, code)) if is_fragment(&code) => found.push((at, code)),
-                Some(_) => {}
                 None if line.trim_end() == "```ts" => block = Some((index + 1, String::new())),
-                None => {}
+                _ => {}
             }
             fenced = !fenced;
             continue;
@@ -118,7 +117,7 @@ fn fragments(text: &str) -> Vec<(usize, String)> {
 
 /// A repository whose config holds one rule fragment, with each name that the docs use declared.
 fn fragment_repo(fragment: &str) -> FixtureRepo {
-    let parts: String = [
+    let parts = [
         "app",
         "shared",
         "view",
@@ -129,10 +128,9 @@ fn fragment_repo(fragment: &str) -> FixtureRepo {
         "error",
         "use-case",
     ]
-    .iter()
-    .map(|name| format!("'{name}': 'src/{name}/**',"))
-    .collect();
-    let parts = format!("{parts} feature: 'src/features/{{feature}}/**',");
+    .map(|name| format!("'{name}': 'src/{name}/**'"))
+    .join(", ");
+    let parts = format!("feature: 'src/features/{{feature}}/**', {parts}");
     FixtureRepo::new().file("src/shared/a.ts", "").file(
         "archangel.config.mjs",
         &format!(

@@ -3,9 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use archangel_graph::{GraphOptions, ImportGraph, ImportKind, Resolution, SourceFile, Work};
-use archangel_rules::{
-    Architecture, Classes, Diagnostic, Kept, Lookup, Report, StructureChange, Summary,
-};
+use archangel_rules::{Classes, Diagnostic, Kept, Lookup, Report, StructureChange, Summary};
 
 use crate::baseline_file;
 use crate::events::{self, Known, PathEvent, Plan, Step};
@@ -409,8 +407,7 @@ impl Session {
         if plan.needs(Step::Config) {
             match crate::plugins::load(&self.config_path) {
                 Ok(loaded) => {
-                    self.architecture = Architecture::compile(loaded.config)
-                        .with_config_file(crate::session::relative_config(&self.config_path));
+                    self.architecture = crate::session::compiled(loaded.config, &self.config_path);
                     self.classes = Classes::new();
                     self.plugins.replace(loaded.process, &self.architecture);
                     self.config_inputs = loaded.inputs;

@@ -311,12 +311,11 @@ impl Judge<'_> {
                 problems.join("; ")
             )));
         }
-        let rejected_by = self.rejected_by(diagnostics);
         let rejecting = self.rejecting(diagnostics);
         match self.proof.kind {
             ExampleKind::Rejected if !rejecting.is_empty() => None,
             ExampleKind::Rejected => {
-                let mut message = self.not_rejected(&name, &rejected_by);
+                let mut message = self.not_rejected(&name, &self.rejected_by(diagnostics));
                 for file in self.files_with_no_row(diagnostics) {
                     let _ = write!(
                         message,

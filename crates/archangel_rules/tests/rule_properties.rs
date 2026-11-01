@@ -505,11 +505,15 @@ fn hand_config(table: &RandomTable) -> Value {
             let captured = key == "e0";
             let refused = table.itself.iter().any(|other| ROW_KEYS[*other] == key);
             let lists_itself = side.contains(&hand_name(key));
-            let listed: Vec<String> = side.iter().filter(|cell| *cell != "x0").cloned().collect();
             // The list permits the row's own name everywhere, and an `instance` sentence, which
             // shares no code with a row's own-instance permission, then takes it back.
             side.push(hand_name(key));
             if captured && !refused && !lists_itself {
+                let listed: Vec<String> = side[..side.len() - 1]
+                    .iter()
+                    .filter(|cell| *cell != "x0")
+                    .cloned()
+                    .collect();
                 let mut target = vec![json!(hand_name(key)), json!({ "not": { "any": listed } })];
                 if listed.is_empty() {
                     target.pop();

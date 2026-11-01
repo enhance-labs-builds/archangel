@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use archangel_config::{Classification, Condition, ElementId, NameRule, Rule, RuleKind};
+use archangel_config::{Classification, Condition, ElementId, NameRule, Rule, RuleKind, TableId};
 use archangel_graph::{ImportGraph, OverlayFiles, Work};
 
 use crate::architecture::{Architecture, Compiled};
@@ -424,6 +424,18 @@ impl<'e> Evaluation<'e, '_> {
         }
     }
 
+    /// The violation of a file in a table's files that has no row.
+    fn no_row(&self, rule: &Rule, table: TableId, path: &str) -> Diagnostic {
+        let kind = self.classes.kind_place(path, table);
+        let (message, help) = crate::messages::no_row(
+            self.architecture,
+            table,
+            kind.map(|place| place.kind.as_str()),
+            path,
+        );
+        About { rule, path }.violation(Code::EveryFileHasAKind, message, &help)
+    }
+
     /// Whether a table can hold a path: a source file that is not the config file.
     fn a_table_holds(&self, path: &str) -> bool {
         let source = self
@@ -473,18 +485,7 @@ impl<'e> Evaluation<'e, '_> {
                 match (&sentence.condition, &rule.kind) {
                     (Condition::MustBeNamed(name), _) => found.extend(file_name(rule, name, path)),
                     (_, RuleKind::TableRow { table, .. }) => {
-                        let kind = self.classes.kind_place(path, *table);
-                        let (message, help) = crate::messages::no_row(
-                            architecture,
-                            *table,
-                            kind.map(|place| place.kind.as_str()),
-                            path,
-                        );
-                        found.push(About { rule, path }.violation(
-                            Code::EveryFileHasAKind,
-                            message,
-                            &help,
-                        ));
+                        found.push(self.no_row(rule, *table, path));
                     }
                     _ => found.push(self.must_not_exist(rule, &sentence.files_text, path)),
                 }

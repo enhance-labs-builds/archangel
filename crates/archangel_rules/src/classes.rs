@@ -280,15 +280,21 @@ impl Classes {
             counted: placed.counted,
             of_tables,
         };
-        if let Some(old) = self.files.insert(placed.path.to_owned(), file)
+        self.count(placed.path, file);
+    }
+
+    /// Keeps a file's place, and moves it in the counts of each class.
+    fn count(&mut self, path: &str, file: FileClass) {
+        let (class, counted, of_tables) = (file.class as usize, file.counted, file.of_tables);
+        if let Some(old) = self.files.insert(path.to_owned(), file)
             && old.counted
         {
             self.counts[old.class as usize] -= 1;
             self.table_counts[old.class as usize] -= u64::from(old.of_tables);
         }
-        if placed.counted {
-            self.counts[class as usize] += 1;
-            self.table_counts[class as usize] += u64::from(of_tables);
+        if counted {
+            self.counts[class] += 1;
+            self.table_counts[class] += u64::from(of_tables);
         }
     }
 
@@ -367,19 +373,18 @@ impl Classes {
 
     /// The number of files the walk visited in a set of files, from the counts of each class.
     pub(crate) fn files_of_set(&self, set: usize) -> u64 {
-        self.keys
-            .iter()
-            .zip(&self.counts)
-            .filter(|(key, _)| matches!(key, ClassKey::File { bits, .. } if bits[set]))
-            .map(|(_, count)| count)
-            .sum()
+        self.sum_of_set(&self.counts, set)
     }
 
     /// The number of files in a set of files that a table can hold.
     pub(crate) fn table_files_of_set(&self, set: usize) -> u64 {
+        self.sum_of_set(&self.table_counts, set)
+    }
+
+    fn sum_of_set(&self, counts: &[u64], set: usize) -> u64 {
         self.keys
             .iter()
-            .zip(&self.table_counts)
+            .zip(counts)
             .filter(|(key, _)| matches!(key, ClassKey::File { bits, .. } if bits[set]))
             .map(|(_, count)| count)
             .sum()

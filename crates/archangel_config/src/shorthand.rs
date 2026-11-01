@@ -78,3 +78,10 @@ pub(crate) fn element_names(ids: &[ElementId], elements: &[Element]) -> Vec<Stri
         .map(|id| elements[id.index()].name.clone())
         .collect()
 }
+
+pub(crate) fn or_list(items: &[String]) -> String {
+    match items.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{} or {last}", rest.join(", ")),
+        _ => items.concat(),
+    }
+}
