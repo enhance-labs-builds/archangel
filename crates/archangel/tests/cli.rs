@@ -673,6 +673,8 @@ fn explain_of_one_import_lists_the_rules_that_judged_and_skipped_it() {
     );
 }
 
+// Windows refuses a colon in a file name.
+#[cfg(not(windows))]
 #[test]
 fn explain_reads_the_line_after_the_last_colon() {
     let repo = FixtureRepo::new()
