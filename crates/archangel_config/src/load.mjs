@@ -56,6 +56,8 @@ const caller = () => {
   );
   return frame === undefined ? {} : { $at: { file: fileURLToPath(frame.scriptName), line: frame.lineNumber } };
 };
+// @justified intent
+// A builder keeps its own parameters, which `index.d.ts` types; this wrapper only adds the place.
 const located =
   (build) =>
   (...args) => ({ ...build(...args), ...caller() });

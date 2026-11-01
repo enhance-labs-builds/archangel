@@ -22,24 +22,22 @@ fn compare(name: &str, command: &str, got: &str, expected: &str) -> Result<(), S
     if got == expected {
         return Ok(());
     }
-    let mut got_lines = got.lines();
-    let mut expected_lines = expected.lines();
-    let mut number = 0;
-    loop {
-        number += 1;
-        let (one, other) = (got_lines.next(), expected_lines.next());
-        if one != other {
-            return Err(format!(
-                "the fixture {name}: `archangel {command}` differs at line {number}: the docs say \
-                 {other:?}, and archangel prints {one:?}"
-            ));
-        }
-        if one.is_none() {
-            return Err(format!(
-                "the fixture {name}: `archangel {command}` differs in its line endings"
-            ));
-        }
-    }
+    let got_lines: Vec<&str> = got.lines().collect();
+    let expected_lines: Vec<&str> = expected.lines().collect();
+    let difference = (0..got_lines.len().max(expected_lines.len()))
+        .find(|at| got_lines.get(*at) != expected_lines.get(*at));
+    Err(difference.map_or_else(
+        || format!("the fixture {name}: `archangel {command}` differs in its line endings"),
+        |at| {
+            format!(
+                "the fixture {name}: `archangel {command}` differs at line {}: the docs say {:?}, \
+                 and archangel prints {:?}",
+                at + 1,
+                expected_lines.get(at),
+                got_lines.get(at)
+            )
+        },
+    ))
 }
 
 /// Each documented output of a fixture, compared with what archangel prints.

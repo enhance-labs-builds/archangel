@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use archangel_config::{Condition, Rule, RuleKind, TableId};
-use archangel_graph::{ImportGraph, Resolution, Work};
+use archangel_graph::{Import, ImportGraph, Resolution, SourceFile, Work};
 
 use crate::architecture::{Architecture, covers, in_files};
 use crate::check::Report;
@@ -75,99 +75,26 @@ impl Architecture {
         under: Option<&str>,
         config_file: &str,
     ) -> Reach {
-        let mut classes = Classes::new();
-        let mut work = Work::default();
-        classes.sync(self, graph, &mut work);
-        let lookup = Lookup::new(self, graph);
         let count = self.config.rules.len();
-        let mut files = vec![0_u64; count];
-        let mut imports = vec![0_u64; count];
-        let mut applies_under = vec![false; count];
-        let mut of_class: HashMap<u32, Vec<usize>> = HashMap::new();
-        let mut judges: HashMap<(u32, u32), Vec<usize>> = HashMap::new();
-        let mut found = Reach::default();
-        let mut packages: BTreeMap<String, u64> = BTreeMap::new();
+        let mut tally = Tally {
+            architecture: self,
+            graph,
+            classes: Classes::new(),
+            work: Work::default(),
+            files: vec![0; count],
+            imports: vec![0; count],
+            applies_under: vec![false; count],
+            of_class: HashMap::new(),
+            judges: HashMap::new(),
+            packages: BTreeMap::new(),
+            found: Reach::default(),
+        };
+        tally.classes.sync(self, graph, &mut tally.work);
         for file in graph.files() {
-            let path = file.path.as_str();
-            let (from, _) = classes.file(lookup, path, &mut work);
-            let rules = of_class
-                .entry(from)
-                .or_insert_with(|| self.rules_of_class(classes.key(from)));
-            let here = is_under(path, under) && path != config_file;
-            for rule in rules.iter() {
-                files[*rule] += 1;
-                applies_under[*rule] |= here;
-            }
-            if here && rules.is_empty() {
-                found.files_not_judged.push(path.to_owned());
-            }
-            let (Some(facts), Some(resolutions)) = (&file.facts, graph.resolutions(path)) else {
-                continue;
-            };
-            for (import, resolution) in facts.imports.iter().zip(resolutions) {
-                let to = match resolution {
-                    Resolution::File(to) => classes.file(lookup, to, &mut work).0,
-                    Resolution::Package(name) => {
-                        let (class, _) = classes.package(self, name);
-                        if here && !self.names_package(classes.key(class)) {
-                            *packages.entry(name.clone()).or_default() += 1;
-                        }
-                        class
-                    }
-                    Resolution::Unresolved(_) => continue,
-                };
-                let of_pair = judges.entry((from, to)).or_insert_with(|| {
-                    (0..count)
-                        .filter(|rule| self.considers(*rule, classes.key(from), classes.key(to)))
-                        .collect()
-                });
-                let mut in_a_rule = false;
-                for rule in of_pair.iter() {
-                    if covers(self.config.rules[*rule].imports, import.kind) {
-                        imports[*rule] += 1;
-                        in_a_rule = true;
-                    }
-                }
-                if let (false, true, Resolution::File(to)) = (in_a_rule, here, resolution) {
-                    found.imports_not_judged.push(UnjudgedImport {
-                        from: path.to_owned(),
-                        line: import.line,
-                        to: to.clone(),
-                    });
-                }
-            }
+            let here = is_under(&file.path, under) && file.path != config_file;
+            tally.file(file, here);
         }
-        found.packages_not_named = packages.into_iter().collect();
-        let folders = folders_of(graph);
-        for (rule, definition) in self.config.rules.iter().enumerate() {
-            let covered = covered_folders(definition, &folders);
-            let about_folders = covered
-                .as_ref()
-                .is_some_and(|covered| covered.iter().any(|folder| is_under(folder, under)));
-            let applies = under.is_none()
-                || applies_under[rule]
-                || about_folders
-                || self.owns_a_file_under(rule, &applies_under);
-            if !applies {
-                continue;
-            }
-            let name = definition.name.as_str();
-            let problems = report
-                .diagnostics
-                .iter()
-                .filter(|d| d.code.is_rule() && d.rule.as_deref() == Some(name))
-                .count() as u64;
-            found.rules.push(RuleReach {
-                rule,
-                files: self.table_files(rule, &files, &classes, graph),
-                folders: covered.map(|covered| covered.len() as u64),
-                imports_judged: imports[rule],
-                problems,
-                exceptions: report.summary.exceptions.get(name).copied().unwrap_or(0),
-                baseline_matches: report.summary.baselined.get(name).copied().unwrap_or(0),
-            });
-        }
-        found
+        tally.finish(report, under)
     }
 
     /// Whether a table's own rule belongs to a table with a row that applies under the path: the
@@ -179,30 +106,6 @@ impl Architecture {
         self.rules_of_table(*table)
             .into_iter()
             .any(|row| applies_under[row])
-    }
-
-    /// The files of a rule, or for a table's own rule the files of all the table's rules.
-    fn table_files(
-        &self,
-        rule: usize,
-        files: &[u64],
-        classes: &Classes,
-        graph: &ImportGraph,
-    ) -> u64 {
-        let RuleKind::TableRow { table, row: None } = &self.config.rules[rule].kind else {
-            return files[rule];
-        };
-        let sets: BTreeSet<usize> = self
-            .sentences
-            .iter()
-            .filter(|compiled| self.rules_of_table(*table).contains(&compiled.rule))
-            .map(|compiled| compiled.files)
-            .collect();
-        graph
-            .files()
-            .iter()
-            .filter(|file| sets.iter().any(|set| classes.file_in(&file.path, *set)))
-            .count() as u64
     }
 
     fn rules_of_table(&self, id: TableId) -> Vec<usize> {
@@ -244,6 +147,152 @@ impl Architecture {
             ) && (compiled.side.holds(class)
                 || compiled.area.as_ref().is_some_and(|area| area.holds(class)))
         })
+    }
+}
+
+/// The counts of a reach in progress.
+struct Tally<'t> {
+    architecture: &'t Architecture,
+    graph: &'t ImportGraph,
+    classes: Classes,
+    work: Work,
+    files: Vec<u64>,
+    imports: Vec<u64>,
+    applies_under: Vec<bool>,
+    /// The rules whose files include a file of each class.
+    of_class: HashMap<u32, Vec<usize>>,
+    /// The rules that look at an import between each pair of classes.
+    judges: HashMap<(u32, u32), Vec<usize>>,
+    packages: BTreeMap<String, u64>,
+    found: Reach,
+}
+
+impl Tally<'_> {
+    /// Counts one file, and each of its imports. `here` says whether it is under the path.
+    fn file(&mut self, file: &SourceFile, here: bool) {
+        let path = file.path.as_str();
+        let lookup = Lookup::new(self.architecture, self.graph);
+        let (from, _) = self.classes.file(lookup, path, &mut self.work);
+        let architecture = self.architecture;
+        let classes = &self.classes;
+        let rules = self
+            .of_class
+            .entry(from)
+            .or_insert_with(|| architecture.rules_of_class(classes.key(from)));
+        for rule in rules.iter() {
+            self.files[*rule] += 1;
+            self.applies_under[*rule] |= here;
+        }
+        if here && rules.is_empty() {
+            self.found.files_not_judged.push(path.to_owned());
+        }
+        let (Some(facts), Some(resolutions)) = (&file.facts, self.graph.resolutions(path)) else {
+            return;
+        };
+        for (import, resolution) in facts.imports.iter().zip(resolutions) {
+            self.import((path, from, here), import, resolution);
+        }
+    }
+
+    fn import(
+        &mut self,
+        (path, from, here): (&str, u32, bool),
+        import: &Import,
+        resolution: &Resolution,
+    ) {
+        let architecture = self.architecture;
+        let lookup = Lookup::new(architecture, self.graph);
+        let to = match resolution {
+            Resolution::File(to) => self.classes.file(lookup, to, &mut self.work).0,
+            Resolution::Package(name) => {
+                let (class, _) = self.classes.package(architecture, name);
+                if here && !architecture.names_package(self.classes.key(class)) {
+                    *self.packages.entry(name.clone()).or_default() += 1;
+                }
+                class
+            }
+            Resolution::Unresolved(_) => return,
+        };
+        let classes = &self.classes;
+        let of_pair = self.judges.entry((from, to)).or_insert_with(|| {
+            (0..architecture.config.rules.len())
+                .filter(|rule| architecture.considers(*rule, classes.key(from), classes.key(to)))
+                .collect()
+        });
+        let mut in_a_rule = false;
+        for rule in of_pair.iter() {
+            if covers(architecture.config.rules[*rule].imports, import.kind) {
+                self.imports[*rule] += 1;
+                in_a_rule = true;
+            }
+        }
+        if let (false, true, Resolution::File(to)) = (in_a_rule, here, resolution) {
+            self.found.imports_not_judged.push(UnjudgedImport {
+                from: path.to_owned(),
+                line: import.line,
+                to: to.clone(),
+            });
+        }
+    }
+
+    /// The reach of each rule that applies under the path.
+    fn finish(mut self, report: &Report, under: Option<&str>) -> Reach {
+        self.found.packages_not_named = std::mem::take(&mut self.packages).into_iter().collect();
+        let folders = folders_of(self.graph);
+        let architecture = self.architecture;
+        for (rule, definition) in architecture.config.rules.iter().enumerate() {
+            let covered = covered_folders(definition, &folders);
+            let about_folders = covered
+                .as_ref()
+                .is_some_and(|covered| covered.iter().any(|folder| is_under(folder, under)));
+            let applies = under.is_none()
+                || self.applies_under[rule]
+                || about_folders
+                || architecture.owns_a_file_under(rule, &self.applies_under);
+            if !applies {
+                continue;
+            }
+            let name = definition.name.as_str();
+            let problems = report
+                .diagnostics
+                .iter()
+                .filter(|d| d.code.is_rule() && d.rule.as_deref() == Some(name))
+                .count() as u64;
+            let reach = RuleReach {
+                rule,
+                files: self.files_of(rule),
+                folders: covered.map(|covered| covered.len() as u64),
+                imports_judged: self.imports[rule],
+                problems,
+                exceptions: report.summary.exceptions.get(name).copied().unwrap_or(0),
+                baseline_matches: report.summary.baselined.get(name).copied().unwrap_or(0),
+            };
+            self.found.rules.push(reach);
+        }
+        self.found
+    }
+
+    /// The files of a rule, or for a table's own rule the files of all the table's rules.
+    fn files_of(&self, rule: usize) -> u64 {
+        let architecture = self.architecture;
+        let RuleKind::TableRow { table, row: None } = &architecture.config.rules[rule].kind else {
+            return self.files[rule];
+        };
+        let of_table = architecture.rules_of_table(*table);
+        let sets: BTreeSet<usize> = architecture
+            .sentences
+            .iter()
+            .filter(|compiled| of_table.contains(&compiled.rule))
+            .map(|compiled| compiled.files)
+            .collect();
+        self.graph
+            .files()
+            .iter()
+            .filter(|file| {
+                sets.iter()
+                    .any(|set| self.classes.file_in(&file.path, *set))
+            })
+            .count() as u64
     }
 }
 

@@ -875,7 +875,7 @@ fn a_written_table_example_fails_when_no_row_rejects_it() {
     let outcomes = table_outcomes(&config, &domain_repo());
     assert_eq!(passed(&outcomes), [false], "{outcomes:?}");
     let failure = outcomes[0].failure.as_ref().unwrap();
-    assert_eq!(failure.code, Code::ExampleFailed);
+    assert_eq!(failure.code, Code::ExampleFailed, "{failure:?}");
     assert!(
         failure.message.contains("no row of \"domain\" rejected"),
         "the message says that no row of the table rejected it: {}",
@@ -919,7 +919,7 @@ fn a_table_accepted_example_that_no_row_judges_proves_nothing() {
     let outcomes = table_outcomes(&config, &repo);
     assert_eq!(passed(&outcomes), [false], "{outcomes:?}");
     let failure = outcomes[0].failure.as_ref().unwrap();
-    assert_eq!(failure.code, Code::ExampleProvesNothing);
+    assert_eq!(failure.code, Code::ExampleProvesNothing, "{failure:?}");
     assert!(
         failure.message.contains("feature-code")
             && failure
@@ -971,7 +971,7 @@ fn a_rejected_one_liner_that_the_rule_permits_fails() {
     let (outcomes, _) = examples(&rules, &login());
     assert_eq!(passed(&outcomes), [false], "{outcomes:?}");
     let failure = outcomes[0].failure.as_ref().unwrap();
-    assert_eq!(failure.code, Code::ExampleFailed);
+    assert_eq!(failure.code, Code::ExampleFailed, "{failure:?}");
     assert!(
         failure.message.contains("no rule rejected the example"),
         "the message of a file set that the rule does not reject: {}",

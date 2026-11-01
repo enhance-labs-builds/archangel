@@ -163,8 +163,8 @@ fn json_document(session: &Session, path: &str, class: Option<&Classification>) 
         "importedBy": graph.importers(path),
     });
     let mut document = document;
-    let kinds = session.architecture().kinds_of(graph, path);
     if !session.architecture().config().tables.is_empty() {
+        let kinds = session.architecture().kinds_of(graph, path);
         document["kinds"] = kinds_json(&kinds).into();
     }
     json_text(&document)
@@ -361,7 +361,7 @@ fn explain_line(options: &Options, session: &Session, path: &str, line: u32) -> 
         let texts: Vec<String> = blocks
             .iter()
             .map(|(import, resolution, judged)| {
-                import_block(session, path, line, (import, resolution), judged)
+                import_block(session, (path, line), (import, resolution), judged)
             })
             .collect();
         texts.join("\n")
@@ -430,8 +430,7 @@ fn end_text(session: &Session, end: &ImportEnd) -> String {
 
 fn import_block(
     session: &Session,
-    path: &str,
-    line: u32,
+    (path, line): (&str, u32),
     (import, resolution): (&Import, &Resolution),
     judged: &ImportJudgement,
 ) -> String {

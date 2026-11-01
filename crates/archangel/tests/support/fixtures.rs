@@ -1,6 +1,8 @@
 //! Shared by the tests that run a documented fixture: a copy of it, with the packages installed
 //! that its config and its manifest name.
 #![cfg(test)]
+// @justified intent
+// Each test crate includes this file and uses only some of its helpers.
 #![allow(dead_code, reason = "each test crate uses only some of these helpers")]
 
 use std::path::{Path, PathBuf};

@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 
 use archangel_config::{
     Condition, DependencyKind, ExportKind, FileSet, ImportOptions, InstanceMatch, NameRule,
-    Pattern, Rule, RuleKind, SpecifierForm, TableId, Term,
+    Pattern, Rule, RuleKind, SpecifierForm, Term,
 };
 
 use crate::architecture::Architecture;
@@ -23,8 +23,8 @@ impl Architecture {
     /// A sentence of a rule, in words, for a rule that `off` removed too.
     #[must_use]
     pub fn sentence_of_rule(&self, rule: &Rule, sentence: usize) -> String {
-        if let RuleKind::TableRow { table, row } = &rule.kind {
-            return self.row_text(rule, *table, row.as_deref(), sentence);
+        if matches!(rule.kind, RuleKind::TableRow { .. }) {
+            return self.row_text(rule, sentence);
         }
         let sentence = &rule.sentences[sentence];
         let mut text = if sentence.folders.is_some() {
@@ -37,7 +37,10 @@ impl Architecture {
     }
 
     /// A sentence of a row: what it may import. For a table's own rule: that each file has a row.
-    fn row_text(&self, rule: &Rule, table: TableId, row: Option<&str>, sentence: usize) -> String {
+    fn row_text(&self, rule: &Rule, sentence: usize) -> String {
+        let RuleKind::TableRow { table, row } = &rule.kind else {
+            return String::new();
+        };
         let Some(row) = row else {
             let table = &self.config.tables[table.index()].name;
             return format!("every file of {table} has a row");

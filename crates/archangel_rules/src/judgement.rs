@@ -55,6 +55,8 @@ pub struct ImportJudgement {
 
 /// The import being judged, with its classes when it resolves.
 struct Judged<'j> {
+    architecture: &'j Architecture,
+    classes: &'j Classes,
     edge: Option<Edge<'j>>,
     from: &'j ClassKey,
     to: Option<&'j ClassKey>,
@@ -118,6 +120,8 @@ impl Architecture {
             .map(|facts| exceptions::read(&facts.allow_comments))
             .unwrap_or_default();
         let judged = Judged {
+            architecture: self,
+            classes: &classes,
             edge,
             from: classes.key(from_class),
             to: to_class.map(|class| classes.key(class)),
@@ -132,7 +136,7 @@ impl Architecture {
             .rules
             .iter()
             .enumerate()
-            .map(|(index, rule)| self.judge_rule(index, rule, &judged, &classes))
+            .map(|(index, rule)| judged.rule(index, rule))
             .collect();
         rules.extend(self.config.off.iter().map(|rule| RuleJudgement {
             rule: rule.name.clone(),
@@ -167,21 +171,18 @@ impl Architecture {
             kinds: path.map_or_else(Vec::new, |path| self.kinds_in(classes, path)),
         }
     }
+}
 
+impl Judged<'_> {
     /// The strongest verdict of a rule's sentences: a refusal, then a permission, then a skip.
-    fn judge_rule(
-        &self,
-        index: usize,
-        rule: &Rule,
-        judged: &Judged<'_>,
-        classes: &Classes,
-    ) -> RuleJudgement {
+    fn rule(&self, index: usize, rule: &Rule) -> RuleJudgement {
         let verdicts: Vec<Verdict> = self
+            .architecture
             .sentences
             .iter()
             .enumerate()
             .filter(|(_, compiled)| compiled.rule == index)
-            .map(|(place, compiled)| self.judge_sentence(place, compiled, judged, classes))
+            .map(|(place, compiled)| self.sentence(place, compiled))
             .collect();
         let chosen = |wanted: fn(&Verdict) -> bool| verdicts.iter().find(|v| wanted(v)).cloned();
         let verdict = chosen(|v| matches!(v, Verdict::Refuses(_)))
@@ -189,7 +190,7 @@ impl Architecture {
             .or_else(|| verdicts.first().cloned())
             .unwrap_or_else(|| Verdict::Skips("the rule has no sentence".to_owned()));
         let permitted_by = matches!(verdict, Verdict::Refuses(_))
-            .then(|| judged.permitted_by(&rule.name))
+            .then(|| self.permitted_by(&rule.name))
             .flatten();
         RuleJudgement {
             rule: rule.name.clone(),
@@ -198,69 +199,63 @@ impl Architecture {
         }
     }
 
-    fn judge_sentence(
-        &self,
-        place: usize,
-        compiled: &Compiled,
-        judged: &Judged<'_>,
-        classes: &Classes,
-    ) -> Verdict {
-        let rule = &self.config.rules[compiled.rule];
+    fn sentence(&self, place: usize, compiled: &Compiled) -> Verdict {
+        let rule = &self.architecture.config.rules[compiled.rule];
         let sentence = &rule.sentences[compiled.sentence];
-        if sentence.options.transitively {
-            return skip("a chain rule checks chains of imports, not one import");
-        }
-        let about_target = match &sentence.condition {
-            Condition::MayNotImport(_) | Condition::MayOnlyImport(_) => false,
-            Condition::MayOnlyBeImportedBy(_) | Condition::Entry { .. } => true,
-            Condition::NoCycles => return skip("noCycles checks cycles, not one import"),
-            Condition::MustNotExist if matches!(rule.kind, RuleKind::TableRow { .. }) => {
-                return skip("this rule checks files, not imports");
-            }
-            other => return skip(&format!("{} checks no import", other.name())),
+        let about_target = match condition_scope(rule, sentence) {
+            Ok(about_target) => about_target,
+            Err(skipped) => return skipped,
         };
-        if !about_target && !in_files(compiled, judged.from) {
-            return self.not_in_files(rule, sentence, judged, classes);
+        if !about_target && !in_files(compiled, self.from) {
+            return self.not_in_files(rule, sentence);
         }
-        let (Some(edge), Some(to)) = (judged.edge.as_ref(), judged.to) else {
+        let (Some(edge), Some(to)) = (self.edge.as_ref(), self.to) else {
             return skip("the import does not resolve");
         };
         if about_target && !in_files(compiled, to) {
             return skip(&format!("the target is not in {}", sentence.files_text));
         }
-        if !covers(rule.imports, judged.import.kind) {
+        if !covers(rule.imports, self.import.kind) {
             return skip("the rule does not count this kind of import");
         }
-        let other_end = if about_target { judged.from } else { to };
+        let other_end = if about_target { self.from } else { to };
         if let (Some(area), Some(written)) = (&compiled.area, &sentence.options.within)
             && !area.holds(other_end)
         {
-            return skip(&outside_area(judged, about_target, &written.text));
+            return skip(&self.outside_area(about_target, &written.text));
         }
-        if let Some(check) = classes
+        self.decided(place, compiled, edge, other_end)
+    }
+
+    /// The verdict on an import that the sentence looks at.
+    fn decided(
+        &self,
+        place: usize,
+        compiled: &Compiled,
+        edge: &Edge<'_>,
+        other_end: &ClassKey,
+    ) -> Verdict {
+        let sentence = &self.architecture.config.rules[compiled.rule].sentences[compiled.sentence];
+        if let Some(check) = self
+            .classes
             .cell(edge.from.class, edge.to.class)
             .iter()
             .find(|check| check.sentence == place)
-            && self.test(check, edge, classes)
+            && self.architecture.test(check, edge, self.classes)
         {
-            return Verdict::Refuses(self.refusal(compiled, sentence, edge, classes));
+            return Verdict::Refuses(self.refusal(compiled, edge));
         }
-        if !crate::facts::hold(sentence, edge, classes)
+        if !crate::facts::hold(sentence, edge, self.classes)
             && let Some(limit) = limit_text(sentence)
         {
             return skip(&limit);
         }
-        Verdict::Permits(permission(self, compiled, sentence, other_end))
+        Verdict::Permits(permission(self.architecture, compiled, other_end))
     }
 
-    fn not_in_files(
-        &self,
-        rule: &Rule,
-        sentence: &Sentence,
-        judged: &Judged<'_>,
-        classes: &Classes,
-    ) -> Verdict {
+    fn not_in_files(&self, rule: &Rule, sentence: &Sentence) -> Verdict {
         let files = &sentence.files_text;
+        let config = &self.architecture.config;
         let RuleKind::TableRow {
             table,
             row: Some(row),
@@ -268,31 +263,27 @@ impl Architecture {
         else {
             return skip(&format!("the file is not in {files}"));
         };
-        let is_kind = self.config.tables[table.index()].kinds.is_some()
-            && self.config.element(row).is_none()
-            && self.config.selector(row).is_none();
+        let is_kind = config.tables[table.index()].kinds.is_some()
+            && config.element(row).is_none()
+            && config.selector(row).is_none();
         if !is_kind {
             return skip(&format!("the file is not in {files}"));
         }
-        match classes.kind_place(judged.path, *table) {
+        match self.classes.kind_place(self.path, *table) {
             Some(place) if place.kind == *row => skip("the file is outside the table's files"),
             Some(place) => skip(&format!("the file has the kind {}, not {row}", place.kind)),
             None => skip(&format!(
                 "the file has no kind in {}",
-                self.config.tables[table.index()].name
+                config.tables[table.index()].name
             )),
         }
     }
 
-    fn refusal(
-        &self,
-        compiled: &Compiled,
-        sentence: &Sentence,
-        edge: &Edge<'_>,
-        classes: &Classes,
-    ) -> String {
-        let text = self.sentence_text(compiled.rule, compiled.sentence);
-        let rule = &self.config.rules[compiled.rule];
+    fn refusal(&self, compiled: &Compiled, edge: &Edge<'_>) -> String {
+        let architecture = self.architecture;
+        let text = architecture.sentence_text(compiled.rule, compiled.sentence);
+        let rule = &architecture.config.rules[compiled.rule];
+        let sentence = &rule.sentences[compiled.sentence];
         let RuleKind::TableRow {
             table,
             row: Some(row),
@@ -304,8 +295,8 @@ impl Architecture {
             return text;
         }
         let name = RowViolation {
-            architecture: self,
-            classes,
+            architecture,
+            classes: self.classes,
             table: *table,
             row,
             compiled,
@@ -316,9 +307,17 @@ impl Architecture {
         .target_name();
         format!("{name} is not in its row ({text})")
     }
-}
 
-impl Judged<'_> {
+    /// Why an import is outside a rule's area, in the terms of the end that the area holds.
+    fn outside_area(&self, about_target: bool, area: &str) -> String {
+        let end = if about_target { self.path } else { self.target };
+        if area == DEFAULT_AREA {
+            format!("{end} is outside {area}")
+        } else {
+            format!("{end} is outside the area {area}")
+        }
+    }
+
     /// What permits a violation of a rule on this line: an exception, or else the baseline when
     /// the check does not report it.
     fn permitted_by(&self, rule: &str) -> Option<String> {
@@ -342,17 +341,22 @@ fn skip(reason: &str) -> Verdict {
     Verdict::Skips(reason.to_owned())
 }
 
-/// Why an import is outside a rule's area, in the terms of the end that the area holds.
-fn outside_area(judged: &Judged<'_>, about_target: bool, area: &str) -> String {
-    let end = if about_target {
-        judged.path
-    } else {
-        judged.target
-    };
-    if area == DEFAULT_AREA {
-        format!("{end} is outside {area}")
-    } else {
-        format!("{end} is outside the area {area}")
+/// Whether a sentence is about the target of an import, or the skip of a sentence that judges no
+/// single import.
+fn condition_scope(rule: &Rule, sentence: &Sentence) -> Result<bool, Verdict> {
+    if sentence.options.transitively {
+        return Err(skip(
+            "a chain rule checks chains of imports, not one import",
+        ));
+    }
+    match &sentence.condition {
+        Condition::MayNotImport(_) | Condition::MayOnlyImport(_) => Ok(false),
+        Condition::MayOnlyBeImportedBy(_) | Condition::Entry { .. } => Ok(true),
+        Condition::NoCycles => Err(skip("noCycles checks cycles, not one import")),
+        Condition::MustNotExist if matches!(rule.kind, RuleKind::TableRow { .. }) => {
+            Err(skip("this rule checks files, not imports"))
+        }
+        other => Err(skip(&format!("{} checks no import", other.name()))),
     }
 }
 
@@ -376,14 +380,9 @@ fn limit_text(sentence: &Sentence) -> Option<String> {
 }
 
 /// Why a sentence that judged an import permits it.
-fn permission(
-    architecture: &Architecture,
-    compiled: &Compiled,
-    sentence: &Sentence,
-    other_end: &ClassKey,
-) -> String {
+fn permission(architecture: &Architecture, compiled: &Compiled, other_end: &ClassKey) -> String {
     let rule = &architecture.config.rules[compiled.rule];
-    let in_row = matches!(rule.kind, RuleKind::TableRow { .. });
+    let sentence = &rule.sentences[compiled.sentence];
     let side = sentence
         .condition
         .side()
@@ -391,7 +390,7 @@ fn permission(
     match &sentence.condition {
         Condition::MayNotImport(_) => format!("the target is not in {side}"),
         Condition::MayOnlyImport(_) if compiled.side.holds(other_end) => {
-            if in_row {
+            if matches!(rule.kind, RuleKind::TableRow { .. }) {
                 "the target is in its row".to_owned()
             } else {
                 format!("the target is in {side}")

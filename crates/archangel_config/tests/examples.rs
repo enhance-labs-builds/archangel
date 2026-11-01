@@ -138,7 +138,7 @@ fn a_one_liner_is_refused_where_file_text_decides_the_verdict() {
         let found = problems(&json!([rule.clone()]));
         assert_eq!(found.len(), 1, "one problem for {rule}: {found:?}");
         let message = &found[0].message;
-        assert_eq!(found[0].code, ProblemCode::ConfigInvalid);
+        assert_eq!(found[0].code, ProblemCode::ConfigInvalid, "for {rule}");
         assert!(
             message.contains("\"r\"") && message.contains("file set"),
             "the message names the rule and says to write a file set: {message}"

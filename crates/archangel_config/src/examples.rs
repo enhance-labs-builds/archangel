@@ -180,6 +180,8 @@ fn needs_file_text(config: &Config, rule: &Rule) -> Option<String> {
     })
 }
 
+// @justified intent
+// Validation refuses a cycle of selectors, so the depth is at most the number of selectors.
 fn uses_directive(config: &Config, set: &FileSet) -> bool {
     set.terms.iter().any(|term| match term {
         Term::Directive(_) => true,

@@ -476,20 +476,23 @@ fn explain_of_one_import_as_json() {
     assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
     let doc = document(&found.stdout);
     let import = &doc["imports"][0];
-    assert_eq!(import["specifier"], "../api/fetch-cart");
     assert_eq!(
-        import["target"],
-        json!({ "file": "src/features/cart/api/fetch-cart.ts" })
+        (&import["specifier"], &import["target"]),
+        (
+            &json!("../api/fetch-cart"),
+            &json!({ "file": "src/features/cart/api/fetch-cart.ts" })
+        ),
+        "the import and its target"
     );
-    assert_eq!(import["from"]["part"], "feature");
-    assert_eq!(import["from"]["instance"], json!(["cart"]));
     assert_eq!(
-        import["from"]["kinds"],
-        json!([{ "table": "feature-code", "kind": "views" }])
+        import["from"],
+        json!({ "part": "feature", "instance": ["cart"], "kinds": [{ "table": "feature-code", "kind": "views" }] }),
+        "the importing end"
     );
     assert_eq!(
         import["to"]["kinds"],
-        json!([{ "table": "feature-code", "kind": "api" }])
+        json!([{ "table": "feature-code", "kind": "api" }]),
+        "the kind of the target"
     );
     let of = |name: &str| {
         let rules = import["rules"].as_array().unwrap();

@@ -877,7 +877,11 @@ fn explain_of_one_import_shows_the_exception_beside_the_rule() {
 #[test]
 fn explain_of_one_import_shows_a_baseline_match_beside_the_rule() {
     let repo = fixtures::fixture("small-app");
-    assert_eq!(run(&repo, &["baseline", "add"]).status, 0);
+    assert_eq!(
+        run(&repo, &["baseline", "add"]).status,
+        0,
+        "the baseline is written"
+    );
     let found = run(&repo, &["explain", &format!("{CART_PAGE}:2")]);
     let line = line_of(&found.stdout, "feature-code.views");
     assert!(line.contains("refuses: "), "{line}");

@@ -345,6 +345,8 @@ fn a_written_table_example_names_the_row_that_rejected_it() {
     assert_eq!(
         found.stdout,
         "pass  domain  rejected #1  apps/api/src/a.entity.ts, apps/api/src/b.port.ts  rejected by domain.entity\n\
-         1 examples, none failed; 0 rules without a rejected example\n",
+         1 examples, none failed; 0 rules without a rejected example\n\
+         2 table rows need no written example; `archangel rules` shows what each covers\n",
+        "the row that rejected the example, and why the rows are not unproven"
     );
 }

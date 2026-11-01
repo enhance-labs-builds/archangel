@@ -1,1 +1,2 @@
 0 examples, none failed; 0 rules without a rejected example
+5 table rows need no written example; `archangel rules` shows what each covers

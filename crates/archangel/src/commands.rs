@@ -10,6 +10,7 @@ mod why;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+use archangel_config::RuleKind;
 use archangel_engine::{BASELINE_NAME, ExampleReport, Session, Stop};
 use archangel_rules::{Diagnostic, ExampleKind};
 
@@ -186,6 +187,25 @@ pub(crate) fn run_test(options: &Options) -> Answer {
     }
 }
 
+/// How many rows the config's tables have, which need no written example.
+fn rows_line(session: &Session) -> String {
+    let rows = session
+        .architecture()
+        .config()
+        .rules
+        .iter()
+        .filter(|rule| matches!(rule.kind, RuleKind::TableRow { row: Some(_), .. }))
+        .count();
+    match rows {
+        0 => String::new(),
+        1 => "1 table row needs no written example; `archangel rules` shows what it covers\n"
+            .to_owned(),
+        n => format!(
+            "{n} table rows need no written example; `archangel rules` shows what each covers\n"
+        ),
+    }
+}
+
 fn examples_text(session: &Session, report: &ExampleReport, options: &Options) -> String {
     let mut out = String::new();
     for run in &report.runs {
@@ -227,6 +247,7 @@ fn examples_text(session: &Session, report: &ExampleReport, options: &Options) -
         ));
     }
     out.push_str(&examples_count(report));
+    out.push_str(&rows_line(session));
     out
 }
 

@@ -81,7 +81,7 @@ impl Architecture {
             rejects: of_table(false),
             kind,
         };
-        self.prove(graph, overlay, &proof, &PluginFindings::default(), work)
+        self.prove((graph, overlay), &proof, &PluginFindings::default(), work)
     }
 
     /// Checks one example of a rule, with what the plugin process found in the example's files
@@ -101,13 +101,12 @@ impl Architecture {
             rejects: vec![rule],
             kind,
         };
-        self.prove(graph, overlay, &proof, plugin, work)
+        self.prove((graph, overlay), &proof, plugin, work)
     }
 
     fn prove(
         &self,
-        graph: &ImportGraph,
-        overlay: &OverlayFiles,
+        (graph, overlay): (&ImportGraph, &OverlayFiles),
         proof: &Proof<'_>,
         plugin: &PluginFindings,
         work: &mut Work,
