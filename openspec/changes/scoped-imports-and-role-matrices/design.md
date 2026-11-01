@@ -435,18 +435,19 @@ path (item 2 of "Decisions that need you"). In the enhance3 slice of "What enhan
 entity that imports a use case gives:
 
 ```
-error[domain.entity]: entity may not import use-case, through "../application/save.use-case"
+error[may-import]: entity may not import use-case, through "../application/save.use-case": no row for use-case, and entity may import only value-object, domain-event, specification, policy, error, types, consts, apps/api/src/shared/result.ts, and itself
  --> apps/api/src/board/domain/board.entity.ts:3:22
   |
 3 | import { save } from '../application/save.use-case';
-  |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ entity may import only: value-object, domain-event, specification, policy, error, types, consts, apps/api/src/shared/result.ts
+  |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ entity may import only value-object, domain-event, specification, policy, error, types, consts, apps/api/src/shared/result.ts, and itself
   |
-  = note: no row for use-case: the table domain has no row for this kind
-  = note: rule: domain.entity, in archangel.config.ts:62
-  = note: because: Each kind of domain file depends only on the kinds below it.
+  = note: rule: domain.entity
+  = note: reason: Each kind of domain file depends only on the kinds below it.
 ```
 
-A file in the table's files with no row gives one violation of `<table>.every-file-has-a-kind`, a
+The code in the first line is `may-import`, and the note reads `reason:`, because every 0.1 rule
+prints these words and each recorded output must stay the same. `archangel rules` shows the place
+of the rule in the config. A file in the table's files with no row gives one violation of `<table>.every-file-has-a-kind`, a
 rule that every table makes and that `off` can name. The message says whether the file has no kind,
 and how to give it one, or has a kind with no row, and which row is closest:
 

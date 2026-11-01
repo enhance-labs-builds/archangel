@@ -56,5 +56,5 @@ file, and let each pull request that touches old code prune what it fixed.
 | --- | --- |
 | One import that breaks a rule on purpose, with a reason worth reading | An exception |
 | Many violations from before the rule existed | The baseline |
-| A rule that is wrong for part of the code | Change the rule or the elements, not either of these |
+| A rule that is wrong for part of the code | Change the rule or the parts, not either of these |
 | Files that should not be checked at all, such as generated code | The config's `ignore` list |

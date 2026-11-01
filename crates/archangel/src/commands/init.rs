@@ -1,4 +1,4 @@
-//! `archangel init`: a starter config with one element for each folder of source files, and a
+//! `archangel init`: a starter config with one part for each folder of source files, and a
 //! no-cycles rule with the examples that prove it, so `check` and `test` pass from the start.
 
 use std::collections::BTreeSet;
@@ -42,31 +42,31 @@ pub(crate) fn run_init(options: &Options, typescript: bool) -> Answer {
     };
     if folders.is_empty() {
         return Answer::stopped(format!(
-            "error: archangel found no folder of source files in {}; init names the elements after them\n",
+            "error: archangel found no folder of source files in {}; init names the parts after them\n",
             root.unwrap_or(".")
         ));
     }
-    let elements: Vec<(String, String)> = folders
+    let parts: Vec<(String, String)> = folders
         .iter()
         .map(|folder| {
             let path = root.map_or_else(|| folder.clone(), |root| format!("{root}/{folder}"));
             (folder.clone(), format!("{path}/**"))
         })
         .collect();
-    write_config(&dir, options, &elements, typescript)
+    write_config(&dir, options, &parts, typescript)
 }
 
 /// Writes the config, and says what it wrote and what to do next.
 fn write_config(
     dir: &Path,
     options: &Options,
-    elements: &[(String, String)],
+    parts: &[(String, String)],
     typescript: bool,
 ) -> Answer {
     let (name, text) = if typescript {
-        ("archangel.config.ts", typescript_config(elements))
+        ("archangel.config.ts", typescript_config(parts))
     } else {
-        ("archangel.config.json", json_config(elements))
+        ("archangel.config.json", json_config(parts))
     };
     let path = options
         .config
@@ -78,9 +78,9 @@ fn write_config(
             path.display()
         ));
     }
-    let names: Vec<&str> = elements.iter().map(|(name, _)| name.as_str()).collect();
+    let names: Vec<&str> = parts.iter().map(|(name, _)| name.as_str()).collect();
     let mut out = format!(
-        "wrote {} with {} elements: {}\n",
+        "wrote {} with {} parts: {}\n",
         path.display(),
         names.len(),
         names.join(", ")
@@ -88,11 +88,11 @@ fn write_config(
     if typescript {
         out.push_str("It imports `@enhance-eng/archangel`, so install the package first: npm install --save-dev @enhance-eng/archangel\n");
     }
-    out.push_str("Order the elements with a layers rule, then run `archangel check`; `archangel docs layers` shows how.\n");
+    out.push_str("Write what each part may import in a table, then run `archangel check`; `archangel docs may-import` shows how.\n");
     Answer::out(out, Outcome::Clean)
 }
 
-/// The folder the elements live in (`src` when it holds source files), and each folder directly
+/// The folder the parts live in (`src` when it holds source files), and each folder directly
 /// in it that holds a source file at any depth. The walk honours `.gitignore`, as `check` does.
 fn source_folders(dir: &Path) -> Result<(Option<&'static str>, BTreeSet<String>), ignore::Error> {
     let mut in_src = BTreeSet::new();
@@ -125,33 +125,25 @@ fn source_folders(dir: &Path) -> Result<(Option<&'static str>, BTreeSet<String>)
     })
 }
 
-/// The rejected example: two files that import each other.
-const CYCLE: [(&str, &str); 2] = [
-    ("cycle/a.ts", "import \"./b\";\n"),
-    ("cycle/b.ts", "import \"./a\";\n"),
-];
+/// The reason for the starter rule.
+const BECAUSE: &str = "Files that import each other cannot change or load one at a time.";
 
 /// The accepted example: one file importing another that imports nothing.
-const NO_CYCLE: [(&str, &str); 2] = [
-    ("cycle/a.ts", "import \"./b\";\n"),
-    ("cycle/b.ts", "export {};\n"),
-];
+const NO_CYCLE: &str = "cycle/a.ts imports cycle/b.ts";
 
-fn json_config(elements: &[(String, String)]) -> String {
-    let files = |pairs: &[(&str, &str)]| -> serde_json::Value {
-        pairs
-            .iter()
-            .map(|(path, text)| ((*path).to_owned(), serde_json::json!(text)))
-            .collect()
-    };
+/// The rejected example: two files that import each other.
+const CYCLE: &str = "cycle/a.ts imports cycle/b.ts imports cycle/a.ts";
+
+fn json_config(parts: &[(String, String)]) -> String {
     let config = serde_json::json!({
         "$schema": "./node_modules/@enhance-eng/archangel/archangel.schema.json",
-        "elements": elements.iter().map(|(name, pattern)| (name.clone(), serde_json::json!(pattern))).collect::<serde_json::Map<_, _>>(),
+        "parts": parts.iter().map(|(name, pattern)| (name.clone(), serde_json::json!(pattern))).collect::<serde_json::Map<_, _>>(),
         "rules": [{
             "name": "no-cycles",
             "files": "**",
             "noCycles": true,
-            "examples": { "accepted": [files(&NO_CYCLE)], "rejected": [files(&CYCLE)] },
+            "because": BECAUSE,
+            "examples": { "accepted": [NO_CYCLE], "rejected": [CYCLE] },
         }],
     });
     let mut text = serde_json::to_string_pretty(&config).unwrap_or_default();
@@ -184,25 +176,19 @@ fn key(name: &str) -> String {
     }
 }
 
-fn typescript_config(elements: &[(String, String)]) -> String {
-    let files = |pairs: &[(&str, &str)]| {
-        let entries: Vec<String> = pairs
-            .iter()
-            .map(|(path, text)| format!("{}: {}", key(path), quoted(text)))
-            .collect();
-        format!("{{ {} }}", entries.join(", "))
-    };
+fn typescript_config(parts: &[(String, String)]) -> String {
     let mut out = String::from(
-        "import { defineConfig } from '@enhance-eng/archangel';\n\nexport default defineConfig({\n  elements: {\n",
+        "import { defineConfig } from '@enhance-eng/archangel';\n\nexport default defineConfig({\n  parts: {\n",
     );
-    for (name, pattern) in elements {
+    for (name, pattern) in parts {
         let _ = writeln!(out, "    {}: {},", key(name), quoted(pattern));
     }
     let _ = write!(
         out,
-        "  }},\n  rules: ({{ rule }}) => [\n    rule({{\n      name: 'no-cycles',\n      files: '**',\n      noCycles: true,\n      examples: {{\n        accepted: [{}],\n        rejected: [{}],\n      }},\n    }}),\n  ],\n}});\n",
-        files(&NO_CYCLE),
-        files(&CYCLE)
+        "  }},\n  rules: ({{ rule }}) => [\n    rule('no-cycles', {{\n      files: '**',\n      noCycles: true,\n      because: {},\n      examples: {{\n        accepted: [{}],\n        rejected: [{}],\n      }},\n    }}),\n  ],\n}});\n",
+        quoted(BECAUSE),
+        quoted(NO_CYCLE),
+        quoted(CYCLE)
     );
     out
 }

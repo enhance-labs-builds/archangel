@@ -19,8 +19,9 @@ eslint-plugin-boundaries, eslint-plugin-check-file or Steiger.
 
 ## From eslint-plugin-boundaries
 
-- **Elements are the same idea.** A boundaries element type becomes an archangel element, and its
-  capture becomes `{name}` in the pattern. Read [docs/rules.md](rules.md#elements).
+- **Elements become parts.** A boundaries element type becomes an archangel part, and its capture
+  becomes `{name}` in the pattern. The `element-types` rule becomes a table. Read
+  [docs/rules.md](rules.md#tables).
 - **One run checks all files.** You do not run ESLint over each file. `archangel check` reads the
   repository one time.
 
@@ -37,3 +38,14 @@ eslint-plugin-boundaries, eslint-plugin-check-file or Steiger.
   [docs/presets.md](presets.md).
 - **Slices are found by their path.** Each folder in a sliced layer is a slice. Steiger finds slices
   by the segments inside them. The presets spec lists all known differences.
+
+## From archangel 0.1
+
+A 0.1 config still loads. [docs/rules.md](rules.md#older-spellings) lists the new spellings. Two
+results change:
+
+- **`mayOnlyImport` on a part with a capture permits only its own instance.** In 0.1, it permitted
+  each instance. To keep the 0.1 result, add the part to the rule's list.
+- **Type imports follow `verbatimModuleSyntax`.** With this option, `import { type A } from './a'`
+  stays in the compiled code, so it is a runtime import. A rule with `imports: 'runtime'`, a
+  transitive rule, or `noCycles` can then report more.

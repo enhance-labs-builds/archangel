@@ -11,7 +11,7 @@ mod fixtures;
 use std::path::Path;
 
 use archangel_testkit::FixtureRepo;
-use fixtures::{examples_folder, fixture};
+use fixtures::{examples_folder, fixture, fixture_names, markdown_files, read_text};
 use support::run;
 
 const COMMANDS: [&str; 3] = ["check", "test", "rules"];
@@ -44,8 +44,7 @@ fn compare(name: &str, command: &str, got: &str, expected: &str) -> Result<(), S
 fn check_fixture(name: &str, repo: &FixtureRepo) {
     let folder = examples_folder().join(name).join("expected");
     for command in COMMANDS {
-        let expected = std::fs::read_to_string(folder.join(format!("{command}.txt")))
-            .unwrap_or_else(|e| panic!("{name}: {command}: {e}"));
+        let expected = read_text(&folder.join(format!("{command}.txt")));
         let found = run(repo, &[command]);
         if let Err(difference) = compare(name, command, &found.stdout, &expected) {
             panic!("{difference}\n{}{}", found.stdout, found.stderr);
@@ -78,14 +77,10 @@ fn config_blocks(text: &str) -> Vec<(usize, String)> {
 
 /// The text of each fixture's config.
 fn fixture_configs() -> Vec<String> {
-    let mut configs = Vec::new();
-    for entry in std::fs::read_dir(examples_folder()).unwrap() {
-        let config = entry.unwrap().path().join("archangel.config.ts");
-        if config.is_file() {
-            configs.push(std::fs::read_to_string(config).unwrap());
-        }
-    }
-    configs
+    fixture_names()
+        .iter()
+        .map(|name| read_text(&examples_folder().join(name).join("archangel.config.ts")))
+        .collect()
 }
 
 /// A problem for each config block of a doc whose text is the text of no fixture.
@@ -121,20 +116,12 @@ fn a_config_block_with_no_fixture_is_named() {
 }
 
 #[test]
-#[ignore = "passes when task 8.2 writes the docs from the fixtures"]
 fn every_config_example_in_the_docs_is_a_checked_fixture() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let configs = fixture_configs();
-    let mut docs = vec![root.join("README.md")];
-    for entry in std::fs::read_dir(root.join("docs")).unwrap() {
-        let path = entry.unwrap().path();
-        if path.extension().is_some_and(|extension| extension == "md") {
-            docs.push(path);
-        }
-    }
     let mut problems = Vec::new();
-    for doc in docs {
-        let text = std::fs::read_to_string(&doc).unwrap();
+    for doc in std::iter::once(root.join("README.md")).chain(markdown_files(&root.join("docs"))) {
+        let text = read_text(&doc);
         let shown = doc.strip_prefix(&root).unwrap().display().to_string();
         problems.extend(blocks_without_a_fixture(&shown, &text, &configs));
     }
@@ -164,13 +151,12 @@ fn the_small_app_gives_its_documented_output() {
 }
 
 #[test]
-#[ignore = "passes when task 8.2 writes the README from the fixture"]
 fn the_readme_shows_the_small_app_and_its_error() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let readme = std::fs::read_to_string(root.join("README.md")).unwrap();
+    let readme = read_text(&root.join("README.md"));
     let small = examples_folder().join("small-app");
-    let config = std::fs::read_to_string(small.join("archangel.config.ts")).unwrap();
-    let check = std::fs::read_to_string(small.join("expected/check.txt")).unwrap();
+    let config = read_text(&small.join("archangel.config.ts"));
+    let check = read_text(&small.join("expected/check.txt"));
     assert!(
         config_blocks(&readme)
             .iter()
@@ -200,4 +186,11 @@ fn the_enhance3_slice_gives_its_documented_output() {
     let test = run(&repo, &["test"]);
     assert_eq!(test.status, 0, "{}{}", test.stdout, test.stderr);
     check_fixture("enhance3-slice", &repo);
+}
+
+#[test]
+fn every_fixture_gives_its_documented_output() {
+    for name in fixture_names() {
+        check_fixture(&name, &fixture(&name));
+    }
 }

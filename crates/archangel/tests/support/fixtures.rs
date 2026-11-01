@@ -17,6 +17,28 @@ pub(crate) fn examples_folder() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/examples")
 }
 
+/// The text of a file that this repository tracks, which a test compares with what archangel does.
+pub(crate) fn read_text(path: &Path) -> String {
+    std::fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
+}
+
+/// The name of each documented fixture.
+pub(crate) fn fixture_names() -> Vec<String> {
+    std::fs::read_dir(examples_folder())
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect()
+}
+
+/// The Markdown files directly in a folder.
+pub(crate) fn markdown_files(folder: &Path) -> Vec<PathBuf> {
+    std::fs::read_dir(folder)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "md"))
+        .collect()
+}
+
 /// A copy of the fixture at `folder`, without its expected output.
 pub(crate) fn copy_of_folder(folder: &Path) -> FixtureRepo {
     let mut repo = FixtureRepo::new();

@@ -5,25 +5,43 @@ and archangel follows [semantic versioning](https://semver.org/) for its command
 its JSON output (`schemaVersion`) and its language server. The library crates have no stability
 guarantee.
 
-## Unreleased
+## 0.2.0 - 2026-11-01
+
+A config can now read as your architecture, and `archangel rules` shows what it does. Each 0.1
+config still loads, with the two changes of result below. Read
+[docs/migrating.md](docs/migrating.md#from-archangel-01).
 
 ### Added
 
 - Import tables: `mayImport('<table>', rows, options)`, where each row is a rule named
-  `<table>.<row>`, and each table makes the rule `<table>.every-file-has-a-kind`. A kind pattern,
-  such as `**/*.{kind}.ts`, gives each file its kind. The new diagnostic codes are `may-import`,
-  `table-empty` and `table-row-overlap`.
+  `<table>.<row>`. A row is a kind of file, a part or a group. A table row does not need a written
+  example.
+- Kinds: a pattern such as `**/*.{kind}.ts` gives each file its kind. It does not need a file name
+  format, because `src/features/*/{kind}/**` works too.
+- The rule `<table>.every-file-has-a-kind`, which each table makes.
+- `parts`, `groups`, `externals`, `because`, and `rule('<name>', { ... })`. `elements`, `selectors`
+  and `reason` still load until 1.0, and one config cannot mix two spellings of one key.
+- `within` on `mayOnlyImport` and `mayOnlyBeImportedBy`: the area whose imports the rule judges.
+- One-line examples, such as `'src/a.ts imports src/b.ts'`, in place of a set of files.
+- `archangel rules [path]`: each rule as a sentence, with its reason, its place in the config and
+  what it judged, and what no rule judges.
+- `archangel explain <file>:<line>`: each rule that judged one import, and why each other rule did
+  not.
+- A config can have rules and no parts.
+- The diagnostic codes `may-import`, `part-overlap`, `table-empty` and `table-row-overlap`.
+- `archangel init` writes the new spellings and a one-line example.
 
 ### Changed
 
 - `mayOnlyImport` on a part with a capture permits only the files of its own instance. In 0.1, it
-  permitted every instance. To keep the 0.1 result, add the part to the rule's list.
+  permitted each instance. To keep the 0.1 result, add the part to the rule's list.
 
 ### Fixed
 
 - Type imports follow `verbatimModuleSyntax`. With this option, `import { type A } from './a'` and
   `export { type A } from './a'` stay in the compiled code, so they are runtime imports. The file's
   tsconfig decides the mark, so a change to the tsconfig marks the imports again with no parse.
+- In the editor and in `watch`, a change to a tsconfig re-checks the files whose import marks moved.
 
 ## 0.1.1 - 2026-11-01
 
