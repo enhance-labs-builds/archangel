@@ -1,0 +1,1 @@
+0 examples, none failed; 0 rules without a rejected example

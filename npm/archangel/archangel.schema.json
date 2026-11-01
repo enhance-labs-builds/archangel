@@ -1455,7 +1455,10 @@
     },
     {
       "properties": {
-        "rules": true
+        "rules": {
+          "type": "array",
+          "minItems": 1
+        }
       },
       "required": [
         "rules"

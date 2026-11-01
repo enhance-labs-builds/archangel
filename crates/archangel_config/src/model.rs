@@ -45,9 +45,23 @@ pub struct Config {
     pub off: Vec<Rule>,
     /// The tables, in declaration order.
     pub tables: Vec<Table>,
+    /// Whether the config says parts and groups, so that messages say so too.
+    pub says_parts: bool,
 }
 
 impl Config {
+    /// What the config calls a part.
+    #[must_use]
+    pub fn part_word(&self) -> &'static str {
+        if self.says_parts { "part" } else { "element" }
+    }
+
+    /// What the config calls a group.
+    #[must_use]
+    pub fn group_word(&self) -> &'static str {
+        if self.says_parts { "group" } else { "selector" }
+    }
+
     /// A problem for each name of an externals set that is a package of the workspace, which only
     /// a check can know, because an import of it resolves to a repository file.
     #[must_use]
@@ -780,6 +794,19 @@ pub struct Rule {
     pub imports: ImportKinds,
     /// Files the rule must accept and must reject.
     pub examples: Examples,
+    /// Where a builder made the rule, or `None` for a rule that the config writes as data.
+    pub source: Option<RuleSource>,
+    /// Whether the config wrote the rule to replace the preset rule of its name.
+    pub replaces_preset_rule: bool,
+}
+
+/// Where a rule builder was called.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuleSource {
+    /// The full path of the file.
+    pub file: String,
+    /// The line, from 1.
+    pub line: u32,
 }
 
 impl Rule {

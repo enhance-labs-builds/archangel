@@ -1,6 +1,8 @@
 //! One-line examples: `'src/a.ts imports src/b.ts'` becomes the file set it stands for, and is
 //! refused on a rule whose verdict depends on what a file says beyond its imports.
 
+use std::fmt::Write as _;
+
 use crate::model::{Condition, Config, ExampleFiles, FileSet, ImportKinds, Rule, RuleKind, Term};
 use crate::problem::{ConfigProblem, ProblemCode};
 
@@ -79,7 +81,7 @@ pub(crate) fn one_line(line: &str) -> Result<ExampleFiles, String> {
             (*to).to_owned()
         };
         let text = files.entry((*from).to_owned()).or_default();
-        text.push_str(&format!("import '{specifier}';\n"));
+        let _ = writeln!(text, "import '{specifier}';");
     }
     Ok(files)
 }

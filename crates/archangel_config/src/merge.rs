@@ -152,7 +152,7 @@ pub(crate) fn replace(
     problems: &mut Vec<ConfigProblem>,
 ) -> Vec<Rule> {
     let mut rules = preset_rules;
-    for (rule, field, named) in config_rules {
+    for (mut rule, field, named) in config_rules {
         let prefix = rule.name.split_once('/').map(|(prefix, _)| prefix);
         let Some(prefix) = prefix.filter(|_| named) else {
             rules.push(rule);
@@ -169,6 +169,7 @@ pub(crate) fn replace(
             continue;
         }
         if let Some(place) = rules.iter().position(|r| r.name == rule.name) {
+            rule.replaces_preset_rule = true;
             rules[place] = rule;
             continue;
         }

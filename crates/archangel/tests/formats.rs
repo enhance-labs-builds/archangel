@@ -5,6 +5,9 @@
 #[path = "support/cli.rs"]
 mod support;
 
+#[path = "support/fixtures.rs"]
+mod fixtures;
+
 use archangel_testkit::FixtureRepo;
 use serde_json::{Value, json};
 use support::run;
@@ -417,5 +420,92 @@ fn a_diagnostic_about_a_whole_file_names_the_file_and_no_line() {
             "artifactLocation": { "uri": "tsconfig.json", "uriBaseId": "SRCROOT" },
         } }]),
         "the location has a file and no region"
+    );
+}
+
+#[test]
+fn rules_as_json_gives_each_rule_with_its_reach() {
+    let found = run(
+        &fixtures::fixture("small-app"),
+        &["rules", "--format", "json"],
+    );
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    let doc = document(&found.stdout);
+    let views = doc["rules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|rule| rule["name"] == "feature-code.views")
+        .expect("an entry for the row");
+    assert_eq!(
+        views["sentences"][0],
+        "views may import only models, shared, and itself"
+    );
+    assert_eq!(views["table"], "feature-code");
+    assert_eq!(views["row"], "views");
+    assert_eq!(views["file"], "archangel.config.ts");
+    assert!(views["line"].as_u64().unwrap() > 1, "{views}");
+    assert!(
+        views["because"]
+            .as_str()
+            .unwrap()
+            .contains("A view shows a model")
+    );
+    assert_eq!(
+        views["reach"],
+        json!({ "files": 2, "importsJudged": 3, "problems": 1, "exceptions": 0, "baselineMatches": 0 })
+    );
+    assert_eq!(doc["notJudged"], json!({ "files": [], "imports": [] }));
+    assert_eq!(
+        doc["outsidePackages"],
+        json!([{ "name": "react", "imports": 2 }])
+    );
+}
+
+#[test]
+fn explain_of_one_import_as_json() {
+    let found = run(
+        &fixtures::fixture("small-app"),
+        &[
+            "explain",
+            "src/features/cart/views/cart-page.tsx:2",
+            "--format",
+            "json",
+        ],
+    );
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    let doc = document(&found.stdout);
+    let import = &doc["imports"][0];
+    assert_eq!(import["specifier"], "../api/fetch-cart");
+    assert_eq!(
+        import["target"],
+        json!({ "file": "src/features/cart/api/fetch-cart.ts" })
+    );
+    assert_eq!(import["from"]["part"], "feature");
+    assert_eq!(import["from"]["instance"], json!(["cart"]));
+    assert_eq!(
+        import["from"]["kinds"],
+        json!([{ "table": "feature-code", "kind": "views" }])
+    );
+    assert_eq!(
+        import["to"]["kinds"],
+        json!([{ "table": "feature-code", "kind": "api" }])
+    );
+    let of = |name: &str| {
+        let rules = import["rules"].as_array().unwrap();
+        rules
+            .iter()
+            .find(|rule| rule["rule"] == name)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(of("feature-code.views")["verdict"], "refuses");
+    assert_eq!(of("app.feature")["verdict"], "permits");
+    assert_eq!(of("app.shared")["verdict"], "skips");
+    assert!(
+        of("app.shared")["reason"]
+            .as_str()
+            .unwrap()
+            .contains("not in shared")
     );
 }

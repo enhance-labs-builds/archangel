@@ -166,7 +166,7 @@ impl Texts<'_> {
 
     fn of(&self, class: Option<&Classification>) -> String {
         class.map_or_else(
-            || "a file in no element".to_owned(),
+            || format!("a file in no {}", self.architecture.config.part_word()),
             |c| format!("\"{}\"", self.name(c.element)),
         )
     }
@@ -401,6 +401,17 @@ impl RowViolation<'_> {
         (Code::MayImport, message, may)
     }
 
+    /// What the row calls the target of the import.
+    pub(crate) fn target_name(&self) -> String {
+        match self.target() {
+            Target::Row(row) => row.to_owned(),
+            Target::OtherInstance => format!("another instance of {}", self.row),
+            Target::Package(package) => package.to_owned(),
+            Target::NoRow(name) => name,
+            Target::NoPart(path) => path.to_owned(),
+        }
+    }
+
     fn target(&self) -> Target<'_> {
         let table = &self.architecture.config.tables[self.table.index()];
         let Some(path) = self.path else {
@@ -437,7 +448,7 @@ impl RowViolation<'_> {
 }
 
 /// What the row may import: its cells, and its own name unless the table refuses it.
-fn row_permits(rule: &Rule) -> String {
+pub(crate) fn row_permits(rule: &Rule) -> String {
     let cells = rule.sentences[0]
         .condition
         .side()

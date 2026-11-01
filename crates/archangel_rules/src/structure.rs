@@ -489,8 +489,9 @@ impl<'e> Evaluation<'e, '_> {
         let elements = &self.architecture.config.elements;
         let unplaced = if self.classes.classification(path).is_none() && !elements.is_empty() {
             let names: Vec<String> = elements.iter().map(|e| format!("\"{}\"", e.name)).collect();
+            let word = self.architecture.config.part_word();
             format!(
-                ", and it is in no element; the elements are {}",
+                ", and it is in no {word}; the {word}s are {}",
                 names.join(", ")
             )
         } else {

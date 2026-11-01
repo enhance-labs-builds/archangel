@@ -554,25 +554,27 @@ exception that names a removed row gives `exception-unknown-rule`, one that perm
 ```
 $ npx archangel rules
 
-app  2 rows                                                     archangel.config.ts:9
+app  2 rows  archangel.config.ts:9
   because: Features share code only through src/shared, and shared code never depends on a feature.
-  feature may import only shared, and itself in the same instance
-                                          6 files · 7 imports judged · 0 problems · 0 exceptions
-  shared may import only itself
-                                          1 file  · 0 imports judged · 0 problems · 0 exceptions
-  every file in the table's files has a kind with a row
-                                          checks nothing: every file of app is in a row
 
-feature-code  3 rows                                            archangel.config.ts:16
+  app.feature: feature may import only shared, and itself in the same instance
+    6 files · 7 imports judged · 0 problems · 0 exceptions
+  app.shared: shared may import only itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  app.every-file-has-a-kind: every file of app has a row
+    7 files · 0 problems
+
+feature-code  3 rows  archangel.config.ts:16
   because: A view shows a model. Only the api folder talks to the server.
-  views may import only models, shared, and itself
-                                          2 files · 3 imports judged · 1 problem · 0 exceptions
-  models may import only api, shared, and itself
-                                          2 files · 3 imports judged · 0 problems · 0 exceptions
-  api may import only shared, and itself
-                                          2 files · 1 import judged  · 0 problems · 0 exceptions
-  every file in the table's files has a kind with a row
-                                          6 files · 0 problems
+
+  feature-code.views: views may import only models, shared, and itself
+    2 files · 3 imports judged · 1 problem · 0 exceptions
+  feature-code.models: models may import only api, shared, and itself
+    2 files · 3 imports judged · 0 problems · 0 exceptions
+  feature-code.api: api may import only shared, and itself
+    2 files · 1 import judged · 0 problems · 0 exceptions
+  feature-code.every-file-has-a-kind: every file of feature-code has a row
+    6 files · 0 problems
 
 Not judged by any rule: 0 files, 0 imports between repository files.
 Outside packages that no rule names: react (2 imports).
@@ -582,8 +584,9 @@ The command runs a full check, then prints every rule and every row in config or
 left out: its sentence in words, its reason, the file and line where it is written, and its reach.
 A rule written in a preset says so ("from the preset fsd-web"), and a config rule that replaces a
 preset rule says which one it replaces. A rule or row whose files are empty says "checks nothing" and
-why: no file is in <name>, or, for a table's `every-file-has-a-kind` rule, every file of the table
-is in a row. The last lines list the files and imports between repository files that no rule
+why: no file is in <name>. A table's `every-file-has-a-kind` rule counts the files of the table, so
+that its line reads as a result, not as a rule that checks nothing. The config file is no part of
+the architecture, so it is in no list of what no rule judges. The last lines list the files and imports between repository files that no rule
 judges, and, by package, the outside packages that no rule names. With a path, the command prints
 only the rules whose files include a file under that path, and the unjudged files under it; a path
 with no source file under it is refused with status 2, as for any path argument. With
@@ -603,11 +606,12 @@ src/features/cart/views/cart-page.tsx:2  '../api/fetch-cart' -> src/features/car
   target:  part feature (instance cart), kind api in feature-code
   judged by:
     app.feature           permits: the same instance of feature
-    feature-code.views    refuses: api is not in its row (views may import only models, shared)
+    feature-code.views    refuses: api is not in its row (views may import only models, shared, and itself)
   skipped by:
     app.shared            the file is not in shared
     feature-code.models   the file has the kind views, not models
     feature-code.api      the file has the kind views, not api
+    feature-code.every-file-has-a-kind  this rule checks files, not imports
 ```
 
 `archangel explain <file>:<line>` lists every rule: those that judged the import, with the verdict,

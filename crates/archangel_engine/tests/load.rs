@@ -37,8 +37,11 @@ fn json_and_typescript_configs_with_equal_content_load_equal() {
     let repo = FixtureRepo::new()
         .file("archangel.config.ts", TYPESCRIPT_CONFIG)
         .file("archangel.config.json", JSON_CONFIG);
-    let from_ts = load(&repo.join("archangel.config.ts")).expect("the TypeScript config loads");
+    let mut from_ts = load(&repo.join("archangel.config.ts")).expect("the TypeScript config loads");
     let from_json = load(&repo.join("archangel.config.json")).expect("the JSON config loads");
+    // Only a builder call has a line, which is not part of what the rule means.
+    assert!(from_ts.rules[0].source.is_some(), "the builder's line");
+    from_ts.rules[0].source = None;
     assert_eq!(
         format!("{from_ts:?}"),
         format!("{from_json:?}"),

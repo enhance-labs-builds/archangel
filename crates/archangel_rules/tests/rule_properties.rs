@@ -234,6 +234,7 @@ fn import(kind: ImportKind) -> Import {
         kind,
         form: ImportForm::Static,
         line: 1,
+        statement_line: 1,
         column: 1,
         span: (0, 0),
         utf16: (0, 0),

@@ -136,6 +136,8 @@ pub(crate) fn parse_rule(
         link,
         imports,
         examples,
+        source: crate::parse::rule_source(object),
+        replaces_preset_rule: false,
     })
 }
 
@@ -230,8 +232,9 @@ impl Input<'_> {
                 ConfigProblem::new(
                     ProblemCode::RuleNeedsCapture,
                     format!(
-                        "isolate needs an element whose pattern captures a name, such as \
-                         `src/features/{{feature}}/**`, and \"{name}\" has none"
+                        "isolate needs {} whose pattern captures a name, such as \
+                         `src/features/{{feature}}/**`, and \"{name}\" has none",
+                        names.a_part()
                     ),
                 )
                 .at(self.at("element")),
@@ -266,10 +269,11 @@ impl Input<'_> {
         if let Some(id) = element
             && matches!(elements[id.index()].kind, ElementKind::Packages(_))
         {
+            let word = names.part_word();
             problems.push(invalid(
                 &self.at("element"),
                 &format!(
-                    "\"{}\" is a package element; an entry rule needs a file element",
+                    "\"{}\" is a package {word}; an entry rule needs a file {word}",
                     elements[id.index()].name
                 ),
             ));
@@ -405,9 +409,12 @@ impl Input<'_> {
             problems.push(
                 ConfigProblem::new(
                     ProblemCode::RuleNeedsCapture,
-                    "`mustContain` looks in each instance, so `files` must name an element whose \
-                     pattern captures a name, such as `src/features/{feature}/**`; to look in \
-                     each folder, write `folders` instead",
+                    format!(
+                        "`mustContain` looks in each instance, so `files` must name {} whose \
+                         pattern captures a name, such as `src/features/{{feature}}/**`; to look \
+                         in each folder, write `folders` instead",
+                        names.a_part()
+                    ),
                 )
                 .at(self.at("files")),
             );
@@ -738,7 +745,7 @@ impl Input<'_> {
         }
         let options = self.read_options(names, problems);
         let captured = files.is_some_and(|files| captured_element(files, names.elements));
-        self.options_agree(&options, captured, problems);
+        self.options_agree(&options, (captured, names.a_part()), problems);
         (problems.len() == before).then_some(options)
     }
 
@@ -839,7 +846,7 @@ impl Input<'_> {
     fn options_agree(
         &self,
         options: &ImportOptions,
-        captured: bool,
+        (captured, a_part): (bool, &str),
         problems: &mut Vec<ConfigProblem>,
     ) {
         if options.stop_at.is_some() && !options.transitively {
@@ -859,8 +866,11 @@ impl Input<'_> {
             problems.push(
                 ConfigProblem::new(
                     ProblemCode::RuleNeedsCapture,
-                    "`instance` compares the captures at both ends, so `files` must name an \
-                     element whose pattern captures a name, such as `src/features/{feature}/**`",
+                    format!(
+                        "`instance` compares the captures at both ends, so `files` must name \
+                         {a_part} whose pattern captures a name, such as \
+                         `src/features/{{feature}}/**`"
+                    ),
                 )
                 .at(self.at("instance")),
             );

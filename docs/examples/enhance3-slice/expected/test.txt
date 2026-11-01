@@ -1,0 +1,3 @@
+pass  web-uses-api-types-only  rejected #1  apps/api/src/app.ts, apps/web/src/a.ts
+pass  core-not-to-driver  rejected #1  apps/api/src/board/domain/a.entity.ts
+2 examples, none failed; 0 rules without a rejected example

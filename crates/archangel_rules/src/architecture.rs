@@ -4,7 +4,7 @@
 
 use archangel_config::{
     Classification, Condition, Config, ElementId, ElementMatcher, FileSet, ImportKinds,
-    OwnInstance, Pattern, RuleKind, Sentence, Side, Term, package_matches,
+    OwnInstance, Pattern, RuleKind, Sentence, Side, TableId, Term, package_matches,
 };
 use archangel_graph::{Import, ImportGraph, ImportKind, Manifests, Resolution, Work};
 
@@ -300,6 +300,28 @@ impl Architecture {
             .collect()
     }
 
+    /// The kinds of a repository file: each table that gives it one, with the kind.
+    #[must_use]
+    pub fn kinds_of(&self, graph: &ImportGraph, path: &str) -> Vec<(String, String)> {
+        let mut classes = Classes::new();
+        classes.file(Lookup::new(self, graph), path, &mut Work::default());
+        self.kinds_in(&classes, path)
+    }
+
+    /// The kinds of a file that `classes` has classified.
+    pub(crate) fn kinds_in(&self, classes: &Classes, path: &str) -> Vec<(String, String)> {
+        self.config
+            .tables
+            .iter()
+            .enumerate()
+            .filter_map(|(index, table)| {
+                let id = TableId(u32::try_from(index).unwrap_or(u32::MAX));
+                let place = classes.kind_place(path, id)?;
+                Some((table.name.clone(), place.kind.clone()))
+            })
+            .collect()
+    }
+
     /// The rules that an import from the file `from` into `target` breaks, by their index in the
     /// config, without the facts of a graph: a `dependency` option sees no manifest.
     #[must_use]
@@ -510,7 +532,7 @@ impl Architecture {
         }
     }
 
-    fn test(&self, check: &Check, edge: &Edge<'_>, classes: &Classes) -> bool {
+    pub(crate) fn test(&self, check: &Check, edge: &Edge<'_>, classes: &Classes) -> bool {
         let compiled = &self.sentences[check.sentence];
         let sentence = &self.config.rules[compiled.rule].sentences[compiled.sentence];
         match check.test {
@@ -533,7 +555,7 @@ fn in_set(set: usize, class: &ClassKey) -> bool {
 }
 
 /// Whether a file of this class is among a sentence's files.
-fn in_files(compiled: &Compiled, class: &ClassKey) -> bool {
+pub(crate) fn in_files(compiled: &Compiled, class: &ClassKey) -> bool {
     in_set(compiled.files, class)
 }
 

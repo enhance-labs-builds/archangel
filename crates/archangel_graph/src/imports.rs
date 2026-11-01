@@ -57,6 +57,8 @@ pub struct Import {
     pub form: ImportForm,
     /// The line of the specifier, from 1.
     pub line: u32,
+    /// The first line of the statement that holds the specifier, from 1.
+    pub statement_line: u32,
     /// The column of the specifier, from 1, in characters.
     pub column: u32,
     /// The byte offsets of the specifier, quotes included.
@@ -257,6 +259,7 @@ impl Source<'_> {
             },
             form,
             line,
+            statement_line: line,
             column,
             span: (span.start, span.end),
             utf16: self.lines.utf16(self.text, span.start, span.end),
@@ -313,6 +316,7 @@ impl Source<'_> {
                     .typed(request.is_type || statement.all_typed)
                     .with_names(statement.names);
                 import.names_typed = statement.all_typed && !request.is_type && !self.declaration;
+                import.statement_line = self.position(request.statement_span.start).0;
                 facts.imports.push(import);
             }
         }

@@ -3,6 +3,7 @@
 
 mod explain;
 mod init;
+mod rules;
 mod watch;
 mod why;
 
@@ -17,6 +18,7 @@ use crate::{Answer, Format, Options, Outcome, paths};
 
 pub(crate) use explain::run_explain;
 pub(crate) use init::run_init;
+pub(crate) use rules::run_rules;
 pub(crate) use watch::run_watch;
 pub(crate) use why::run_why;
 

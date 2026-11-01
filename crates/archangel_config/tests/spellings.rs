@@ -71,8 +71,12 @@ fn the_new_spellings_mean_the_old_ones() {
            ],
          };",
     );
-    let new = from_loader(&new).expect("the new spellings are valid");
-    let old = from_loader(&old).expect("the old spellings are valid");
+    let mut new = from_loader(&new).expect("the new spellings are valid");
+    let mut old = from_loader(&old).expect("the old spellings are valid");
+    // Each rule keeps the line of its own builder call, which is not part of what it means.
+    for rule in new.rules.iter_mut().chain(old.rules.iter_mut()) {
+        rule.source = None;
+    }
     assert_eq!(meaning(&new), meaning(&old), "one meaning");
     assert_eq!(
         new.rules[0].reason.as_deref(),

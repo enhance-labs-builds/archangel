@@ -8,7 +8,7 @@ use serde_json::{Map, Value};
 use crate::merge::{self, ConfigPart};
 use crate::model::{
     AllowUnresolved, Config, Element, ElementId, ElementKind, ExampleFiles, Examples, Preset, Rule,
-    SelectorId, Table,
+    RuleSource, SelectorId, Table,
 };
 use crate::pattern::Pattern;
 use crate::plugins::{LoadedPlugins, parse_plugins};
@@ -113,6 +113,7 @@ pub fn from_value(value: &Value) -> Result<Config, Vec<ConfigProblem>> {
     let described = merged_plugins(&parts, &mut problems);
     let plugins = parse_plugins(described.as_ref(), &mut problems);
     let mut names = Names::new(&elements, declared.iter().map(|d| d.name.clone()).collect());
+    names.says_parts = says_parts(root);
     names.plugins = LoadedPlugins {
         plugins: &plugins,
         described: described.as_ref(),
@@ -151,6 +152,7 @@ pub fn from_value(value: &Value) -> Result<Config, Vec<ConfigProblem>> {
         presets,
         off,
         tables,
+        says_parts: says_parts(root),
     };
     crate::examples::one_liners_belong(&config, &mut problems);
     finish(config, problems)
@@ -278,6 +280,13 @@ fn elements_field(
     };
     elements.extend(externals_field(source, set, problems));
     elements
+}
+
+/// Whether the config's own words for its parts are the new ones: it writes them, or it writes
+/// neither spelling and no preset.
+fn says_parts(root: &Map<String, Value>) -> bool {
+    let has = |key: &str| root.contains_key(key);
+    has("parts") || has("groups") || !(has("elements") || has("selectors") || has("extends"))
 }
 
 /// What a key of the config calls the things it declares.
@@ -423,7 +432,10 @@ fn declared_selectors<'v>(
         Some((key, _)) => {
             problems.push(invalid(
                 &source.at(key),
-                "must be an object of selector names to definitions",
+                &format!(
+                    "must be an object of {} names to definitions",
+                    if key == "groups" { "group" } else { "selector" }
+                ),
             ));
             Vec::new()
         }
@@ -528,6 +540,15 @@ fn rules_field(
             found.config.push((rule, field, item.get("name").is_some()));
         }
     }
+}
+
+/// Where the loader says that a builder made this rule.
+pub(crate) fn rule_source(object: &Map<String, Value>) -> Option<RuleSource> {
+    let at = object.get("$at")?;
+    Some(RuleSource {
+        file: at.get("file")?.as_str()?.to_owned(),
+        line: u32::try_from(at.get("line")?.as_u64()?).ok()?,
+    })
 }
 
 /// A preset's examples, with their paths moved from its root to the config folder.
@@ -816,8 +837,9 @@ pub(crate) fn unknown_fields(
     problems: &mut Vec<ConfigProblem>,
 ) {
     for key in object.keys() {
-        // The loader writes `$name` for a name given two times, which `parse_rule` refuses.
-        if !allowed.contains(&key.as_str()) && key != "$name" {
+        // The loader writes `$name` for a name given two times, which `parse_rule` refuses, and
+        // `$at` for where a builder was called.
+        if !allowed.contains(&key.as_str()) && key != "$name" && key != "$at" {
             let location = if field.is_empty() {
                 key.clone()
             } else {

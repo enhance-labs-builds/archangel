@@ -12,6 +12,7 @@ import { registerHooks } from 'node:module';
 import { createInterface } from 'node:readline';
 import { Writable } from 'node:stream';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { getCallSites } from 'node:util';
 
 const SCHEMA_VERSION = 1;
 
@@ -48,19 +49,31 @@ registerHooks({
 });
 const files = () => [...imported];
 
+/** Where a builder was called: the first frame outside this loader, in whichever file it is. */
+const caller = () => {
+  const frame = getCallSites(32).find(
+    ({ scriptName }) => scriptName.startsWith('file:') && scriptName !== import.meta.url,
+  );
+  return frame === undefined ? {} : { $at: { file: fileURLToPath(frame.scriptName), line: frame.lineNumber } };
+};
+const located =
+  (build) =>
+  (...args) => ({ ...build(...args), ...caller() });
+
 const list = (value) => (Array.isArray(value) ? value : [value]);
 const builders = {
-  layers: (order, options = {}) => ({ ...options, kind: 'layers', order: list(order) }),
-  isolate: (element, options = {}) => ({ ...options, kind: 'isolate', element }),
-  entry: (element, files, options = {}) => ({ ...options, kind: 'entry', element, files: list(files) }),
-  mayImport: (name, rows, options = {}) => ({ ...options, kind: 'mayImport', name, rows }),
+  layers: located((order, options = {}) => ({ ...options, kind: 'layers', order: list(order) })),
+  isolate: located((element, options = {}) => ({ ...options, kind: 'isolate', element })),
+  entry: located((element, files, options = {}) => ({ ...options, kind: 'entry', element, files: list(files) })),
+  mayImport: located((name, rows, options = {}) => ({ ...options, kind: 'mayImport', name, rows })),
   // @justified intent
   // A name first and a `name` key is two spellings of one key, which the parser refuses, so the
   // second name goes to the parser under a key that no config writes.
-  rule: (first, body) =>
+  rule: located((first, body) =>
     typeof first === 'string'
       ? { ...body, name: first, ...(body?.name === undefined ? {} : { $name: body.name }) }
       : { ...first },
+  ),
   // @justified intent
   // The removed rule kinds keep their builders, so that a config still calling one reaches the
   // parser, whose refusal gives the sentence to write instead.

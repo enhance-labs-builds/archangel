@@ -628,7 +628,7 @@ A table MAY have an area, written with within. Its rows MUST then judge only imp
 - **GIVEN** the enhance3-slice config and the file `apps/api/src/board/domain/board.entity.ts`
 - **WHEN** the developer runs `archangel explain apps/api/src/board/domain/board.entity.ts`
 - **THEN** the output gives the kind `entity` in the table `domain`, and names the rule `domain.entity`
-- **AND** the output shows the row as one `mayOnlyImport` sentence with its cells, the everyRowMayImport cell `apps/api/src/shared/result.ts`, and its own kind in the same instance
+- **AND** the output shows the row as one `mayOnlyImport` sentence with its cells, the everyRowMayImport cell `apps/api/src/shared/result.ts`, and itself, because the kind pattern `**/*.{kind}.ts` makes no instance
 - **TEST** `crates/archangel/tests/cli.rs` › "explain_shows_a_table_row_as_its_sentences"
 
 #### Scenario: Explain a row that may not import itself

@@ -34,8 +34,8 @@ pub use model::{
     AllowUnresolved, Condition, Config, DependencyKind, Element, ElementId, ElementKind,
     ExampleFiles, Examples, ExportKind, FileSet, Folders, ImportKinds, ImportOptions,
     InstanceMatch, KindPattern, KindPlace, NameRule, OwnFiles, OwnInstance, PatternId, Plugin,
-    PluginCondition, PluginUse, Preset, Reads, Rule, RuleKind, Selector, SelectorId, Sentence,
-    Side, SpecifierForm, Table, TableId, Term,
+    PluginCondition, PluginUse, Preset, Reads, Rule, RuleKind, RuleSource, Selector, SelectorId,
+    Sentence, Side, SpecifierForm, Table, TableId, Term,
 };
 pub use names::{NamePart, NamePattern, Owner, Style, placeholders};
 pub use parse::{from_value, nearest, parse_json};

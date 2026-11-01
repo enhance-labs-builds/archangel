@@ -45,7 +45,7 @@ The reach MUST be the count of files in the rule's files, of imports it judged, 
 
 ### Requirement: The rules command says which rules check nothing and where each rule comes from
 
-A rule or row with no file MUST say that it checks nothing, and name the name that has no file. A preset rule MUST name its preset. A config rule that replaces a preset rule MUST name the rule that it replaces. A rule made by a builder MUST name the file and line of the builder call, in whichever file the call is, a helper module included. A rule written as a plain object MUST name the config file only.
+A rule or row with no file MUST say that it checks nothing, and name the name that has no file. A table's `every-file-has-a-kind` rule MUST count the files of the table. A preset rule MUST name its preset. A config rule that replaces a preset rule MUST name the rule that it replaces. A rule made by a builder MUST name the file and line of the builder call, in whichever file the call is, a helper module included. A rule written as a plain object MUST name the config file only.
 
 #### Scenario: A row that checks nothing
 
@@ -78,6 +78,8 @@ A rule or row with no file MUST say that it checks nothing, and name the name th
 ### Requirement: The rules command lists what no rule judges
 
 After the rules, `archangel rules` MUST list each repository file that no rule's files include, and each import between repository files that no rule judged. It MUST list, for each outside package that no rule names, the package and its count of imports.
+
+The config file MUST NOT be in these lists, because it is no part of the architecture.
 
 #### Scenario: A file and an import that no rule judges
 
@@ -190,6 +192,28 @@ In `archangel explain <file>:<line>`, the line MUST be what follows the last col
 - **WHEN** the developer runs `archangel explain src/a:b.ts:2`
 - **THEN** the output explains the import on line 2 of `src/a:b.ts`
 - **TEST** `crates/archangel/tests/cli.rs` › "explain_reads_the_line_after_the_last_colon"
+
+### Requirement: Explain shows a baseline match too
+
+A refused import that the baseline matches MUST show that beside the rule.
+
+#### Scenario: An import under the baseline
+
+- **GIVEN** the small-app fixture after `archangel baseline add`
+- **WHEN** the developer runs `archangel explain src/features/cart/views/cart-page.tsx:2`
+- **THEN** the output shows `feature-code.views` as refusing the import, permitted by the baseline
+- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_one_import_shows_a_baseline_match_beside_the_rule"
+
+### Requirement: The rules command counts folders for a rule about folders
+
+A rule about folders MUST show the count of its folders, and no count of files.
+
+#### Scenario: A rule about folders
+
+- **GIVEN** a rule `{ folders: 'src/*', mustBeNamed: 'kebab-case' }` and the folder `src/one`
+- **WHEN** the developer runs `archangel rules`
+- **THEN** the rule shows 1 folder and 0 problems
+- **TEST** `crates/archangel/tests/rules_command.rs` › "rules_counts_folders_for_a_rule_about_folders"
 
 ### Requirement: Explain of a line with no import fails
 

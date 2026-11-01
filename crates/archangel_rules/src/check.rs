@@ -594,8 +594,9 @@ impl<'a> Run<'a> {
             let definition = self.architecture.definition(*set);
             let message = match origin {
                 Origin::Selector(name) => format!(
-                    "the selector \"{name}\" matches no file ({definition}), so no rule about it \
-                     can fire; fix its definition or remove it"
+                    "the {} \"{name}\" matches no file ({definition}), so no rule about it can \
+                     fire; fix its definition or remove it",
+                    self.architecture.config.group_word()
                 ),
                 Origin::Inline(rule) => format!(
                     "the rule \"{rule}\" names the pattern {definition}, which matches no file, so \
@@ -904,9 +905,10 @@ impl<'a> Run<'a> {
                     .preset_names_matching_nothing
                     .push(element.name.clone());
             } else if !listed {
+                let word = self.architecture.config.part_word();
                 let message = format!(
-                    "the element \"{}\" matches nothing ({what}), so no rule about it can fire; fix the \
-                     pattern or remove the element",
+                    "the {word} \"{}\" matches nothing ({what}), so no rule about it can fire; fix the \
+                     pattern or remove the {word}",
                     element.name
                 );
                 self.other

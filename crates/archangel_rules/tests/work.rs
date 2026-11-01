@@ -211,6 +211,8 @@ fn transitive_walk_count_rejects_a_walk_per_file() {
 
 #[test]
 fn classifying_every_file_again_classifies_each_once_and_keeps_its_class() {
+    #[cfg(feature = "failpoints")]
+    let _quiet = fail::FailScenario::setup();
     let repo = FixtureRepo::new()
         .file("src/a.ts", "")
         .file("src/b.ts", "")
@@ -382,6 +384,8 @@ fn rule_evaluation_count_rejects_a_test_of_every_row() {
 
 #[test]
 fn a_kind_pattern_adds_no_pattern_pass() {
+    #[cfg(feature = "failpoints")]
+    let _quiet = fail::FailScenario::setup();
     let repo = FixtureRepo::new()
         .file("src/a.entity.ts", "import './b.entity';\n")
         .file("src/b.entity.ts", "");
@@ -404,6 +408,8 @@ fn a_kind_pattern_adds_no_pattern_pass() {
 
 #[test]
 fn every_file_has_a_kind_costs_one_structure_evaluation_per_file_with_no_row() {
+    #[cfg(feature = "failpoints")]
+    let _quiet = fail::FailScenario::setup();
     let repo = FixtureRepo::new()
         .file("src/d/a.entity.ts", "import './b.entity';\n")
         .file("src/d/b.entity.ts", "")
@@ -469,6 +475,8 @@ fn inside_rows(n: u64, m: u64, p: u64) -> FixtureRepo {
 
 #[test]
 fn imports_inside_a_captured_row_cost_one_evaluation_each() {
+    #[cfg(feature = "failpoints")]
+    let _quiet = fail::FailScenario::setup();
     let (n, m, p) = (3, 4, 2);
     let repo = inside_rows(n, m, p);
     let first = json!({

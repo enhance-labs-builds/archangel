@@ -1,0 +1,8 @@
+{
+  "name": "enhance3-slice",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "pg": "8.0.0"
+  }
+}

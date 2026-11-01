@@ -6,7 +6,7 @@ use serde_json::{Map, Value};
 use crate::merge::ConfigPart;
 use crate::model::{
     Condition, ElementId, ElementKind, Examples, FileSet, ImportKinds, ImportOptions, KindPattern,
-    OwnFiles, OwnInstance, Rule, RuleKind, Sentence, Side, Table, TableId, Term,
+    OwnFiles, OwnInstance, Rule, RuleKind, RuleSource, Sentence, Side, Table, TableId, Term,
 };
 use crate::parse::{
     nearest, one_spelling, optional_string, parse_examples, rooted, string_list, unknown_fields,
@@ -68,6 +68,7 @@ struct Reading<'r, 'v, 'n> {
 
 /// What a table's rules share.
 struct Shared {
+    source: Option<RuleSource>,
     full_name: String,
     table: TableId,
     files: FileSet,
@@ -198,6 +199,7 @@ impl<'v> Reading<'_, 'v, '_> {
         )
         .map_or("reason", |(key, _)| key);
         Shared {
+            source: crate::parse::rule_source(object),
             default_area,
             full_name: self.full_name.clone(),
             table: self.id,
@@ -533,6 +535,8 @@ impl Shared {
             link: self.link.clone(),
             imports: self.imports,
             examples: Examples::default(),
+            source: self.source.clone(),
+            replaces_preset_rule: false,
         }
     }
 }
