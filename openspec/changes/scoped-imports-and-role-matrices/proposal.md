@@ -1,79 +1,69 @@
-# Proposal: scoped imports and role matrices (archangel 0.2.0)
+# Proposal: scoped imports and import tables (archangel 0.2.0)
 
 ## Why
 
-Haziq Nordin, archangel's author, asked for this change on 2026-11-01, after the 0.1.1 release moved
-a 9,800-file TypeScript monorepo (enhance3) onto archangel. The check works: no problems over 9,677
-files and 51,241 imports, and 688 passing examples. But the config does not read as an architecture.
-It is one line that re-exports an 828-line builder, which reads a 2,896-line vocabulary, globs the
-repository at load time and produces about 380 rules with computed names. A developer who opens a
-config written with archangel should like what they read; three gaps in archangel prevent that:
-
-1. A developer cannot say "these files may import only these, within this part of the code".
-   `mayOnlyImport` judges every import, packages and other apps included, so teams write the double
-   negative `mayNotImport: { all: [area, { not: allowed }] }` instead.
-2. A developer cannot write an import table as one table. A role is a kind of file found by its
-   name, such as a file that ends in `.entity.ts`. A role matrix says, for each role, what its files
-   may import. enhance3 has 9 role tables, which it applies 14 times to different parts of the code,
-   and each row becomes one generated rule. Its package dependencies are the same kind of table, with
-   packages as rows, written as two rules per package.
-3. A developer cannot say "every file here has one of the table's roles" without listing the roles
-   again, so enhance3 has one naming rule per folder that repeats them.
+Haziq Nordin, archangel's author, asked for this change on 2026-11-01. His top requirement: a config
+written with archangel reads as clean and delightful, and a developer can know what their rules are
+and reason about them with confidence. Today enhance3, a 9,800-file monorepo, passes its check, but
+its config is an 828-line builder that produces about 380 rules with computed names. Two cold readers
+tested a proposal for a better interface. Both liked the direction and rated it 2 of 5, because its
+own examples broke its own meaning. So this change writes every meaning down as a tested scenario,
+and makes every config example in the docs a fixture that archangel checks.
 
 ## What Changes
 
-- **`within` on import rules.** `rule({ files: 'entity', mayOnlyImport: ['value-object'], within:
-  'apps/api/src/**' })` judges only the imports whose other end is within that area. A package or a
-  file of another app is not judged by that rule. `within` takes the same values as a rule side, and
-  combines with `names`, `specifier`, `instance`, `dependency` and `imports`. On `mayNotImport` it
-  narrows the side, and on `mayOnlyBeImportedBy` it limits the importers.
-- **A `matrix` shorthand**, beside `layers`, `isolate` and `entry`. The developer writes the table:
-  one row per role, found by one role pattern such as `**/*.{role}.ts`, or, without a role pattern,
-  one row per declared element or selector, such as each package. A row permits exactly what it
-  lists. Each row is a rule named `<matrix>.<row>`, such as `api-domain.entity`, so `off`,
-  exceptions and the baseline can name it.
-- **`everyFileHasARow: true`** makes a matrix refuse a file in its files that no row has, with a
-  message that names the roles the file could have. It is off by default, and the summary then
-  counts such files for each matrix.
-- **Empty rows are declared intent.** A row whose role no file has yet is not an error. The summary
-  lists it. A matrix with no row, or whose rows together match no file, gives the new diagnostic
-  `matrix-empty`, as a preset gives `preset-empty`.
-- **A matrix is proven by its author's examples.** One written rejected example proves a matrix and
-  all its rows, as one proves a `layers` rule. A matrix without one is `rule-unproven`.
-- **Types.** `defineConfig` checks the row names, the cells, the area and the matrix name, with no
-  computed names.
-- **Documentation** in ASD-STE100 Simplified Technical English: `docs/rules.md`, the README where it
-  shows the rule forms, the diagnostic pages and the changelog.
-- **Additive.** Every 0.1 config keeps working and gives the same results. The release is 0.2.0.
+- **Tables.** `mayImport('<table>', { <row>: [<names>] }, { <options> })`. A row is a named group of
+  files: a kind of file, a part or a group, mixed freely. Tables fail closed: an import that a row
+  does not list is refused, and the error names the row, or says "no row for" the target. A row may
+  import itself in the same instance, unless `mayNotImportItself` lists it. `everyRowMayImport`
+  names what every row may also import. Each row is a rule named `<table>.<row>`.
+- **Kinds.** A kind comes from a pattern with `{kind}`, such as `**/*.{kind}.ts`, or from a group.
+  `everyFileHasAKind`, on by default, refuses a file in the table's files that has no row.
+- **Parts, groups and externals.** `parts` and `groups` are the new spellings of `elements` and
+  `selectors`; `externals` names sets of outside packages, matched exactly.
+- **`within`** on an import rule: the area whose imports it judges.
+- **Rules read as sentences**: `rule('<name>', { ... })` and `because`.
+- **`archangel rules [path]`** prints every rule as the sentence it means, with its reason, where it
+  is written, and its reach; a rule that checks nothing says so. **`archangel explain <file>:<line>`**
+  shows every rule that judged or skipped one import, and why.
+- **Exact meaning** for outside packages, overlapping parts, type imports under
+  `verbatimModuleSyntax`, an import that breaks two rules, and where patterns start.
+- **Generated proof**: archangel proves each table row from two repository files.
+- **Checked examples**: every config example in the docs and the README is a fixture under test.
 
-Out of scope: the rewrite of enhance3's config (a later task, which the design estimates at 1,400 to
-1,600 lines and breaks down), examples written as one line, a naming condition that takes a list of
-roles, the VS Code Marketplace, and type-aware rules.
+Every 0.1 config keeps working, except two cases where 0.1 gives a plausible wrong answer; the
+design names both for a decision. The release is 0.2.0.
+
+Out of scope: the rewrite of enhance3's config (estimated at 1,150 to 1,350 lines), one-line
+examples, `mayOnlyImportTypesFrom`, layers and isolate over groups, an explicit word to replace a
+preset rule, a map printed by `archangel init`, and a new capture syntax.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `role-matrices`: the matrix shorthand in both forms: its rows and cells, the names of its rows,
-  `everyFileHasARow`, its empty rows and `matrix-empty`, how `explain` shows it, and what it costs.
+- `import-tables`: tables, rows, cells, kinds, the own-instance permission, `everyFileHasAKind`,
+  overlaps, empty rows and `table-empty`, and their cost.
+- `documentation`: config examples in the docs are checked fixtures.
 
 ### Modified Capabilities
 
-- `architecture-rules`: `within` on `mayNotImport`, `mayOnlyImport` and `mayOnlyBeImportedBy`, its
-  refusals, its cost, and matrix as the fourth shorthand kind.
-- `configuration`: `{role}` may appear twice in a role pattern; other repeated captures stay refused.
-- `rule-examples`: the written rejected example that proves a matrix and its rows.
-- `selectors`: the roles of a matrix are exempt from `selector-empty`.
-- `distribution`: the config types check a matrix and `within`.
+- `architecture-rules`: `within`, the self default of `mayOnlyImport`, one import that breaks
+  several rules, the table as the fourth shorthand.
+- `configuration`: `parts`, `groups`, `externals`, `because`, name-first rules, part overlap, where
+  patterns start, and `{kind}`.
+- `import-graph`: type imports under `verbatimModuleSyntax` and `export type *`.
+- `command-line`: `archangel rules` and `explain` of one import.
+- `rule-examples`: generated proof of table rows.
+- `exceptions-and-baselines`: stale entries for table rows.
+- `selectors`: kinds are exempt from `selector-empty`.
+- `distribution`: the types of the new forms.
 
 ## Impact
 
-- The config gains `within`, the `matrix` kind and `everyFileHasARow`, in the TypeScript types and
-  the JSON schema.
-- The check summary, in text and JSON, gains the matrix rows with no file and the count of files with
-  no row, and `archangel test` names the row that rejected a matrix example.
-- There is one new diagnostic, `matrix-empty`, with its page.
-- The docs, the README, the diagnostic pages, the glossary (area, role, role pattern, matrix, matrix
-  row, cell) and the changelog change, and the version becomes 0.2.0.
+- The config gains the keys and the `mayImport` kind above, in TypeScript and in the JSON schema.
+- New diagnostics: `table-empty`, `table-row-overlap`, `table-name-ambiguous`, `part-overlap`.
+- New command `archangel rules`; `explain` takes `<file>:<line>`.
+- The docs, README, glossary, changelog and diagnostic pages change; the version becomes 0.2.0.
 
 design.md, "Where in the code", lists the files.

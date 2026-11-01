@@ -4,7 +4,7 @@
 
 ### Requirement: A selector that selects nothing is an error where emptiness means a mistake
 
-A selector that the config declares, and an inline pattern in one of its rules, that matches no file MUST give a `selector-empty` diagnostic, except the files of a `mustNotExist` rule and an inline pattern that a rule writes only inside a `not`, because leaving out nothing changes nothing. What a preset declares and the roles of a matrix are exempt, as their specs say. A selector that refers to itself through other selectors MUST be refused with `config-invalid` and the chain of names.
+A selector that the config declares, and an inline pattern in one of its rules, that matches no file MUST give a `selector-empty` diagnostic, except the files of a `mustNotExist` rule and an inline pattern that a rule writes only inside a `not`, because leaving out nothing changes nothing. What a preset declares and the kinds of a table are exempt, as their specs say. A selector that refers to itself through other selectors MUST be refused with `config-invalid` and the chain of names.
 
 #### Scenario: A misspelt pattern
 
@@ -58,9 +58,9 @@ A selector that the config declares, and an inline pattern in one of its rules, 
 - **AND** the result is the same as a full check, and no other file is classified
 - **TEST** `crates/archangel_engine/tests/sessions.rs` › "a_selector_that_empties_in_the_editor_is_reported"
 
-#### Scenario: A role of a matrix that matches nothing
+#### Scenario: A kind of a table that matches nothing
 
-- **GIVEN** a matrix with the role pattern `**/*.{role}.ts` and a row `aggregate-root`, and no file that ends in `.aggregate-root.ts`
+- **GIVEN** a table with the kind pattern `**/*.{kind}.ts` and a row `aggregate-root`, and no file that ends in `.aggregate-root.ts`
 - **WHEN** archangel makes a check
-- **THEN** archangel gives no `selector-empty` diagnostic for the role `aggregate-root`
-- **TEST** `crates/archangel_rules/tests/selectors.rs` › "a_role_of_a_matrix_that_matches_nothing_is_not_selector_empty"
+- **THEN** archangel gives no `selector-empty` diagnostic for the kind `aggregate-root`
+- **TEST** `crates/archangel_rules/tests/selectors.rs` › "a_kind_of_a_table_that_matches_nothing_is_not_selector_empty"

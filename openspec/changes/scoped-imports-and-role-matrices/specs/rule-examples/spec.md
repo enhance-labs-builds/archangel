@@ -2,54 +2,80 @@
 
 ## ADDED Requirements
 
-### Requirement: A matrix needs one rejected example from its author
+### Requirement: Archangel proves each table row from two repository files
 
-A matrix MUST have at least one rejected example that its author writes. Otherwise `archangel test` MUST give one `rule-unproven` diagnostic that names the matrix, and none for its rows. The examples of a matrix MUST run against all its rules: its rows, and the rule of `everyFileHasARow` when the matrix has it. A rejected example of a matrix MUST pass when one of these rules rejects it, and archangel MUST name that rule.
+`archangel test` MUST make one generated proof for each table row that has files. The proof MUST take the first file of the row, in path order, and the first repository file, in path order, that the row refuses. It MUST check that the row rejects an import from the first file to the second, with the in-memory check that every example uses. It MUST print the row, the word "generated" and the two files. A proof that the row does not reject MUST fail, and `archangel test` MUST exit with status 1.
 
-#### Scenario: A matrix without an example of its own
+#### Scenario: The rows of the small app
 
-- **GIVEN** a matrix `api-domain` with the rows `entity` and `policy`, which both have files, and no `examples`
+- **GIVEN** the small-app fixture, which has no written example
 - **WHEN** the developer runs `archangel test`
-- **THEN** archangel gives one `rule-unproven` diagnostic, which names the matrix `api-domain` and says that one written rejected example must show what its roles mean
-- **AND** archangel gives no `rule-unproven` diagnostic for `api-domain.entity` or `api-domain.policy`
-- **AND** archangel exits with status 1
-- **TEST** `crates/archangel/tests/test_command.rs` › "a_matrix_without_a_written_rejected_example_is_unproven"
+- **THEN** archangel prints one generated proof for each of `app.feature`, `feature-code.views`, `feature-code.models` and `feature-code.api`, each with its two files
+- **AND** archangel gives no `rule-unproven` diagnostic, and exits with status 0
+- **TEST** `crates/archangel/tests/test_command.rs` › "each_table_row_is_proven_from_two_repository_files"
+
+#### Scenario: The fault control for generated proof
+
+- **GIVEN** a build of archangel with a fault that drops the sentence of every table row
+- **WHEN** the developer runs `archangel test` on the small-app fixture
+- **THEN** each generated proof fails, and archangel exits with status 1
+- **TEST** `crates/archangel/tests/test_command.rs` › "a_generated_proof_fails_when_its_row_cannot_reject"
+
+### Requirement: A row that cannot be proven yet is listed
+
+A table row with no file, or with no repository file that it refuses, MUST NOT fail `archangel test`. `archangel test` MUST list it as a row that proves nothing yet, with the reason.
+
+#### Scenario: A row with no file
+
+- **GIVEN** the enhance3-slice fixture, with no aggregate-root file
+- **WHEN** the developer runs `archangel test`
+- **THEN** archangel lists `domain.aggregate-root` as a row that proves nothing yet, because no file is in it
+- **AND** this does not change the exit status
+- **TEST** `crates/archangel/tests/test_command.rs` › "a_row_with_no_file_proves_nothing_yet"
+
+#### Scenario: A row that permits every file
+
+- **GIVEN** a table with the part rows `a: ['b']` and `b: ['a']`, on a repository whose files are all in `a` or `b`
+- **WHEN** the developer runs `archangel test`
+- **THEN** archangel lists `a` and `b` as rows that prove nothing yet, because no file is refused
+- **TEST** `crates/archangel/tests/test_command.rs` › "a_row_that_refuses_no_file_proves_nothing_yet"
+
+### Requirement: A written example of a table runs against all its rows
+
+A table MAY have written examples. They MUST run once against all its rules. A rejected example MUST pass when one of these rules rejects it, and archangel MUST name that rule. It MUST fail when none rejects it, and the message MUST say that no row of the table rejected it.
 
 #### Scenario: A written example that one row rejects
 
-- **GIVEN** a matrix `api-domain` with a rejected example in which an entity imports a use case
+- **GIVEN** the enhance3-slice table `domain` with a rejected example in which an entity imports a use case
 - **WHEN** the developer runs `archangel test`
-- **THEN** the example passes, and archangel names `api-domain.entity` as the row that rejected it
-- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_written_matrix_example_passes_when_one_row_rejects_it"
+- **THEN** the example passes, and archangel names `domain.entity` as the row that rejected it
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_written_table_example_passes_when_one_row_rejects_it"
 
 #### Scenario: A written example that no row rejects
 
-- **GIVEN** a matrix `api-domain` whose row `entity` lists `value-object`, with a rejected example in which an entity imports a value object
+- **GIVEN** the same table with a rejected example in which an entity imports a value object
 - **WHEN** the developer runs `archangel test`
-- **THEN** the example fails, and the message says that no row of `api-domain` rejected it
-- **AND** archangel exits with status 1
-- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_written_matrix_example_fails_when_no_row_rejects_it"
+- **THEN** the example fails, and the message says that no row of `domain` rejected it
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_written_table_example_fails_when_no_row_rejects_it"
 
-### Requirement: An accepted example of a matrix passes when no row rejects it
+### Requirement: A written accepted example of a table passes only when a row judged it
 
-An accepted example of a matrix MUST pass when no row of the matrix gives a violation and at least one row judged one of its imports. It MUST fail when a row gives a violation, and archangel MUST name that row. When no row judged an import, it MUST fail with `example-proves-nothing`, and the message MUST name the matrix, say that no row looked at an import of the example, and tell the developer to give it an import from a file of a row into the area, which it names.
+An accepted example of a table MUST pass when no row rejects it and a row judged one of its imports. It MUST fail when a row rejects it, and archangel MUST name that row. When no row judged an import, it MUST fail with `example-proves-nothing`, and the message MUST name the table and say what import to add.
 
 #### Scenario: A written accepted example
 
-- **GIVEN** a matrix `api-domain` whose row `entity` lists `value-object`, with an accepted example in which an entity imports a value object
-- **AND** the same matrix with an accepted example in which an entity imports a use case
+- **GIVEN** the same table with an accepted example in which an entity imports a value object
+- **AND** the same table with an accepted example in which an entity imports a use case
 - **WHEN** the developer runs `archangel test` with each
-- **THEN** the first example passes
-- **AND** the second example fails, and archangel names `api-domain.entity` as the row that rejected it
-- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_written_matrix_accepted_example_passes_when_no_row_rejects_it"
+- **THEN** the first example passes, and the second fails and names `domain.entity`
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_written_table_accepted_example_passes_when_no_row_rejects_it"
 
 #### Scenario: An accepted example that no row judges
 
-- **GIVEN** the matrix `api-domain` with the area `apps/api/src/**`, and an accepted example in which an entity imports only `zod`
+- **GIVEN** the small-app table `feature-code`, and an accepted example in which a view imports only `react`
 - **WHEN** the developer runs `archangel test`
-- **THEN** the example fails with `example-proves-nothing`
-- **AND** the message names `api-domain`, says that no row looked at an import of the example, and says to give it an import from a file of a row into `apps/api/src/**`
-- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_matrix_accepted_example_that_no_row_judges_proves_nothing"
+- **THEN** the example fails with `example-proves-nothing`, and the message names `feature-code` and says to give the example an import from a file of a row into the repository
+- **TEST** `crates/archangel_rules/tests/examples.rs` › "a_table_accepted_example_that_no_row_judges_proves_nothing"
 
 ### Requirement: An accepted example outside a rule's area proves nothing
 
@@ -66,7 +92,7 @@ An accepted example of a rule with an area MUST fail with `example-proves-nothin
 
 ### Requirement: Every rule proves that it can reject
 
-`archangel test` MUST fail when a rule has no rejected example, with a `rule-unproven` diagnostic that names the rule. A rule without a rejected example has no proof that it can find a violation. A matrix row, and the rule of a matrix's `everyFileHasARow`, MUST count the rejected examples of the matrix as their own.
+`archangel test` MUST fail when a rule has no rejected example, with a `rule-unproven` diagnostic that names the rule. A rule without a rejected example has no proof that it can find a violation. A table row, and the rule of a table's `everyFileHasAKind`, MUST NOT need a written rejected example, because the generated proofs prove the rows.
 
 #### Scenario: A rule without a rejected example
 
@@ -76,17 +102,9 @@ An accepted example of a rule with an area MUST fail with `example-proves-nothin
 - **AND** archangel exits with status 1
 - **TEST** `crates/archangel/tests/test_command.rs` › "rule_without_a_rejected_example_is_rule_unproven"
 
-#### Scenario: A matrix row without an example that names it
+#### Scenario: A table without a written example
 
-- **GIVEN** a matrix `api-domain` with one written rejected example, which the row `entity` rejects, and a row `policy` that has files
+- **GIVEN** the enhance3-slice fixture, whose tables have no written example, and whose other rules each have one
 - **WHEN** the developer runs `archangel test`
-- **THEN** archangel gives no `rule-unproven` diagnostic for `api-domain.policy`, because the matrix has a rejected example
-- **AND** archangel exits with status 0 when every example passes
-- **TEST** `crates/archangel/tests/test_command.rs` › "a_matrix_row_is_proven_by_the_examples_of_its_matrix"
-
-#### Scenario: The rule that every file has a row
-
-- **GIVEN** a matrix `api-domain` with `everyFileHasARow: true` and one written rejected example, which the row `entity` rejects
-- **WHEN** the developer runs `archangel test`
-- **THEN** archangel gives no `rule-unproven` diagnostic for `api-domain.every-file-has-a-row`
-- **TEST** `crates/archangel/tests/test_command.rs` › "the_every_file_rule_is_proven_by_the_examples_of_its_matrix"
+- **THEN** archangel gives no `rule-unproven` diagnostic for a row of `workspace` or `domain`, or for `domain.every-file-has-a-kind`
+- **TEST** `crates/archangel/tests/test_command.rs` › "a_table_row_needs_no_written_example"

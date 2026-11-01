@@ -3,118 +3,101 @@
 ## Open questions
 
 Nobody could answer questions while this change was written. Each item below is an assumption
-that the change makes, and what would change if the answer is different.
+that the change makes, and what would change if the answer is different. Items 1 to 12 come from the
+rebuild of round 4; items 13 to 26 are earlier assumptions that still hold, renamed to the new terms.
 
-1. **The option is `within`, and its value is called an area.** The brief says "within a scope".
-   In archangel, "scope" already means a package scope (`'@acme/*'`), and the glossary lists
-   "scope" as a word not to use for a filter. If "scope" is preferred, the glossary must give it a
-   second meaning, which its one-word-one-meaning rule forbids.
-2. **A matrix row permits its own role only when it lists it.** This keeps enhance3's
-   `domain-event` row, which does not list itself, meaning what it means today. `within` on a plain
-   `mayOnlyImport` keeps 0.1's own-files permission. If rows should always permit their own role,
-   the second sentence per row goes away, and the enhance3 rewrite would permit one domain event
-   to import another, which its rules refuse today.
-3. **Row names are `<matrix>.<role>`, and matrix and role names refuse a dot, a colon, a slash
-   and white space.** The colon is refused because exception comments end the rule name at the
-   first colon. A different separator changes only the naming requirement and its tests.
-4. **One written rejected example proves a matrix and all its rows**, as one proves a `layers`
-   rule. A row with files whose cells are wrong is not caught by that example. If per-row proof is
-   wanted, an example that archangel derives for each row from repository files was designed and
-   dropped in round 1 as a new mechanism that the 0.1 precedent does not need.
-5. **Roles come from at most one role pattern with the capture `{role}`.** The capture is filled
-   with each row's name, which gives one literal pattern per role. A matrix without a role pattern
-   has declared elements and selectors as rows (round 3), which covers roles found by a directive
-   or a folder.
-6. **The area includes files that have no row, as targets.** A row refuses an import of an untyped
-   file in the area unless a cell names it. As an importer, a file with no row is judged by no row;
-   `everyFileHasARow` refuses it, and without the option the summary counts it. If rows should judge
-   only imports of files that have a row, an untyped file escapes the table as a target.
-7. **A matrix's `within` is optional; its `files` default to the area's files, or to every file
-   without an area.** Without an area each row judges every import, packages included, as a 0.1
-   `mayOnlyImport` rule does. Round 2 removed the refusal of a matrix without an area, because the
-   config has a clear meaning.
-8. **`within` on `mayNotImport` narrows the side** to `{ all: [side, area] }`. This gives two ways
-   to write one rule; refusing it would refuse a config whose meaning is clear.
-9. **`off` takes row names only.** `off: ['api-domain']` is refused with the closest row names,
-   as any unknown name in `off` is today. Dropping a whole matrix is done by removing it.
-10. **A matrix applies `names`, `specifier`, `instance` and `dependency` to each row**, as it
-    applies `reason`, `link` and `imports`. No measured matrix uses them.
-11. **A role shadows a declared name of the same name inside its own matrix.** `explain` shows
-    which one a cell means. Refusing the collision would hit names such as `types` and `consts`,
-    which enhance3 uses as roles.
-12. **The glossary is not edited by this change folder.** The run that wrote this change could edit
-    only `openspec/changes/scoped-imports-and-role-matrices`. The specs use six new terms (area,
-    role, role pattern, matrix, matrix row, cell) and four shorthand kinds before the
-    glossary has them; task 2.1 adds them first. This is a conflict with the spec rule "add a new
-    term there before a spec uses it", named here and not resolved silently.
-13. **Conflict found: rule names with a colon cannot take an exception.** The exception parser
-    splits `archangel-allow <rule>: <reason>` at the first colon, and the exceptions spec puts no
-    limit on rule names. enhance3's generated names, such as `role:api:domain:entity`, therefore
-    cannot be named by an exception today. This change refuses the colon only in matrix and role
-    names, because refusing it in every rule name would break 0.1 configs. Fixing the parser stays out of
-    0.2, because any reading that lets a name hold a colon changes what some 0.1 comment means, such
-    as `archangel-allow no-legacy:migration`. A follow-up could parse the rule name up to the last
-    `: ` or refuse colons in 0.3 with a deprecation in 0.2.
-14. **Conflict found: enhance3 has 105 naming-suffix rules, not about 45.** The request for round 3
-    says about 45. enhance3's builder (`suffixScopes` in `packages/architecture/archangel.mjs` on its
-    main branch) emits 4 API rules, 4 for the two local-agent apps, 75 for the three frontend apps
-    (4 sliced layers and shared, times 5 segments, times 3 apps), 2 and 4 for the web and extension
-    shared segments, 6 for `packages/ui`, 2 for ui geometry and native, 3 for the SDK, and one each
-    for capture-browser, artwork-paint, canvas-document, figma-import and contract. Written by hand
-    with brace alternatives they are about 26 distinct folder-and-role-list pairs. `everyFileHasARow`
-    replaces 10 generator rules (7 of the 26 pairs); the design names them.
-15. **The length of enhance3's rewritten config is an estimate** of about 1,400 to 1,600 lines,
-    from the counts of tables, rows, cells and the other rules by kind. The previous estimate,
-    1,000 to 1,200 lines, left out written examples, preset overrides and literal file lists. The
-    rewrite will measure it (task 8.1 measures the API and package part).
-16. **The JSON `schemaVersion` stays.** The summary and the test output gain fields; no field
-    changes. If new fields need a new schema version under the project's reading of semver, the
-    compatibility section and task 7.2 change.
-17. **Config field names appear in requirement descriptions.** The spec rules ask to keep code
-    identifiers out of them, but the existing specs name config fields such as `mayOnlyImport`,
-    and this change follows the existing specs.
-18. **The type test is called a unit test.** The task rules list no kind for
+1. **The specs follow the recommendation of each item of "Decisions that need you".** If the owner
+   picks another option, the requirement named in that item and its tests change. Items 5
+   (generated proof), 7 (part overlap), 9 (self default) and 10 (type imports) change the most.
+2. **Conflict found: the owner asked for every change to be additive to 0.1 configs, and two
+   recommendations are not.** The own-instance default of `mayOnlyImport` (item 9) and type imports
+   under `verbatimModuleSyntax` (item 10) change 0.1 results, each because the 0.1 answer is a
+   plausible wrong answer. The design names both, the compatibility test names each fixture they
+   change, and the additive alternative is stated in each item. This is not resolved silently.
+3. **Kinds apply in the whole repository, and a table's `files` choose only the importers.** This is
+   needed for the proposal's own message "no row for use-case", whose target is outside the domain
+   files. If kinds applied only inside `files`, that message would read "no row for api".
+4. **A cell must name a row, a declared name or a path pattern.** So a misspelt cell can never pass,
+   and the types can check every cell. A cell that names a kind with no row is refused, which means
+   enhance3's stated domain table needs a `specification` row (note A below). The other option is to
+   accept any kind name as a cell and list unused ones in the summary, which lets a misspelt cell
+   pass until a file of that kind appears.
+5. **Declared names win over kinds as row keys, and a clash is `table-name-ambiguous`.** The earlier
+   change let a role shadow a declared name. With rows that mix kinds, parts and groups, a declared
+   name must be reachable, so a key that names a part or group means it; when the kind pattern also
+   gives that name to a file, the check refuses the clash instead of choosing.
+6. **Captures other than `{kind}` in a kind pattern make instances.** The earlier change made them
+   wildcards with no instance. One rule, "a capture always names an instance", makes "itself in the
+   same instance" mean the same for parts and kinds.
+7. **A file in two rows of one table is an error, `table-row-overlap`.** The earlier change judged it
+   by both rows. The proposal says one row must say what a file may import; the file is still
+   judged by both rows while the error stands, so no import passes in silence.
+8. **`{kind}` never holds a dot, and a declaration file counts `.d.ts` as its extension.** This makes
+   `board.entity.test.ts` the kind `test` and `board.entity.d.ts` an `entity`. A kind with a dot in
+   it must be written as a group.
+9. **`parts` carries the new meaning and `elements` keeps the old one.** Overlap is an error and
+   presets are separate namespaces only under `parts`, so a 0.1 config keeps its results. A config
+   that moves from `elements` to `parts` sees each overlap as an error, never as a changed verdict.
+10. **The externals rules are archangel's own.** Matching subpaths, refusing a bare built-in name,
+    an `@types/` name and a workspace package's name follow from the 0.1 resolver, which resolves
+    `fs` to `node:fs` and a workspace package to a file. No other tool was copied.
+11. **Generated proof uses the first files in path order.** Path order makes the proof the same on
+    every machine. A row that refuses no existing file proves nothing yet and does not fail
+    `archangel test`. If the owner wants such a row to fail, its requirement changes.
+12. **Deferred, with reasons:** an explicit word to replace a preset rule (it breaks 0.1 configs that
+    replace by name; `archangel rules` shows each replacement), `mayOnlyImportTypesFrom` (the
+    `imports: 'runtime'` option says the same), layers and isolate over groups, one-line examples,
+    the map from `archangel init`, a new capture syntax, and typed builders for a config split
+    across files. The fixtures are one file each for that reason.
+13. **The option is `within`, and its value is called an area.** "Scope" already means a package
+    scope in archangel, and the glossary keeps one word for one meaning.
+14. **Row names are `<table>.<row>`, and table and row names refuse a dot, a colon, a slash and white
+    space.** The colon is refused because exception comments end the rule name at the first colon.
+15. **`within` on `mayNotImport` narrows the side** to `{ all: [side, area] }`.
+16. **`off` takes row names only.** A table name in `off` is refused with the closest row names.
+17. **The options of a table apply to each row**, except `instance`, which a table refuses because
+    each row already permits its own instance.
+18. **The glossary is not edited by this change folder.** The run could edit only this folder. The
+    specs use the new terms (part, group, externals set, area, table, row, cell, kind, kind pattern,
+    reach, generated proof, unjudged) before the glossary has them; task 2.1 adds them first. This
+    is a conflict with the spec rule "add a new term there before a spec uses it", named here.
+19. **Conflict found: rule names with a colon cannot take an exception.** The exception parser splits
+    at the first colon. This change refuses the colon only in table and row names, and fixing the
+    parser stays out of 0.2.
+20. **The JSON `schemaVersion` stays.** The summary gains `rowsWithNoFile` only when the config has a
+    table.
+21. **Config field names appear in requirement descriptions.** The spec rules ask to keep code
+    identifiers out of them, but the existing specs name config fields such as `mayOnlyImport`, and
+    this change follows the existing specs.
+22. **The type test is called a unit test.** The task rules list no kind for
     `npm/archangel/test/types.test-d.ts`; unit is the closest.
-19. **A preset's matrix never gives `matrix-empty`.** `preset-empty` covers a preset, as for its
-    elements. A preset whose matrix is empty while its elements match files passes, and the summary
-    gives one line that names the matrix, with the preset's prefix, and its role pattern.
-20. **Conflict found: the scheduled benchmark does not check enhance3.** The first draft said it
-    reports time on enhance3; `benches/repos.toml` lists vscode, excalidraw and a generated
-    repository. Task 8.1 adds a one-time before-and-after run on enhance3 instead.
-21. **Rows with no file get their own summary field.** The existing list of preset names that match
-    nothing is written to JSON as `presetNamesMatchingNothing`, and renaming that key would change
-    0.1 output. The new key, `rowsWithNoFile`, is left out when the config has no matrix.
-22. **A matrix with no row, or whose rows have no file, fails the check with `matrix-empty`.** This
-    change could not read the brief to confirm that it asks for this error. If it does not, the other
-    option is one summary line, as for a preset's matrix; "Decisions that need you", item 11, states
-    both. An empty table was `config-invalid` until round 3; it now shares this one decision.
-23. **A role pattern takes `{role}` one or more times, and other captures act as wildcards.**
-    `{role}` is filled with the role name as literal text after the pattern is read, so a role name
-    never acts as a wildcard. Another capture matches as `*` does, never an empty part, and gives no
-    instance. A repeated capture name other than `{role}` stays `pattern-invalid`.
-24. **Conflict found: a repeated capture name in a role pattern.** openspec/specs/configuration/spec.md,
-    requirement "Archangel refuses a pattern that cannot mean what it says", makes any capture name
-    two times `pattern-invalid` (test `repeated_capture_name_is_pattern_invalid`), while this change
-    lets `{role}` repeat in a role pattern. The change adds a MODIFIED copy of that requirement in
-    specs/configuration/spec.md that allows the repetition for `{role}` in a role pattern only and
-    keeps the existing scenario and test unchanged.
-25. **A file that two rows have is judged by both.** Each row is an ordinary rule, so this needs no
-    mechanism. If the first row in table order should win, or such a file should be refused, the
-    requirement "A file that two rows have is judged by each row" and its test change ("Decisions
-    that need you", item 6).
-26. **`everyFileHasARow` is off by default, and the summary counts files with no row.** If it should
-    be on by default, the option becomes `everyFileHasARow: false` to turn it off, the summary count
-    goes away, and the default config of every matrix refuses unsuffixed files ("Decisions that need
-    you", item 8). The name was chosen because it is true for both forms of matrix;
-    `everyFileHasARole` is false for a matrix of packages.
-27. **What still makes enhance3's config long is left for later changes.** One-line import examples,
-    a naming condition that takes a list of roles, and a Feature-Sliced Design preset option would
-    each remove one block of the estimate. They are not in this change ("Decisions that need you",
-    item 13).
-28. **Some enhance3 tables need index-file cells in their rows.** Its frontend and ui tables permit,
-    in each row, the index files of the slices and segments that row may use, which its builder
-    computes. The design writes the slice index files out of the area and each segment index file as
-    a declared selector cell. If a derived cell per row is wanted, it is a later feature.
+23. **A preset's table never gives `table-empty`**; `preset-empty` covers the preset.
+24. **Conflict found: a repeated capture name in a kind pattern.** openspec/specs/configuration/spec.md
+    makes any capture name two times `pattern-invalid`; the change's MODIFIED copy allows `{kind}`
+    to repeat in a kind pattern only, and keeps the existing scenario and test.
+25. **Conflict found: the scheduled benchmark does not check enhance3.** Task 9.1 adds a one-time
+    run on enhance3 instead.
+26. **The length of enhance3's rewritten config is an estimate**, about 1,150 to 1,350 lines, from
+    counts of tables, rows, cells and the other rules by kind. The rewrite will measure it.
+27. **The fixture names.** The fixtures are `docs/examples/small-app` and
+    `docs/examples/enhance3-slice`. If enhance3 should not be named in archangel's public docs, the
+    second can be renamed without any other change.
+28. **Line numbers in the design's example output come from the design's own configs.** The
+    fixtures' expected output is the source of truth; the README copy is the one under test.
+
+### Notes for enhance3, not for archangel
+
+A. **The stated domain table names `specification` as a cell and has no row for it.** With
+   `everyFileHasAKind` on, a specification file in the domain folder is refused, and 0.2 refuses a
+   cell that names no row. The fixture adds `specification: ['entity', 'value-object',
+   'aggregate-root', 'types', 'consts']`, the row enhance3's builder has today. enhance3's builder
+   also has `domain-service`, which the stated table leaves out; it needs a row, or its files must
+   leave the table's files.
+B. **The table allows a cycle.** `value-object` may import `error`, and `error` may import
+   `value-object`. A cycle between those kinds passes the table; only a `noCycles` rule catches it.
+C. **A port may not name an aggregate root.** The row `port` lists `entity` but not
+   `aggregate-root`, so a repository port cannot take or return an aggregate root by type. This may
+   be intended; it is recorded so enhance3 can decide.
 
 ## Review log
 
@@ -224,3 +207,32 @@ that the change makes, and what would change if the answer is different.
 13. D5, cold-read (minor): the proposal said enhance3 has five matrices; it now says 9 tables applied 14 times. fixed
 14. D5, cold-read (minor): `matrix-empty` came after the preset exception to it; the two items are swapped (now 11 and 12) and the references updated. fixed
 15. E, kept: `within`, row names `<matrix>.<row>`, one written rejected example per matrix, a row that permits exactly what it lists, and the types; design.md keeps its template shape and proposal.md stays near one page. fixed
+
+### Round 4 (one-line examples)
+
+1. Rebuilt the change around the tested interface proposal: `matrix` becomes `mayImport('<table>', rows, options)`, with the table first and options second. fixed
+2. Renamed role to kind, role pattern to kind pattern (`{kind}`), matrix row to row, `everyFileHasARow` to `everyFileHasAKind`, and `matrix-empty` to `table-empty`; the capability `role-matrices` becomes `import-tables`. fixed
+3. Tables fail closed: a file with a row is judged on every import into the repository, and a target with no row reads "no row for <kind, part or path>". fixed
+4. A row now permits its own name in the same instance unless `mayNotImportItself` lists it, which reverses "a row permits exactly what it lists"; `everyRowMayImport` added. fixed
+5. Rows may mix kinds, parts and groups; declared names win over kinds as keys, and a clash is `table-name-ambiguous`. fixed
+6. Added `parts`, `groups`, `because` and `rule('<name>', { ... })` as the one spelling to 1.0, with mixing refused. fixed
+7. Added `externals` with exact matching of subpaths, scopes and `node:` names, and refusals for bare built-ins, `@types/` and workspace names (B1). fixed
+8. Defined where kinds apply: everywhere as targets, only `files` as importers (B2). fixed
+9. Defined instances for parts and kind patterns, and one self default for tables and `mayOnlyImport`, named as non-additive (B3). fixed
+10. `everyFileHasAKind` on by default; `{kind}` never holds a dot; `.d.ts` counts as one extension; tests and index files leave through `files` (B4). fixed
+11. Made kind rows with no file and part or group rows with no file consistent with `selector-empty` and `element-empty` (B5). fixed
+12. Two parts on one file are `part-overlap` under `parts`; a preset's parts are their own set; two rows on one file are `table-row-overlap` (B6). fixed
+13. Type imports under `verbatimModuleSyntax` and `export type *` specified, named as non-additive (B7). fixed
+14. One import that breaks two rules: two problems, one exception per rule, one baseline entry per rule (B8). fixed
+15. Every pattern starts at the config folder; entry starts at the instance root, defined for parts without a capture (B9). fixed
+16. Kept `{name}` captures, with a scenario for a one-word brace and the clash in "Decisions that need you" (B10). fixed
+17. Added `archangel rules [path]` with reach, no elision, JSON, preset and replacement notes, and the unjudged report (A6, D). fixed
+18. Added `archangel explain <file>:<line>` with judged and skipped rules and reasons (D). fixed
+19. Stale exceptions and baseline entries for removed rows specified as failures; explicit preset replacement deferred with a reason (D). fixed
+20. Generated proof of each table row from two repository files replaces the one written example per table, as the recommendation of item 5. fixed
+21. Every config example in the docs and README becomes a checked fixture; the small app and the enhance3 slice are the payoff fixtures (E). fixed
+22. Showed the small app's config in full with its error and `archangel rules` output, and re-estimated enhance3 at 1,150 to 1,350 lines (F). fixed
+23. "Decisions that need you" rewritten as eleven items, eight from the owner and three found while writing. fixed
+24. Recorded the enhance3 notes: the missing `specification` row, the value-object and error cycle, and a port that cannot name an aggregate root. fixed
+25. Split six requirements over 500 characters so that `openspec validate --strict` passes. fixed
+

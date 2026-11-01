@@ -4,7 +4,7 @@
 
 ### Requirement: A mayOnlyImport rule with an area judges only imports into that area
 
-A `mayOnlyImport` rule MAY have an area, written with `within` and with the values of a rule side. The rule MUST then give a violation only for an import whose other end is in the area, and neither on the other side nor in the rule's own selector. The rule MUST NOT judge an import whose other end is outside the area.
+A `mayOnlyImport` rule MAY have an area, written with `within` and with the values of a rule side. The rule MUST then give a violation only for an import whose other end is in the area, and neither on the other side nor among its own files. The rule MUST NOT judge an import whose other end is outside the area.
 
 #### Scenario: An entity imports a use case
 
@@ -156,35 +156,141 @@ An import whose other end is outside the area of a rule MUST NOT count a rule ev
 
 ### Requirement: A config without the new forms gives the results of 0.1
 
-A config that uses no area and no matrix MUST load, check and test with the same diagnostics, summary, JSON output and exit status as with archangel 0.1.1. The JSON summary of such a config MUST have no key for rows with no file, and no key for files with no row.
+A config that uses none of the new keys, forms and options MUST load, check and test with the same diagnostics, summary, JSON output and exit status as with archangel 0.1.1. Two cases are exempt, and the test MUST name each fixture that they change: a `mayOnlyImport` rule whose files are a part with a capture, and a file whose tsconfig sets `verbatimModuleSyntax`. The JSON summary of such a config MUST have no key for rows with no file.
 
 #### Scenario: The 0.1 test configs
 
 - **GIVEN** the fixtures of `crates/archangel/tests/output.rs` and `crates/archangel/tests/test_command.rs`, with the text and JSON output of `archangel check` and `archangel test` on each, without `--stats`, recorded from main at 0.1.1 before any other commit of this change
 - **WHEN** archangel 0.2.0 runs the same commands
-- **THEN** the standard output and the exit status are the same as the recordings, byte for byte
-- **AND** the JSON summary has no `rowsWithNoFile` key and no `filesWithNoRow` key
+- **THEN** the standard output and the exit status are the same as the recordings, byte for byte, except for the fixtures that the test names with one of the two exempt cases
+- **AND** the JSON summary has no `rowsWithNoFile` key
 - **TEST** `crates/archangel/tests/output.rs` › "configs_without_the_new_forms_give_the_recorded_output"
+
+### Requirement: An area can name an externals set
+
+An area MUST accept the name of an externals set. A `mayOnlyImport` rule whose area names an externals set MUST judge the imports of the packages in that set.
+
+#### Scenario: An area of drivers
+
+- **GIVEN** the externals set `driver` as `['pg', 'drizzle-orm']`, and a rule `rule('drivers-in-infrastructure-only', { files: 'domain', mayOnlyImport: [], within: 'driver' })`
+- **AND** a file in "domain" that imports `pg`, `zod` and a file in "domain"
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation, for the import of `pg`
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_only_import_within_an_externals_set_judges_its_packages"
 
 ## MODIFIED Requirements
 
+### Requirement: A mayOnlyImport rule refuses imports from its files into anything else
+
+A `mayOnlyImport` rule MUST give a violation for each import from a file in its selector into a file or package that is neither on the other side nor its own files in the same instance. Without an area, the rule MUST judge every import, outside packages included. When the selector is a part with a capture, its own files MUST be the files of the same instance; otherwise they MUST be all the files of the selector. An import that does not resolve MUST NOT be a violation of the rule.
+
+#### Scenario: A view imports a store
+
+- **GIVEN** a rule `{ files: 'view', mayOnlyImport: ['shared', { packages: ['react'] }] }`, and a view file that imports a file in "model"
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation that names "shared" and the package `react` as what the file may import
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_only_import_rejects_an_import_outside_its_list"
+
+#### Scenario: A view imports another view and React
+
+- **GIVEN** the same rule, and a view file that imports another view file and `react`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives no violation of that rule
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_only_import_permits_its_list_and_its_own_files"
+
+#### Scenario: A view imports a stylesheet
+
+- **GIVEN** the same rule, and a view file that imports `./button.css`, which exists
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation for the import of `button.css`, because the stylesheet is not in the rule's list
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_only_import_counts_imports_of_non_source_files"
+
+#### Scenario: A view imports a file that does not exist
+
+- **GIVEN** the same rule, and a view file that imports `./missing`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives an `import-unresolved` diagnostic for that import and no violation of the rule
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "an_unresolved_import_is_not_a_condition_violation"
+
+#### Scenario: Without an area, an outside package is judged
+
+- **GIVEN** a rule `{ files: 'view', mayOnlyImport: ['shared'] }` with no area, and a view file that imports `zod`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation for the import of `zod`
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_only_import_without_an_area_judges_outside_packages"
+
+#### Scenario: One feature imports another
+
+- **GIVEN** the part `feature` as `src/features/{feature}/**`, and a rule `{ files: 'feature', mayOnlyImport: ['shared'] }`
+- **AND** the file `src/features/cart/a.ts`, which imports `src/features/cart/b.ts` and `src/features/login/c.ts`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation, for the import of `src/features/login/c.ts`
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_only_import_permits_its_own_files_in_the_same_instance"
+
+### Requirement: One import can break several rules
+
+Archangel MUST check each import against every rule. When an import breaks more than one rule, archangel MUST give one violation for each rule that it breaks, and the summary MUST count each one. A table row is a rule in this count. An exception MUST permit only the violation of the rule that it names. The baseline MUST record one entry for each rule. The order of the rules in the config MUST NOT change the result.
+
+#### Scenario: An import that breaks two rules
+
+- **GIVEN** a layers rule and an entry rule, and one import that breaks both
+- **WHEN** archangel makes a check
+- **THEN** archangel gives two violations for that import, one for each rule
+- **TEST** `crates/archangel_rules/tests/rules.rs` › "one_import_can_break_two_rules"
+
+#### Scenario: An import that breaks a table row and a rule
+
+- **GIVEN** the enhance3-slice config with one more rule, `rule('domain-not-to-application', { files: 'domain', mayNotImport: 'application' })`
+- **AND** a domain entity that imports a use case
+- **WHEN** archangel makes a check
+- **THEN** archangel gives two violations for that import, one of `domain.entity` and one of `domain-not-to-application`, and the summary counts two problems
+- **TEST** `crates/archangel_rules/tests/rules.rs` › "a_table_row_and_a_rule_each_count_for_one_import"
+
+#### Scenario: An exception for one of two rules
+
+- **GIVEN** the same config and import, under the comment `// archangel-allow domain.entity: the move to a port is in progress`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation, of `domain-not-to-application`, and counts one exception for `domain.entity`
+- **TEST** `crates/archangel_rules/tests/rules.rs` › "an_exception_permits_only_the_row_that_it_names"
+
+#### Scenario: A baseline for one import that breaks two rules
+
+- **GIVEN** the same config and import, with no exception
+- **WHEN** the developer runs `archangel baseline add`
+- **THEN** the baseline has one entry for `domain.entity` and one for `domain-not-to-application`, each with the count 1
+- **TEST** `crates/archangel/tests/baseline_command.rs` › "a_baseline_records_one_entry_for_each_rule_that_an_import_breaks"
+
+#### Scenario: A table that does not name a package
+
+- **GIVEN** the enhance3-slice config, whose table `domain` names no externals set, and a domain entity that imports `pg`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation, of `core-not-to-driver`, and none of the table
+- **TEST** `crates/archangel_rules/tests/rules.rs` › "a_table_that_names_no_externals_set_leaves_a_package_to_other_rules"
+
+#### Scenario: The order of the rules
+
+- **GIVEN** a config and the same config with its rules in the opposite order
+- **WHEN** archangel checks one repository with each config
+- **THEN** the two checks give the same diagnostics
+- **TEST** `crates/archangel_rules/tests/rules.rs` › "rule_order_does_not_change_the_result"
+
+#### Scenario: Rules agree with a reference evaluator
+
+- **GIVEN** random configs and random import graphs
+- **WHEN** archangel evaluates the rules
+- **THEN** the violations are the same as the violations that a slow reference evaluator gives
+- **TEST** `crates/archangel_rules/tests/rule_properties.rs` › "violations_agree_with_the_reference_evaluator"
+
 ### Requirement: Each shorthand kind means the sentences that it stands for
 
-Each of the four shorthand kinds, layers, isolate, entry and matrix, MUST give exactly the violations of the sentences it stands for.
+Each of the four shorthand kinds, layers, isolate, entry and mayImport, MUST give exactly the violations of the sentences it stands for.
 
 #### Scenario: Shorthands agree with their sentences
 
-- **GIVEN** random configs written with shorthand kinds, and the same configs written as sentences
+- **GIVEN** random configs written with shorthand kinds, tables included, and the same configs written as sentences
 - **WHEN** archangel checks random repositories with both
 - **THEN** each pair of checks gives the same violations
 - **TEST** `crates/archangel_rules/tests/rule_properties.rs` › "shorthands_agree_with_their_sentences"
-
-#### Scenario: A matrix agrees with the rules that it replaces
-
-- **GIVEN** random matrices with and without a role pattern, and for each row the rule `{ files: { all: [files, row] }, mayNotImport: { all: [area, { not: cells }] } }` under the row's name
-- **WHEN** archangel checks random repositories with both
-- **THEN** each pair of checks gives the same violations under the same rule names
-- **TEST** `crates/archangel_rules/tests/rule_properties.rs` › "a_matrix_agrees_with_one_double_negative_rule_per_row"
 
 ### Requirement: The documentation shows each shorthand as its sentences
 
@@ -197,10 +303,10 @@ The documentation page of each shorthand kind, and `archangel docs` for it, MUST
 - **THEN** it shows `rule({ files: 'feature', mayNotImport: 'feature', instance: 'different' })`
 - **TEST** `crates/archangel_rules/tests/diagnostics.rs` › "each_shorthand_page_shows_its_sentences"
 
-#### Scenario: The matrix page
+#### Scenario: The mayImport page
 
-- **GIVEN** the documentation page for matrix
+- **GIVEN** the documentation page for mayImport
 - **WHEN** the test reads it
-- **THEN** it shows a row that lists its own role as one sentence with `mayOnlyImport` and `within`
-- **AND** it shows a row that does not list its own role as that sentence and one `mayNotImport` sentence of its own files
+- **THEN** it shows a row as one `mayOnlyImport` sentence with its cells and its own name in the same instance
+- **AND** it shows a row that mayNotImportItself lists as that sentence and one `mayNotImport` sentence of its own name
 - **TEST** `crates/archangel_rules/tests/diagnostics.rs` › "each_shorthand_page_shows_its_sentences"
