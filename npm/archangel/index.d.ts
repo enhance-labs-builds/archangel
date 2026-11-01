@@ -1,7 +1,9 @@
 // The types of an archangel config. They check, as the config is written, that every rule names a
-// declared element or selector, that a sentence has exactly one condition, and that an isolate
-// rule names an element with a capture such as `{feature}`. The names inside `selectors` are
-// left to archangel, because checking them here makes TypeScript infer mutable lists for them.
+// declared part or group, that a sentence has exactly one condition, that a table's cells name
+// something, and that an isolate rule names a part with a capture such as `{feature}`. The names
+// inside `groups` are left to archangel, because checking them here makes TypeScript infer mutable
+// lists for them. `parts` and `elements` are two spellings of one key, as are `groups` and
+// `selectors`, and `because` and `reason`: a config uses one spelling of each.
 
 import type { AnyCondition, Plugin } from './plugin.js';
 
@@ -28,6 +30,14 @@ type Captures<S> = S extends string
       ? true
       : false
     : false;
+
+/** The named sets of outside packages. */
+export type Externals = Readonly<Record<string, readonly string[]>>;
+
+/** Each externals set, as the package element it reads as. */
+type ExternalElements<X extends Externals> = {
+  readonly [K in keyof X]: { readonly packages: readonly string[] };
+};
 
 /** The name of a declared element. */
 export type ElementName<E extends Elements> = Extract<keyof E, string>;
@@ -99,21 +109,35 @@ export type Side<E extends Elements, S extends Selectors> =
 /** Files by path, relative to the config folder, with their text. */
 export type ExampleFiles = Readonly<Record<string, string>>;
 
-/** What every rule may have. */
-export interface RuleOptions {
+/** A one-line example, such as `'src/a.ts imports src/b.ts'`, or the files of an example. */
+export type Example = string | ExampleFiles;
+
+/** What the examples of a rule hold. */
+export interface Examples {
+  /** Examples that the rule must accept. */
+  readonly accepted?: readonly Example[];
+  /** Examples that the rule must reject. */
+  readonly rejected?: readonly Example[];
+}
+
+/** Why a rule exists, shown with each violation. A rule has one of the two spellings. */
+type Because =
+  | { readonly because?: string; readonly reason?: never }
+  | { readonly reason?: string; readonly because?: never };
+
+/** What every rule may have, and its reason. */
+export type RuleOptions = CommonOptions & Because;
+
+/** What every rule may have, without its reason. */
+export interface CommonOptions {
   /** The rule's name, for exceptions and the baseline; each rule gives a default. */
   readonly name?: string;
-  /** Why the rule exists, shown with each violation. */
-  readonly reason?: string;
   /** Where to read more, shown with each violation. */
   readonly link?: string;
   /** Which imports the rule checks: all of them, those that stay at runtime, or type imports. */
   readonly imports?: 'all' | 'runtime' | 'types';
-  /** File sets the rule must accept and must reject, which `archangel test` checks. */
-  readonly examples?: {
-    readonly accepted?: readonly ExampleFiles[];
-    readonly rejected?: readonly ExampleFiles[];
-  };
+  /** Examples that the rule must accept and must reject, which `archangel test` checks. */
+  readonly examples?: Examples;
 }
 
 /**
@@ -197,15 +221,21 @@ type NoLimits = { readonly [K in keyof ImportLimits]?: never };
 
 type NoChains = { readonly transitively?: false; readonly stopAt?: never };
 
+type NoArea = { readonly within?: never };
+
+/** The area whose imports an import condition judges: an import outside it passes the rule. */
+type Area<E extends Elements, S extends Selectors> = { readonly within?: Side<E, S> };
+
 /** A rule written as a sentence: `files`, and exactly one condition. */
-export type Sentence<E extends Elements, S extends Selectors> = Omit<RuleOptions, 'imports'> & {
+export type Sentence<E extends Elements, S extends Selectors> = Omit<CommonOptions, 'imports'> & Because & {
   readonly kind?: never;
   /** The files the rule is about. */
   readonly files: Files<E, S>;
 } & (
-    | (Only<Side<E, S>, 'mayNotImport'> & ImportLimits & NoChains & Pick<RuleOptions, 'imports'>)
+    | (Only<Side<E, S>, 'mayNotImport'> & ImportLimits & NoChains & NoArea & Pick<CommonOptions, 'imports'>)
     | (Only<Side<E, S>, 'mayNotImport'> &
-        NoLimits & {
+        NoLimits &
+        NoArea & {
           /** Follow chains of imports, not only direct ones. */
           readonly transitively: true;
           /** Files where a chain ends, such as `{ directive: 'use server' }`. */
@@ -213,24 +243,25 @@ export type Sentence<E extends Elements, S extends Selectors> = Omit<RuleOptions
           /** A chain of type imports never runs, so a transitive rule checks no type imports. */
           readonly imports?: 'all' | 'runtime';
         })
-    | (Only<Side<E, S>, 'mayOnlyImport'> & ImportLimits & NoChains & Pick<RuleOptions, 'imports'>)
+    | (Only<Side<E, S>, 'mayOnlyImport'> & ImportLimits & NoChains & Area<E, S> & Pick<CommonOptions, 'imports'>)
     | (Only<Side<E, S>, 'mayOnlyBeImportedBy'> &
         ImportLimits &
         NoChains &
-        Pick<RuleOptions, 'imports'>)
-    | (Only<Side<E, S>, 'mustBeNamed'> & NoLimits & NoChains & NoImports)
-    | (Only<Side<E, S>, 'mustContain'> & NoLimits & NoChains & NoImports)
-    | (Only<Side<E, S>, 'mustNotExist'> & NoLimits & NoChains & NoImports)
-    | (Only<Side<E, S>, 'mustExport'> & NoLimits & NoChains & NoImports)
-    | (Only<Side<E, S>, 'mayNotExport'> & NoLimits & NoChains & NoImports)
-    | (Only<Side<E, S>, 'mustOnlyReExport'> & NoLimits & NoChains & NoImports)
-    | (Only<Side<E, S>, 'noCycles'> & NoLimits & NoChains & Pick<RuleOptions, 'imports'>)
+        Area<E, S> &
+        Pick<CommonOptions, 'imports'>)
+    | (Only<Side<E, S>, 'mustBeNamed'> & NoLimits & NoChains & NoArea & NoImports)
+    | (Only<Side<E, S>, 'mustContain'> & NoLimits & NoChains & NoArea & NoImports)
+    | (Only<Side<E, S>, 'mustNotExist'> & NoLimits & NoChains & NoArea & NoImports)
+    | (Only<Side<E, S>, 'mustExport'> & NoLimits & NoChains & NoArea & NoImports)
+    | (Only<Side<E, S>, 'mayNotExport'> & NoLimits & NoChains & NoArea & NoImports)
+    | (Only<Side<E, S>, 'mustOnlyReExport'> & NoLimits & NoChains & NoArea & NoImports)
+    | (Only<Side<E, S>, 'noCycles'> & NoLimits & NoChains & NoArea & Pick<CommonOptions, 'imports'>)
   );
 
 type NoImports = { readonly imports?: never };
 
 /** A rule about folders: `folders`, and `mustBeNamed` or `mustContain`. */
-export type FolderSentence = Omit<RuleOptions, 'imports'> & {
+export type FolderSentence = Omit<CommonOptions, 'imports'> & Because & {
   readonly kind?: never;
   readonly files?: never;
   /**
@@ -241,6 +272,7 @@ export type FolderSentence = Omit<RuleOptions, 'imports'> & {
   readonly folders: string | readonly string[];
 } & NoLimits &
   NoChains &
+  NoArea &
   NoImports &
   (
     | (Only<never, 'mustBeNamed'>)
@@ -249,7 +281,7 @@ export type FolderSentence = Omit<RuleOptions, 'imports'> & {
   );
 
 /** A sentence of a rule of several sentences: the rule holds its name, reason and examples. */
-type InnerSentence<T> = T extends unknown ? Omit<T, 'name' | 'reason' | 'link' | 'examples' | 'imports'> : never;
+type InnerSentence<T> = T extends unknown ? Omit<T, 'name' | 'reason' | 'because' | 'link' | 'examples' | 'imports'> : never;
 
 /** A shorthand as one sentence of a rule of several sentences. */
 type InnerShorthand<E extends Elements> =
@@ -258,7 +290,7 @@ type InnerShorthand<E extends Elements> =
   | { readonly kind: 'entry'; readonly element: NoInfer<ElementName<E>>; readonly files: readonly string[] };
 
 /** A rule of several sentences, broken when any of them is, which needs a name. */
-export type SeveralSentences<E extends Elements, S extends Selectors> = Omit<RuleOptions, 'name'> & {
+export type SeveralSentences<E extends Elements, S extends Selectors> = Omit<CommonOptions, 'name'> & Because & {
   readonly kind?: never;
   readonly files?: never;
   /** The rule's name, for exceptions and the baseline. */
@@ -281,9 +313,9 @@ export type ConditionName<P extends Plugins> = {
 
 /** A rule that uses a plugin's condition, whose options the condition's schema checks. */
 export type PluginRule<E extends Elements, S extends Selectors, P extends Plugins> = Omit<
-  RuleOptions,
+  CommonOptions,
   'imports'
-> & {
+> & Because & NoArea & {
   readonly kind?: never;
   /** The files whose records the condition sees. */
   readonly files: Files<E, S>;
@@ -293,7 +325,71 @@ export type PluginRule<E extends Elements, S extends Selectors, P extends Plugin
   readonly options?: unknown;
 };
 
-/** A rule, as an object: one of the three shorthands, a sentence, or a plugin rule. */
+/** A word for a table or a row: any text with no colon and no slash. */
+type NoSeparator<T extends string> = T extends `${string}:${string}` | `${string}/${string}`
+  ? 'the name of a table or a row has no colon or slash'
+  : T;
+
+/** The name of a table. */
+export type TableName<T extends string> = NoSeparator<T>;
+
+/** What a table's rows are, before their names are checked. */
+export type TableRows = Readonly<Record<string, readonly string[]>>;
+
+/** What a cell may name: a row, a declared name, or a path pattern. */
+type TableCell<Row extends string, Declared extends string> = Row | Declared | PathPattern;
+
+/**
+ * The rows `R`, with each cell checked, and each row name checked against `Key`, the row names that
+ * the table permits.
+ */
+type CheckedRows<R extends TableRows, Key extends string, Declared extends string> = {
+  readonly [Row in keyof R]: Row extends string
+    ? Row extends NoSeparator<Row>
+      ? Row extends Key
+        ? readonly TableCell<Extract<keyof R, string>, Declared>[]
+        : 'a row of a table without kinds is a declared part or group'
+      : NoSeparator<Row>
+    : never;
+};
+
+/** A name that a table can use as a row without kinds: a part or a group, not a set of packages. */
+type RowName<E extends Elements, S extends Selectors> = FileElementName<E> | Extract<keyof S, string>;
+
+/** Every name that a cell can use. */
+type DeclaredName<E extends Elements, S extends Selectors> = ElementName<E> | Extract<keyof S, string>;
+
+/** The options of a table with the rows `R`. */
+export type TableOptions<E extends Elements, S extends Selectors, Row extends string> = Omit<CommonOptions, 'name'> &
+  Because &
+  ImportLimits & {
+    /** The files that the table judges as importers; without it, every file with a row. */
+    readonly files?: Files<E, S>;
+    /** The area whose imports the table judges, and without it, the whole repository. */
+    readonly within?: Side<E, S>;
+    /** Cells that every row has, such as a file that all code may use. */
+    readonly everyRowMayImport?: readonly TableCell<NoInfer<Row>, DeclaredName<E, S>>[];
+    /** Rows that may not import their own name, in the same instance or in another. */
+    readonly mayNotImportItself?: readonly NoInfer<Row>[];
+  };
+
+/** A table, as an object. Archangel checks its names when the config loads. */
+export type TableRule = RuleOptions &
+  ImportLimits & {
+    readonly kind: 'mayImport';
+    readonly name: string;
+    readonly rows: TableRows;
+    readonly kinds?: string;
+    readonly files?: unknown;
+    readonly within?: unknown;
+    readonly everyRowMayImport?: readonly string[];
+    readonly mayNotImportItself?: readonly string[];
+  };
+
+/** A rule's body when its name comes first. */
+type Body<T> = T extends unknown ? Omit<T, 'name'> & { readonly name?: never } : never;
+
+/** A rule, as an object: one of the three shorthands, a table, a sentence, or a plugin rule. */
 export type Rule<E extends Elements, S extends Selectors = {}, P extends Plugins = {}> =
   | (RuleOptions & { readonly kind: 'layers'; readonly order: readonly NoInfer<ElementName<E>>[] })
   | (RuleOptions & { readonly kind: 'isolate'; readonly element: NoInfer<CapturedElement<E>> })
@@ -302,6 +398,7 @@ export type Rule<E extends Elements, S extends Selectors = {}, P extends Plugins
       readonly element: NoInfer<ElementName<E>>;
       readonly files: readonly string[];
     })
+  | TableRule
   | Sentence<E, S>
   | FolderSentence
   | SeveralSentences<E, S>
@@ -333,6 +430,26 @@ export interface RuleBuilders<
     files: string | readonly string[],
     options?: RuleOptions & Named<N, X>,
   ): Rule<E, S, P>;
+  /** A table of what each row may import, whose rows are kinds of file, parts or groups. */
+  mayImport<const T extends string, const R extends TableRows>(
+    name: TableName<T>,
+    rows: R & CheckedRows<R, string, DeclaredName<E, S>>,
+    options: TableOptions<E, S, Extract<keyof R, string>> & {
+      /** The pattern that gives a file its kind, such as `**\/*.{kind}.ts`. */
+      readonly kinds: string;
+    },
+  ): Rule<E, S, P>;
+  /** A table whose rows are all parts or groups. */
+  mayImport<const T extends string, const R extends TableRows>(
+    name: TableName<T>,
+    rows: R & CheckedRows<R, RowName<E, S>, DeclaredName<E, S>>,
+    options?: TableOptions<E, S, Extract<keyof R, string>> & { readonly kinds?: never },
+  ): Rule<E, S, P>;
+  /** A rule with its name first: `files`, or `folders`, and exactly one condition. */
+  rule<const N extends string = string>(
+    name: OwnRuleName<N, X>,
+    sentence: Body<Sentence<E, S> | FolderSentence | SeveralSentences<E, S> | PluginRule<E, S, P>>,
+  ): Rule<E, S, P>;
   /** A rule as a sentence: `files`, or `folders`, and exactly one condition or plugin condition. */
   rule<const N extends string = string>(
     sentence: (Sentence<E, S> | FolderSentence | SeveralSentences<E, S> | PluginRule<E, S, P>) &
@@ -351,8 +468,11 @@ export interface Preset<X extends string = string> {
   readonly package?: string;
   /** The folder the preset applies to, relative to the config folder. */
   readonly root?: string;
+  readonly parts?: Elements;
   readonly elements?: Elements;
+  readonly groups?: Selectors;
   readonly selectors?: Selectors;
+  readonly externals?: Externals;
   readonly plugins?: Plugins;
   /** The rules, each with a name. */
   readonly rules?: readonly unknown[] | ((builders: RuleBuilders<Elements, Selectors, Plugins>) => readonly unknown[]);
@@ -377,36 +497,65 @@ export declare function nextjs<const X extends string = 'nextjs'>(options?: {
   readonly root?: string;
 }): Preset<X>;
 
+/** The parts of the code, by file pattern. A part holds files, so it has no packages. */
+export type PartSpecs = Readonly<Record<string, string | readonly string[]>>;
+
+/** One spelling of the parts of the code. */
+type PartsKey<E extends Elements> =
+  | {
+      /** The parts of the code, by file pattern. Each file is in one part. */
+      readonly parts?: E & PartSpecs;
+      readonly elements?: never;
+    }
+  | {
+      /** The same as `parts`, which may also hold packages. */
+      readonly elements?: E;
+      readonly parts?: never;
+    };
+
+/** One spelling of the named sets of files. */
+type GroupsKey<S extends Selectors> =
+  | {
+      /** Named sets of files, which can cross parts, and which rules use by name. */
+      readonly groups?: S;
+      readonly selectors?: never;
+    }
+  | {
+      /** The same as `groups`. */
+      readonly selectors?: S;
+      readonly groups?: never;
+    };
+
 /**
- * An archangel config, which extends the presets named in `X` and names its own rules with the
- * names in `N`.
+ * An archangel config, which extends the presets named in `X`, names its own rules with the names
+ * in `N`, and names the sets of outside packages in `O`.
  */
-export interface Config<
+export type Config<
   E extends Elements,
   S extends Selectors = {},
   P extends Plugins = {},
   X extends string = string,
   N extends string = string,
-> {
-  /** The elements: parts of the code by file pattern, or packages; a config that extends a preset may have none. */
-  readonly elements?: E;
-  /** Named sets of files, which rules and other selectors use by name. */
-  readonly selectors?: S;
-  /** Lines in `.gitignore` syntax that remove files from the check. */
-  readonly ignore?: readonly string[];
-  /** Specifiers that may stay unresolved, each with the reason; a specifier may end in `*`. */
-  readonly allowUnresolved?: Readonly<Record<string, string>>;
-  /** The plugins, by the name the rules use them by, as `plugin: '<name>/<condition>'`. */
-  readonly plugins?: P;
-  /** The presets the config extends; the config's own rules replace preset rules of one name. */
-  readonly extends?: readonly Preset<X>[];
-  /** Rule names to turn off after the presets are merged, such as `fsd/insignificant-slice`. */
-  readonly off?: readonly string[];
-  /** The rules, or a function that builds them. */
-  readonly rules:
-    | readonly (Rule<E, S, P> & Named<N, X>)[]
-    | ((builders: RuleBuilders<E, S, P, X>) => readonly (Rule<E, S, P> & Named<N, X>)[]);
-}
+  O extends Externals = {},
+> = PartsKey<E> &
+  GroupsKey<S> & {
+    /** Named sets of outside packages, such as `{ driver: ['pg', '@aws-sdk/*', 'node:fs'] }`. */
+    readonly externals?: O;
+    /** Lines in `.gitignore` syntax that remove files from the check. */
+    readonly ignore?: readonly string[];
+    /** Specifiers that may stay unresolved, each with the reason; a specifier may end in `*`. */
+    readonly allowUnresolved?: Readonly<Record<string, string>>;
+    /** The plugins, by the name the rules use them by, as `plugin: '<name>/<condition>'`. */
+    readonly plugins?: P;
+    /** The presets the config extends; the config's own rules replace preset rules of one name. */
+    readonly extends?: readonly Preset<X>[];
+    /** Rule or table names to turn off after the presets are merged, such as `fsd/insignificant-slice`. */
+    readonly off?: readonly string[];
+    /** The rules, or a function that builds them. */
+    readonly rules?:
+      | readonly (Rule<E & ExternalElements<O>, S, P> & Named<N, X>)[]
+      | ((builders: RuleBuilders<E & ExternalElements<O>, S, P, X>) => readonly (Rule<E & ExternalElements<O>, S, P> & Named<N, X>)[]);
+  };
 
 /** Declares an archangel config, with types that check its names as it is written. */
 export declare function defineConfig<
@@ -415,4 +564,5 @@ export declare function defineConfig<
   const P extends Plugins = {},
   const X extends string = never,
   const N extends string = string,
->(config: Config<E, S, P, X, N>): Config<E, S, P>;
+  const O extends Externals = {},
+>(config: Config<E, S, P, X, N, O>): Config<E, S, P, string, string, O>;

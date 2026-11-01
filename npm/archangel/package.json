@@ -1,6 +1,6 @@
 {
   "name": "@enhance-eng/archangel",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Make architecture verifiable. Architecture tests for TypeScript, checked in milliseconds: imports, cycles, names, folder structure and exports.",
   "keywords": [
     "architecture",
@@ -53,12 +53,21 @@
     "pluralize": "8.0.0"
   },
   "optionalDependencies": {
-    "@enhance-eng/archangel-darwin-arm64": "0.1.1",
-    "@enhance-eng/archangel-darwin-x64": "0.1.1",
-    "@enhance-eng/archangel-linux-arm64-gnu": "0.1.1",
-    "@enhance-eng/archangel-linux-arm64-musl": "0.1.1",
-    "@enhance-eng/archangel-linux-x64-gnu": "0.1.1",
-    "@enhance-eng/archangel-linux-x64-musl": "0.1.1",
-    "@enhance-eng/archangel-win32-x64": "0.1.1"
+    "@enhance-eng/archangel-darwin-arm64": "0.2.0",
+    "@enhance-eng/archangel-darwin-x64": "0.2.0",
+    "@enhance-eng/archangel-linux-arm64-gnu": "0.2.0",
+    "@enhance-eng/archangel-linux-arm64-musl": "0.2.0",
+    "@enhance-eng/archangel-linux-x64-gnu": "0.2.0",
+    "@enhance-eng/archangel-linux-x64-musl": "0.2.0",
+    "@enhance-eng/archangel-win32-x64": "0.2.0"
+  },
+  "tsd": {
+    "compilerOptions": {
+      "paths": {
+        "@enhance-eng/archangel": [
+          "./index.d.ts"
+        ]
+      }
+    }
   }
 }
