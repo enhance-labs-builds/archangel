@@ -76,13 +76,14 @@ const DEPENDENCIES: [(&str, DependencyKind); 2] = [
     ("undeclared", DependencyKind::Undeclared),
 ];
 
-const OPTIONS: [&str; 6] = [
+const OPTIONS: [&str; 7] = [
     "names",
     "specifier",
     "instance",
     "dependency",
     "transitively",
     "stopAt",
+    "within",
 ];
 
 /// One rule object, with its location in the config.
@@ -539,6 +540,20 @@ impl Input<'_> {
             "mayNotImport" => names
                 .side(value, &field, problems)
                 .map(Condition::MayNotImport),
+            "mayOnlyImport" if lists_nothing(value) => {
+                if self.object.contains_key("within") {
+                    Some(Condition::MayOnlyImport(Side {
+                        text: "nothing".to_owned(),
+                        ..Side::default()
+                    }))
+                } else {
+                    problems.push(invalid(
+                        &field,
+                        "lists nothing; to refuse every import into an area, add `within`",
+                    ));
+                    None
+                }
+            }
             "mayOnlyImport" => names
                 .side(value, &field, problems)
                 .map(Condition::MayOnlyImport),
@@ -731,7 +746,9 @@ impl Input<'_> {
     fn options_belong(&self, condition: &str, problems: &mut Vec<ConfigProblem>) {
         let import_condition = IMPORT_CONDITIONS.contains(&condition);
         for option in OPTIONS.iter().filter(|o| self.object.contains_key(**o)) {
-            if !import_condition {
+            if *option == "within" {
+                self.area_belongs(condition, problems);
+            } else if !import_condition {
                 problems.push(invalid(
                     &self.at(option),
                     &format!("`{option}` limits an import condition, and `{condition}` is not one"),
@@ -743,6 +760,42 @@ impl Input<'_> {
                 ));
             }
         }
+    }
+
+    /// Refuses an area on a condition that it does not limit. `mayNotImport` already writes what
+    /// an area would mean there, so the message gives that form.
+    fn area_belongs(&self, condition: &str, problems: &mut Vec<ConfigProblem>) {
+        let field = self.at("within");
+        if condition == "mayNotImport" {
+            let side = self.object.get(condition).map_or_else(String::new, source);
+            let area = self.object.get("within").map_or_else(String::new, source);
+            problems.push(invalid(
+                &field,
+                &format!(
+                    "`mayNotImport` already names what it refuses, so it takes no area; write \
+                     `mayNotImport: {{ all: [{side}, {area}] }}`"
+                ),
+            ));
+        } else if !IMPORT_CONDITIONS.contains(&condition) {
+            problems.push(invalid(
+                &field,
+                &format!(
+                    "`within` limits the imports that a rule judges, and `{condition}` checks no \
+                     import"
+                ),
+            ));
+        }
+    }
+
+    /// The area of a rule, as a rule side.
+    fn area(&self, names: &mut Names<'_>, problems: &mut Vec<ConfigProblem>) -> Option<Side> {
+        let value = self.object.get("within")?;
+        let field = self.at("within");
+        if lists_nothing(value) {
+            problems.push(invalid(&field, "an area needs at least one value"));
+            return None;
+        }
+        names.side(value, &field, problems)
     }
 
     fn read_options(
@@ -777,6 +830,7 @@ impl Input<'_> {
                 .object
                 .get("stopAt")
                 .and_then(|value| names.file_set(value, &self.at("stopAt"), problems)),
+            within: self.area(names, problems),
         }
     }
 
@@ -1020,6 +1074,31 @@ fn element_names(ids: &[ElementId], elements: &[Element]) -> Vec<String> {
 }
 
 /// Whether a set of files is exactly one element whose pattern has a capture.
+/// Whether a set of files or packages holds no value: an empty list, or an empty `any` or `all`.
+fn lists_nothing(value: &Value) -> bool {
+    let empty = |items: Option<&Value>| items.and_then(Value::as_array).is_some_and(Vec::is_empty);
+    empty(Some(value)) || empty(value.get("any")) || empty(value.get("all"))
+}
+
+/// A value of the config as the config's own text writes it.
+fn source(value: &Value) -> String {
+    match value {
+        Value::String(text) => format!("'{text}'"),
+        Value::Array(items) => {
+            let items: Vec<String> = items.iter().map(source).collect();
+            format!("[{}]", items.join(", "))
+        }
+        Value::Object(object) => {
+            let fields: Vec<String> = object
+                .iter()
+                .map(|(key, value)| format!("{key}: {}", source(value)))
+                .collect();
+            format!("{{ {} }}", fields.join(", "))
+        }
+        other => other.to_string(),
+    }
+}
+
 fn captured_element(files: &FileSet, elements: &[Element]) -> bool {
     files
         .element()

@@ -223,7 +223,10 @@ impl Judge<'_> {
             }
             ExampleKind::Accepted if !considered => {
                 let rule = &self.architecture.config.rules[self.rule];
-                let message = format!("\"{name}\" {}", unchecked(rule));
+                let message = match area_unchecked(rule) {
+                    Some(text) => format!("\"{name}\" {text}"),
+                    None => format!("\"{name}\" {}", unchecked(rule)),
+                };
                 let mut diagnostic = Diagnostic::new(Code::ExampleProvesNothing, message);
                 diagnostic.rule = Some(name.clone());
                 Some(diagnostic)
@@ -237,6 +240,21 @@ impl Judge<'_> {
         diagnostic.rule = Some(self.architecture.config.rules[self.rule].name.clone());
         diagnostic
     }
+}
+
+/// Why an accepted example proves nothing about a rule with an area, which names the area.
+fn area_unchecked(rule: &Rule) -> Option<String> {
+    let sentence = rule.sentences.first()?;
+    let area = &sentence.options.within.as_ref()?.text;
+    let wanted = if matches!(sentence.condition, Condition::MayOnlyBeImportedBy(_)) {
+        format!("from \"{area}\" into the rule's files")
+    } else {
+        format!("from the rule's files into \"{area}\"")
+    };
+    Some(format!(
+        "never looked at an import of this example, so accepting it proves nothing; give the \
+         example an import {wanted}"
+    ))
 }
 
 /// Why an accepted example that its rule never looked at proves nothing, in the terms of what the

@@ -246,3 +246,91 @@ fn classifying_every_file_again_classifies_each_once_and_keeps_its_class() {
         "each file is counted once in its class, as before"
     );
 }
+
+/// The evaluations of a check where entity files have `imports` package imports, all outside the
+/// area of the one rule that could judge them.
+fn area_evaluations(imports: usize) -> u64 {
+    let text = (0..imports).fold(String::new(), |text, i| {
+        text + "import 'pkg"
+            + &(i % 7).to_string()
+            + "';
+"
+    });
+    let mut repo = FixtureRepo::new()
+        .file(".gitignore", "node_modules/\n")
+        .file("src/entity/a.ts", &text)
+        .file("src/value/v.ts", "")
+        .file("apps/api/src/b.ts", "");
+    for i in 0..7 {
+        repo = repo
+            .file(
+                &format!("node_modules/pkg{i}/package.json"),
+                &format!(r#"{{ "name": "pkg{i}", "main": "index.js" }}"#),
+            )
+            .file(&format!("node_modules/pkg{i}/index.js"), "");
+    }
+    let config = json!({
+        "elements": { "entity": "src/entity/**", "value-object": "src/value/**" },
+        "rules": [{ "files": "entity", "mayOnlyImport": ["value-object"], "within": "apps/api/src/**" }],
+    });
+    support::check(&config, &repo, None).1.rule_evaluations
+}
+
+fn area_counts_match() -> Result<(), String> {
+    let (few, many) = (area_evaluations(10), area_evaluations(1000));
+    if few == many {
+        Ok(())
+    } else {
+        Err(format!(
+            "{few} evaluations for 10 imports, {many} for 1,000"
+        ))
+    }
+}
+
+#[test]
+fn imports_outside_an_area_cost_no_rule_evaluation() {
+    #[cfg(feature = "failpoints")]
+    let _quiet = fail::FailScenario::setup();
+    assert_eq!(
+        area_counts_match(),
+        Ok(()),
+        "the same work for 10 and 1,000"
+    );
+}
+
+#[cfg(feature = "failpoints")]
+#[test]
+fn rule_evaluation_count_rejects_an_area_test_per_import() {
+    let scenario = fail::FailScenario::setup();
+    fail::cfg("rules::area_per_import", "return").unwrap();
+    let result = area_counts_match();
+    scenario.teardown();
+    assert!(result.is_err(), "the count catches an area test per import");
+}
+
+/// The evaluations of `count` imports inside one captured part, under a `mayOnlyImport` rule.
+fn captured_evaluations(count: usize) -> u64 {
+    let mut repo = FixtureRepo::new().file("src/shared/s.ts", "");
+    let mut text = String::new();
+    for i in 0..count {
+        text = text + "import './b" + &i.to_string() + "';\n";
+        repo = repo.file(&format!("src/features/cart/b{i}.ts"), "");
+    }
+    repo = repo.file("src/features/cart/a.ts", &text);
+    let config = json!({
+        "parts": { "feature": "src/features/{feature}/**", "shared": "src/shared/**" },
+        "rules": [{ "files": "feature", "mayOnlyImport": ["shared"] }],
+    });
+    support::check(&config, &repo, None).1.rule_evaluations
+}
+
+#[test]
+fn imports_inside_a_captured_part_cost_one_evaluation_each() {
+    #[cfg(feature = "failpoints")]
+    let _quiet = fail::FailScenario::setup();
+    assert_eq!(
+        (captured_evaluations(10), captured_evaluations(30)),
+        (10, 30),
+        "one evaluation for each import inside the instance"
+    );
+}

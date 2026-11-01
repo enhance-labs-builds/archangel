@@ -189,27 +189,48 @@ impl Texts<'_> {
             .side()
             .map(|side| self.side(side))
             .unwrap_or_default();
+        let area_text = sentence.options.within.as_ref().map(|area| &area.text);
+        let area = area_text.map_or_else(String::new, |area| format!(", within \"{area}\""));
+        let importers = area_text.map_or_else(String::new, |area| {
+            format!(", among the importers in \"{area}\"")
+        });
         let manifest = sentence
             .options
             .dependency
             .map(|kind| self.manifest(file, kind))
             .unwrap_or_default();
         match &sentence.condition {
-            Condition::MayOnlyImport(_) => (
-                Code::MayOnlyImport,
-                format!(
-                    "{file} may not import \"{specifier}\", because files in \"{files}\" may only \
-                     import {side} and each other"
-                ),
-                format!("files in \"{files}\" may import only {side} and each other"),
-            ),
+            Condition::MayOnlyImport(_) => {
+                let own = if sentence.files.element().is_some_and(|element| {
+                    self.architecture.config.elements[element.index()].has_capture()
+                }) {
+                    "other files in the same instance"
+                } else {
+                    "each other"
+                };
+                let may = if side.is_empty() {
+                    own.to_owned()
+                } else {
+                    format!("{side} and {own}")
+                };
+                (
+                    Code::MayOnlyImport,
+                    format!(
+                        "{file} may not import \"{specifier}\", because files in \"{files}\" may \
+                         only import {may}{area}"
+                    ),
+                    format!("files in \"{files}\" may import only {may}{area}"),
+                )
+            }
             Condition::MayOnlyBeImportedBy(_) => (
                 Code::MayOnlyBeImportedBy,
                 format!(
                     "{file} may not import \"{specifier}\", because only {side} and files in \
-                     \"{files}\" may import files in \"{files}\""
+                     \"{files}\" may import files in \"{files}\"{importers}"
                 ),
-                format!("only {side} and files in \"{files}\" may import files in \"{files}\""),
+                format!(
+                    "only {side} and files in \"{files}\" may import files in \"{files}\"{importers}"
+                ),
             ),
             _ => (
                 Code::MayNotImport,

@@ -156,7 +156,7 @@ A config that uses none of the new keys, forms and options MUST load, check and 
 
 ### Requirement: An area can name an externals set
 
-An area MUST accept the name of an externals set. A `mayOnlyImport` rule whose area names an externals set MUST judge the imports of the packages in that set.
+An area MUST accept the name of an externals set. A `mayOnlyImport` rule whose area names an externals set MUST judge the imports of the packages in that set. The list of a `mayOnlyImport` rule MAY be empty only when the rule has an area: the rule then refuses every import into the area, except of its own files. Without an area, an empty list MUST stay `config-invalid`, and its message MUST name `within`.
 
 #### Scenario: An area of drivers
 
@@ -165,6 +165,25 @@ An area MUST accept the name of an externals set. A `mayOnlyImport` rule whose a
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation, for the import of `pg`
 - **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_only_import_within_an_externals_set_judges_its_packages"
+
+#### Scenario: An empty list without an area
+
+- **GIVEN** a rule `{ files: 'entity', mayOnlyImport: [] }`
+- **AND** the same rule with `within: 'src/**'`
+- **WHEN** archangel loads each config
+- **THEN** the first gives `config-invalid` at `mayOnlyImport`, whose message names `within`, and the second loads
+- **TEST** `crates/archangel_config/tests/validate.rs` › "an_empty_may_only_import_needs_an_area"
+
+### Requirement: A package in an area must exist somewhere
+
+A package that an area names MUST give the `element-empty` diagnostic that a package on a rule side gives, when no import uses it and no package manifest lists it, because a misspelt package in an area stops the rule from judging it.
+
+#### Scenario: A misspelt package in an area
+
+- **GIVEN** a rule with `within: [{ packages: ['zodd'] }]`, and a repository where no import uses `zodd` and no manifest lists it
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one `element-empty` diagnostic that names the rule and `zodd`
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "an_area_package_that_no_import_uses_and_no_manifest_lists_is_an_error"
 
 ## MODIFIED Requirements
 

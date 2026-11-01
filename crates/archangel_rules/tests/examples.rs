@@ -761,3 +761,32 @@ fn an_accepted_example_its_rule_never_checks_is_told_what_the_rule_looks_at() {
         );
     }
 }
+
+#[test]
+fn an_accepted_example_outside_the_area_proves_nothing() {
+    let repo = FixtureRepo::new()
+        .file(".gitignore", "node_modules/\n")
+        .file(
+            "node_modules/zod/package.json",
+            r#"{ "name": "zod", "main": "index.js" }"#,
+        )
+        .file("node_modules/zod/index.js", "")
+        .file("src/value/v.ts", "")
+        .file("apps/api/src/a.ts", "");
+    let config = json!({
+        "elements": { "entity": "src/entity/**", "value-object": "src/value/**" },
+        "rules": [{
+            "name": "entities", "files": "entity", "mayOnlyImport": ["value-object"],
+            "within": "apps/api/src/**",
+            "examples": { "accepted": [{ "src/entity/a.ts": "import 'zod';\n" }] },
+        }],
+    });
+    let (outcomes, _) = examples_of(&config, &repo);
+    let failure = outcomes[0].failure.as_ref().expect("the example fails");
+    assert_eq!(failure.code, Code::ExampleProvesNothing, "{failure:?}");
+    assert!(failure.message.contains("apps/api/src/**"), "{failure:?}");
+    assert!(
+        failure.message.contains("from the rule's files into"),
+        "{failure:?}"
+    );
+}

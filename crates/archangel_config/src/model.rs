@@ -348,6 +348,9 @@ pub struct ImportOptions {
     pub transitively: bool,
     /// The files where a chain ends without following their imports.
     pub stop_at: Option<FileSet>,
+    /// The area: only imports whose other end is in it, for `mayOnlyImport` the target and for
+    /// `mayOnlyBeImportedBy` the importer.
+    pub within: Option<Side>,
 }
 
 impl ImportOptions {

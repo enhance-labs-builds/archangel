@@ -356,7 +356,7 @@ fn a_field_after_a_number_or_a_boolean_has_its_own_line_and_column() {
                  files, folders, name, reason, because, link, imports, examples, mayNotImport, \
                  mayOnlyImport, mayOnlyBeImportedBy, mustBeNamed, mustContain, mustNotExist, \
                  mustExport, mayNotExport, mustOnlyReExport, noCycles, names, specifier, \
-                 instance, dependency, transitively, stopAt"
+                 instance, dependency, transitively, stopAt, within"
             ),
         ],
         "a value of several characters is one array item, and a value right before `}}` does not \
@@ -765,7 +765,7 @@ fn a_problem_displays_as_its_code_its_field_and_its_message() {
              are files, folders, name, reason, because, link, imports, examples, mayNotImport, \
              mayOnlyImport, mayOnlyBeImportedBy, mustBeNamed, mustContain, mustNotExist, \
              mustExport, mayNotExport, mustOnlyReExport, noCycles, names, specifier, instance, \
-             dependency, transitively, stopAt"
+             dependency, transitively, stopAt, within"
                 .to_owned(),
             "config-missing: no config in /repo or any folder above it; archangel looks for \
              archangel.config.ts, archangel.config.mts, archangel.config.js, archangel.config.mjs, \
@@ -1161,4 +1161,95 @@ fn parts_refuse_packages() {
     assert_eq!(found.code, ProblemCode::ConfigInvalid, "{found:?}");
     assert_eq!(found.field.as_deref(), Some("parts.react"), "{found:?}");
     assert!(found.message.contains("`externals`"), "{}", found.message);
+}
+
+#[test]
+fn within_on_a_condition_that_checks_no_import_is_refused() {
+    let found = only_problem(&json!({
+        "elements": declared_elements(),
+        "rules": [{ "files": "src/**", "mustBeNamed": "kebab-case", "within": "src/**" }],
+    }));
+    assert_eq!(found.code, ProblemCode::ConfigInvalid, "{found:?}");
+    assert_eq!(found.field.as_deref(), Some("rules[0].within"), "{found:?}");
+    assert!(found.message.contains("`mustBeNamed`"), "{}", found.message);
+    assert!(
+        found.message.contains("checks no import"),
+        "{}",
+        found.message
+    );
+}
+
+#[test]
+fn within_on_may_not_import_is_refused_with_the_narrowed_side_as_the_fix() {
+    let found = only_problem(&json!({
+        "elements": { "entity": "src/entity/**", "use-case": "src/use-case/**" },
+        "rules": [{ "files": "entity", "mayNotImport": "use-case", "within": "apps/api/src/**" }],
+    }));
+    assert_eq!(found.code, ProblemCode::ConfigInvalid, "{found:?}");
+    assert_eq!(found.field.as_deref(), Some("rules[0].within"), "{found:?}");
+    assert!(
+        found
+            .message
+            .contains("mayNotImport: { all: ['use-case', 'apps/api/src/**'] }"),
+        "{}",
+        found.message
+    );
+}
+
+#[test]
+fn within_naming_an_undeclared_selector_is_refused_with_the_closest_name() {
+    let found = only_problem(&json!({
+        "elements": { "entity": "src/entity/**", "value-object": "src/value/**" },
+        "selectors": { "api-src": "apps/api/src/**" },
+        "rules": [{ "files": "entity", "mayOnlyImport": ["value-object"], "within": "api-scr" }],
+    }));
+    assert_eq!(found.code, ProblemCode::RuleUnknownElement, "{found:?}");
+    assert_eq!(found.field.as_deref(), Some("rules[0].within"), "{found:?}");
+    assert!(found.message.contains("api-src"), "{}", found.message);
+}
+
+#[test]
+fn an_empty_area_is_refused() {
+    for area in [json!([]), json!({ "any": [] })] {
+        let found = only_problem(&json!({
+            "elements": { "entity": "src/entity/**", "value-object": "src/value/**" },
+            "rules": [{ "files": "entity", "mayOnlyImport": ["value-object"], "within": area }],
+        }));
+        assert_eq!(found.code, ProblemCode::ConfigInvalid, "{found:?}");
+        assert!(
+            found
+                .field
+                .as_deref()
+                .is_some_and(|f| f.starts_with("rules[0].within")),
+            "{found:?}"
+        );
+        assert!(
+            found.message.contains("at least one value"),
+            "{}",
+            found.message
+        );
+    }
+}
+
+#[test]
+fn an_empty_may_only_import_needs_an_area() {
+    let found = only_problem(&json!({
+        "elements": { "entity": "src/entity/**" },
+        "rules": [{ "files": "entity", "mayOnlyImport": [] }],
+    }));
+    assert_eq!(found.code, ProblemCode::ConfigInvalid, "{found:?}");
+    assert_eq!(
+        found.field.as_deref(),
+        Some("rules[0].mayOnlyImport"),
+        "{found:?}"
+    );
+    assert!(found.message.contains("`within`"), "{}", found.message);
+    let with_area = json!({
+        "elements": { "entity": "src/entity/**" },
+        "rules": [{ "files": "entity", "mayOnlyImport": [], "within": "src/**" }],
+    });
+    assert!(
+        parse_json(&with_area.to_string()).is_ok(),
+        "an empty list with an area"
+    );
 }

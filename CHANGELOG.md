@@ -5,6 +5,13 @@ and archangel follows [semantic versioning](https://semver.org/) for its command
 its JSON output (`schemaVersion`) and its language server. The library crates have no stability
 guarantee.
 
+## Unreleased
+
+### Changed
+
+- `mayOnlyImport` on a part with a capture permits only the files of its own instance. In 0.1, it
+  permitted every instance. To keep the 0.1 result, add the part to the rule's list.
+
 ## 0.1.1 - 2026-11-01
 
 ### Fixed

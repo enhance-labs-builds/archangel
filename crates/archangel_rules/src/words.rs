@@ -50,6 +50,9 @@ impl Architecture {
             }
             None => {}
         }
+        if let Some(area) = &options.within {
+            let _ = write!(text, " within {}", area.text);
+        }
         if options.transitively {
             text.push_str(", directly or through other files");
         }

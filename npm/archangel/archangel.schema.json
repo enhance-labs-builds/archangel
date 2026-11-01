@@ -415,8 +415,16 @@
                 "$ref": "#/definitions/examples"
               },
               "mayOnlyImport": {
-                "$ref": "#/definitions/side",
-                "description": "All that the files may import, besides each other."
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/side"
+                  },
+                  {
+                    "type": "array",
+                    "maxItems": 0
+                  }
+                ],
+                "description": "All that the files may import, besides each other. An empty list needs `within`."
               },
               "names": {
                 "type": "array",
@@ -449,6 +457,10 @@
                   "undeclared"
                 ],
                 "description": "Only imports of packages that the importing file's nearest package.json lists only as development dependencies, or does not list at all."
+              },
+              "within": {
+                "$ref": "#/definitions/side",
+                "description": "The area: only imports whose other end is in it. On `mayOnlyImport` the target, and on `mayOnlyBeImportedBy` the importer."
               }
             }
           },
@@ -527,6 +539,10 @@
                   "undeclared"
                 ],
                 "description": "Only imports of packages that the importing file's nearest package.json lists only as development dependencies, or does not list at all."
+              },
+              "within": {
+                "$ref": "#/definitions/side",
+                "description": "The area: only imports whose other end is in it. On `mayOnlyImport` the target, and on `mayOnlyBeImportedBy` the importer."
               }
             }
           },

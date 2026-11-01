@@ -73,6 +73,7 @@ fn refuses_option(condition: &str, option: &str) -> bool {
         "instance" => json!("different"),
         "dependency" => json!("dev"),
         "transitively" => json!(true),
+        "within" => json!("app"),
         // A chain's end means nothing without a chain.
         "stopAt" => {
             rule["transitively"] = json!(true);

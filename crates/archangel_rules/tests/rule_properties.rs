@@ -43,13 +43,17 @@ fn sentence() -> impl Strategy<Value = Value> {
         prop::collection::vec(0..=ELEMENTS, 1..3),
         imports(),
         instance,
+        prop::option::of(0..=ELEMENTS),
     )
-        .prop_map(|(files, condition, side, imports, instance)| {
+        .prop_map(|(files, condition, side, imports, instance, area)| {
             let mut rule = json!({
                 "files": side_name(files),
                 condition: side.into_iter().map(side_name).collect::<Vec<_>>(),
                 "imports": imports,
             });
+            if let (Some(area), true) = (area, condition != "mayNotImport") {
+                rule["within"] = json!(side_name(area));
+            }
             // `instance` needs `files` to name an element with a capture.
             if files < 2 && !instance.is_empty() {
                 rule["instance"] = json!(instance);
@@ -172,12 +176,19 @@ fn sentence_breaks(rule: &Value, case: &Case, same_instance: bool) -> bool {
             both && (wanted == "same") == same_instance
         }
     };
+    // Its own files are the files of the same instance when `files` is an element with a capture.
+    let captured = files == name(0) || files == name(1);
+    let own = to_in && (!captured || same_instance);
+    let in_area = |end| {
+        rule.get("within")
+            .is_none_or(|area| in_side(area.as_str().unwrap(), end))
+    };
     let condition = if rule.get("mayNotImport").is_some() {
         from_in && in_list(rule, "mayNotImport", case.to)
     } else if rule.get("mayOnlyImport").is_some() {
-        from_in && !in_list(rule, "mayOnlyImport", case.to) && !to_in
+        from_in && in_area(case.to) && !in_list(rule, "mayOnlyImport", case.to) && !own
     } else {
-        to_in && !in_list(rule, "mayOnlyBeImportedBy", case.from) && !from_in
+        to_in && in_area(case.from) && !in_list(rule, "mayOnlyBeImportedBy", case.from) && !from_in
     };
     condition && instance_holds
 }
@@ -320,6 +331,31 @@ proptest! {
             .map(|(index, _)| index)
             .collect();
         prop_assert_eq!(broken(&architecture, &case), expected);
+    }
+
+    #[test]
+    fn an_area_agrees_with_its_double_negative(
+        files in 2..=ELEMENTS,
+        side in prop::collection::vec(0..=ELEMENTS, 1..3),
+        area in 0..=ELEMENTS,
+        from in end(),
+        to in end(),
+    ) {
+        let (files, area) = (side_name(files), side_name(area));
+        let side: Vec<String> = side.into_iter().map(side_name).collect();
+        let with_area = json!({
+            "files": files, "mayOnlyImport": side, "within": area, "imports": "all",
+        });
+        let double_negative = json!({
+            "files": files,
+            "mayNotImport": { "all": [area, { "not": { "any": side.iter().chain([&files]).collect::<Vec<_>>() } }] },
+            "imports": "all",
+        });
+        let case = Case { from, to, kind: ImportKind::Runtime };
+        prop_assert_eq!(
+            broken(&compile(&[with_area]), &case),
+            broken(&compile(&[double_negative]), &case)
+        );
     }
 
     #[test]

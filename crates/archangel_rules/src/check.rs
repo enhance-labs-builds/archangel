@@ -763,7 +763,8 @@ impl<'a> Run<'a> {
             ) {
                 continue;
             }
-            for &name in &compiled.side_packages {
+            let area = compiled.area.iter().flat_map(|area| &area.packages);
+            for &name in compiled.side.packages.iter().chain(area) {
                 let pattern = &self.architecture.package_names[name];
                 let always = pattern.source() == "*" || pattern.source().starts_with("node:");
                 let listed = always
