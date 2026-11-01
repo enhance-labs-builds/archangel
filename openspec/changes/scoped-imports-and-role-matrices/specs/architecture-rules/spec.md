@@ -56,7 +56,7 @@ A `mayOnlyImport` rule MAY have an area, written with `within` and with the valu
 
 #### Scenario: An area agrees with its double negative
 
-- **GIVEN** random configs with `mayOnlyImport` rules that have an area, and the same configs with each rule written as `{ files, mayNotImport: { all: [area, { not: [side, files] }] } }`
+- **GIVEN** random configs with `mayOnlyImport` rules that have an area and whose files have no capture, and the same configs with each rule written as `{ files, mayNotImport: { all: [area, { not: [side, files] }] } }`; the generator leaves captures out because the double negative permits every instance of `files`, where the rule permits only the same one, so the captured case is held by the scenario "One feature imports another" and by the reference evaluator
 - **WHEN** archangel checks random repositories with both
 - **THEN** each pair of checks gives the same violations
 - **TEST** `crates/archangel_rules/tests/rule_properties.rs` › "an_area_agrees_with_its_double_negative"
@@ -73,28 +73,16 @@ A `mayOnlyBeImportedBy` rule MAY have an area, written with `within`. The rule M
 - **THEN** archangel gives one violation, for the import in "web"
 - **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_only_be_imported_by_within_does_not_judge_an_importer_outside_the_area"
 
-### Requirement: A mayNotImport rule with an area narrows its side to the area
+### Requirement: An area is refused on mayNotImport and on a condition that checks no import
 
-A `mayNotImport` rule MAY have an area, written with `within`. The rule MUST then give the violations of the same rule whose side is `{ all: [side, area] }`.
+Archangel MUST refuse `within` on a rule whose condition is not `mayOnlyImport` or `mayOnlyBeImportedBy`, with `config-invalid` that names the condition. For `mayNotImport`, the message MUST give the fix `mayNotImport: { all: [side, area] }` with the rule's own side and area, because that form already means what the area would mean.
 
-#### Scenario: Use cases inside and outside the area
+#### Scenario: An area on mayNotImport
 
 - **GIVEN** a rule `{ files: 'entity', mayNotImport: 'use-case', within: 'apps/api/src/**' }`
-- **AND** a file in "entity" that imports `apps/api/src/canvas/application/save.use-case.ts` and `packages/shared/src/load.use-case.ts`, both in "use-case"
-- **WHEN** archangel makes a check
-- **THEN** archangel gives one violation, for the import of `save.use-case.ts`
-- **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_not_import_within_refuses_only_the_side_in_the_area"
-
-#### Scenario: An area on mayNotImport agrees with the narrowed side
-
-- **GIVEN** random configs with `mayNotImport` rules that have an area, and the same configs with each rule written as `{ files, mayNotImport: { all: [side, area] } }`
-- **WHEN** archangel checks random repositories with both
-- **THEN** each pair of checks gives the same violations
-- **TEST** `crates/archangel_rules/tests/rule_properties.rs` › "an_area_on_may_not_import_agrees_with_the_narrowed_side"
-
-### Requirement: An area is refused on a condition that checks no import
-
-Archangel MUST refuse `within` on a rule whose condition is not an import condition, with `config-invalid` that names the condition.
+- **WHEN** archangel loads the config
+- **THEN** archangel gives `config-invalid` at `within`, whose message says to write `mayNotImport: { all: ['use-case', 'apps/api/src/**'] }`
+- **TEST** `crates/archangel_config/tests/validate.rs` › "within_on_may_not_import_is_refused_with_the_narrowed_side_as_the_fix"
 
 #### Scenario: An area on a naming rule
 

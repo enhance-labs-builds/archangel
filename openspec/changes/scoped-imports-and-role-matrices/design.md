@@ -19,12 +19,13 @@ With 0.2, a developer writes four new things:
   mixed in one table. Tables fail closed: a file with a row is judged on every import it makes into
   the repository, and an import that its row does not list is refused, with the row named. A row may
   import itself, in the same instance, unless `mayNotImportItself` lists it.
-- **Kinds.** A kind is a name a table gives to files, found by a pattern with `{kind}`, such as
-  `**/*.{kind}.ts` (so `board.entity.ts` is an `entity`), or by a group the author names.
-  `everyFileHasAKind`, on by default, refuses a file in the table's files that has no row.
+- **Kinds.** A kind is a name that a table's one pattern with `{kind}` gives a file, such as
+  `**/*.{kind}.ts` (so `board.entity.ts` is an `entity`). A row is a kind, or a declared part or
+  group; a part or group row is not a kind. Every table also makes the rule
+  `<table>.every-file-has-a-kind`, which refuses a file in the table's files that has no row.
 - **New spellings**: `parts` for elements, `groups` for selectors, `externals` for named sets of
   outside packages, `because` for the reason, and `rule('<name>', { ... })` with the name first.
-- **`within`** on an import rule: the area whose imports the rule judges.
+- **`within`** on `mayOnlyImport` and `mayOnlyBeImportedBy`: the area whose imports the rule judges.
 
 And archangel answers two questions it could not answer before. `archangel rules [path]` prints
 every rule as the sentence it means, with its reason, the file where it is written, and its reach:
@@ -97,9 +98,11 @@ of each class, so the new forms cost what the old ones cost.
 
 **How it works:**
 
-1. Archangel loads the config. Each table row becomes one rule named `<table>.<row>`, and
-   `everyFileHasAKind` adds the rule `<table>.every-file-has-a-kind`. From then on each is a rule
-   like any other, so `off`, exceptions and the baseline name it.
+1. Archangel loads the config. Each table row becomes one rule named `<table>.<row>`, and every
+   table, with or without a kind pattern, gets the rule `<table>.every-file-has-a-kind`; for a table
+   of parts or groups with no `files` option it covers no file, and `archangel rules` prints it as
+   checking nothing. From then on each is a rule like any other, so `off`, exceptions and the
+   baseline name it.
 2. Archangel classifies each file once: its part, its groups, and its kind in each table. Each
    outside package an import names is in the externals sets that list it.
 3. Before it looks at any import, archangel fills one pair entry for each pair of classes that an
@@ -113,17 +116,19 @@ of each class, so the new forms cost what the old ones cost.
 6. `archangel rules` and `archangel explain` read the same compiled rules, so what they say is what
    the check does.
 
-Twelve terms are new or renamed. A **part** is what 0.1 calls an element: a named set of files, and a
+Eleven terms are new or renamed, and one is widened. A **part** is what 0.1 calls an element: a named set of files, and a
 file is in at most one of the config's parts. A **group** is what 0.1 calls a selector: a named set of
 files, and a file can be in any number of groups. An **externals set** is a named list of outside
 packages, such as `driver: ['pg', 'drizzle-orm']`. An **area** is the set of files and packages,
 written with `within`, whose imports a rule judges. A **table** is a `mayImport` shorthand. A **row**
 is one key of a table and the rule made from it. A **cell** is one entry in a row: a name or a path
-pattern that the row's files may import. A **kind** is a name that a table gives to files. A **kind
+pattern that the row's files may import. A **kind** is a name that a table's kind pattern gives a file; a part or group row is not a kind. A **kind
 pattern** is a table's one pattern with the capture `{kind}`. The **reach** of a rule is what it
 covered in one check: its files, the imports it judged, its problems, its exceptions and its baseline
-matches. An **instance** is one value of a capture: in `src/features/{feature}/**`, the folder `cart`
-is one instance of `feature`; a name without a capture has one instance. An **unjudged** file or
+matches. An **instance** (the glossary's "element instance", widened) is one value of a capture in a part's
+pattern, or of a capture other than `{kind}` in a kind pattern: in `src/features/{feature}/**`, the
+folder `cart` is one instance of `feature`. A group, an inline pattern and a name without a capture
+have one instance, so a rule or row on them permits itself everywhere. An **unjudged** file or
 import is one that no rule looks at.
 
 ### Decisions that need you
@@ -132,26 +137,25 @@ Each item gives the recommendation that the specs follow, and the other options.
 questions the owner listed; items 9 to 12 came up while the change was written.
 
 1. **Outside packages are externals, not parts.** The config gets a third key, `externals`, whose
-   values are lists of package names: `driver: ['pg', 'drizzle-orm', '@aws-sdk/*', 'node:fs']`. A
-   name matches a package and every subpath of it, so `pg` matches `pg/lib/client`; a name with a
-   subpath, such as `pg/lib/client`, matches only that subpath and those below it. `node:fs`
-   matches the built-in module written `fs`, `node:fs`, `fs/promises` and `node:fs/promises`. A
-   bare `fs` is refused with the fix `node:fs`: archangel records every import of a built-in module
-   under its `node:` name, so an entry written `fs` would never match any import. Which names are
-   built-in comes from the same list that the resolver uses, so the config and the resolver never
-   disagree. `@aws-sdk/*` matches every package in the scope. A name under
-   `@types/` is refused, because archangel judges the package that an import names, and code never
-   imports `@types/react`; it imports `react`. A package of the workspace is never an external: an
-   import of it resolves to a repository file, and that file's part classifies it, so an externals
-   name that is a workspace package's name is refused. A table judges an import of an outside
-   package only when a cell, or `everyRowMayImport`, names an externals set that holds it; `react`
-   stays the business of other rules. `mayOnlyImport` without `within` keeps its 0.1 meaning and
-   judges every import, outside packages included. The other options: package parts in `parts`,
-   as the interface proposal that the two readers tested did and as 0.1 allows in `elements`, which
-   makes "a file is in one part"
-   false and lets a table judge packages that no row thought about; or `{ packages: [...] }` inline
-   only, which repeats each list in every rule that names it. The 0.1 package elements keep working
-   in `elements`.
+   values are lists of package patterns: `driver: ['pg', 'drizzle-orm', '@aws-sdk/*', 'node:fs']`. A
+   pattern means what it means in a 0.1 package element, so a list moved from `elements` keeps its
+   meaning: `react`, `@aws-sdk/*`, `node:*`, `*`, and a wildcard such as `knex*`. An import counts as
+   the package it resolves to, so `pg` covers `pg/lib/client`. An import of a built-in module counts
+   under its `node:` name, written with or without the prefix, so `node:fs` covers `fs`, and
+   `fs/promises` is the separate module `node:fs/promises`. Four names could never match any import
+   and are refused: a bare `fs`, with the fix `node:fs`; a name under `@types/`, because code never
+   imports `@types/react`; a package of the workspace, because an import of it resolves to a
+   repository file and that file's part classifies it; and a name with a subpath, such as
+   `pg/lib/client`, with the fix `pg`. Which names are built-in comes from the same list that the
+   resolver uses. A table judges an import of an outside package only when a cell, or
+   `everyRowMayImport`, names an externals set that holds it; `react` stays the business of other
+   rules. `mayOnlyImport` without `within` keeps its 0.1 meaning and judges every import, outside
+   packages included. The other options: package parts in `parts`, as the interface proposal that
+   the two readers tested did and as 0.1 allows in `elements`, which makes "a file is in one part"
+   false and lets a table judge packages that no row thought about; `{ packages: [...] }` inline
+   only, which repeats each list in every rule that names it; or matching subpaths of npm packages,
+   which needs the graph to record the subpath of every package import, for a case nobody has
+   shown. The 0.1 package elements keep working in `elements`.
 
 2. **A name means the same files everywhere, and a table's `files` only choose whose imports it
    judges.** A kind applies in the whole repository: `apps/api/src/board/application/draft.entity.ts`
@@ -164,20 +168,28 @@ questions the owner listed; items 9 to 12 came up while the change was written.
    where the importer is, and makes every target outside the files read "no row for api", which
    tells the developer nothing.
 
-3. **`everyFileHasAKind` is on by default.** Both readers want it on, and it closes the gap where a
-   file escapes a table by dropping its suffix. Archangel exempts no file by itself: tests,
-   `index.ts`, generated files and tool configs that should have no kind are left out of the table's
-   `files` with `not`, usually through one group such as `tests`. When a table has no `files`, its
-   files are those that its kind pattern matches with any kind, so the default only refuses a kind
-   that has no row: in the small app, `src/features/cart/hooks/use-cart.ts` is refused with "no row
-   for hooks", and `src/features/cart/index.ts` is not in the table's files. Where a dot follows
-   `{kind}` in the pattern, the kind holds no dot, so in `**/*.{kind}.ts` the kind is the word just
-   before the extension: `board.entity.test.ts` is the kind `test`, and `board.entity.ts` is
-   `entity`. Anywhere else `{kind}` matches like any other capture, so in `src/features/*/{kind}/**`
-   a folder `api.v2` is the kind `api.v2`, and it needs a row or gives a violation. A declaration
-   file counts `.d.ts` as its extension, so `board.entity.d.ts` is an `entity` and `env.d.ts` has no
-   kind. The other option is off by default with a summary count; it is gentler on a codebase
-   without suffixes, but a reader of the table cannot then trust that every file has a row.
+3. **Every table makes the rule `<table>.every-file-has-a-kind`, and there is no option to leave it
+   out.** Both readers want every file in a table to have a row. A team that cannot have that yet
+   turns the rule off with `off: ['<table>.every-file-has-a-kind']`, as for any rule, and
+   `archangel rules` then shows it as off. The rule refuses a file in the table's files that has a
+   kind with no row: in the small app, `src/features/cart/hooks/use-cart.ts` is refused with "no
+   row for hooks". Archangel exempts no file by itself: tests, `index.ts`, generated files and tool
+   configs that should have no kind are left out of the table's `files` with `not`, for example
+   `files: { all: ['domain', { not: ['tests', '**/index.ts', '**/*.d.ts'] }] }`; the enhance3 slice
+   leaves out only `tests`, so an `index.ts` in a domain folder would be refused there. When a table
+   has no `files`, its files are only those that its kind pattern matches with any kind, so a file
+   with no kind, such as `src/features/cart/index.ts` in the small app or `board.ts` in a domain
+   folder, is outside the table and judged by no row: the gap where a file escapes a table by
+   dropping its suffix stays open. Writing `files`, as the enhance3 slice does, is what closes it,
+   because then every file in `files` must have a kind with a row. The kind is what `{kind}` matches,
+   as for any capture; in `**/*.{kind}.ts` the `*` before it takes the most it can, so the kind is
+   the word just before the extension: `board.entity.test.ts` is the kind `test`, and
+   `board.entity.ts` is `entity`. A declaration file counts `.d.ts` as its extension, so
+   `board.entity.d.ts` is an `entity` and `env.d.ts` has no kind. In `src/features/*/{kind}/**` a
+   folder `api.v2` is the kind `api.v2`, and it needs a row or gives a violation. The other option
+   is an `everyFileHasAKind` option on the table, off by default with a summary count; it is gentler
+   on a codebase without suffixes, but it is a second spelling of `off` with a second output form,
+   for a user this change cannot name.
 
 4. **One spelling per concept, chosen now and kept to 1.0: `parts`, `groups`, `because`, and
    `rule('<name>', { ... })`.** The docs, the README, `archangel init` and every example use only
@@ -233,7 +245,10 @@ questions the owner listed; items 9 to 12 came up while the change was written.
 9. **A row and a `mayOnlyImport` rule both permit their own name in the same instance.** For a part
    with a capture, such as `feature`, "itself" is the same feature; a cell that names the part
    permits every instance. For a kind, "itself" is the same kind, in the same instance of any other
-   capture in the kind pattern. One default for tables and rules is what the readers asked for, and
+   capture in the kind pattern. A group, an inline pattern and a name without a capture have one
+   instance, so a rule or row on them permits itself everywhere, as in 0.1; the only 0.1 rules that
+   change are `mayOnlyImport` rules whose files are a part with a capture. One default for tables
+   and rules is what the readers asked for, and
    it is the answer a reader expects from "features may import only shared code". In 0.1,
    `mayOnlyImport` permits the rule's own files in any instance, so a 0.1 rule on a part with a
    capture now refuses imports between instances that it permitted. That breaks the promise that
@@ -251,7 +266,10 @@ questions the owner listed; items 9 to 12 came up while the change was written.
     a barrel's re-export. The flaw is one inference that covers both statement forms, so 0.2 fixes
     the inference: a statement is a type import when it has the `type` modifier, or when every name
     it imports or re-exports has the modifier and the file's tsconfig does not set
-    `verbatimModuleSyntax`. Without the option, nothing changes. `export type * from './x'` is a
+    `verbatimModuleSyntax`. The mark is set when the import is resolved, where the file's tsconfig
+    is already in hand, so a change to a tsconfig re-marks every import without a parse, in
+    `archangel watch` and in the editor as in a check. Without the option, nothing changes.
+    `export type * from './x'` is a
     type import, and so is `import('./x').T` in a type, as in 0.1. Two other inputs give the same
     class of wrong answer, and both stay as Limits: without the option, TypeScript drops
     `import { A } from './a'` when `A` is used only as a type, which archangel still counts as a
@@ -278,6 +296,15 @@ questions the owner listed; items 9 to 12 came up while the change was written.
     as for a preset's table, which is gentler during adoption but lets a table that checks nothing
     pass.
 
+13. **`within` is refused on `mayNotImport`, with the fix in the message.** A `mayNotImport` rule
+    already names exactly what it refuses, so `mayNotImport: 'use-case', within: 'apps/api/src/**'`
+    says nothing that `mayNotImport: { all: ['use-case', 'apps/api/src/**'] }` does not. The message
+    gives that form, with the rule's own side and area, so there is one way to write it, as in item
+    4. The other option accepts `within` on `mayNotImport` with that meaning, which lets a developer
+    learn `within` once for all three import conditions, at the cost of a second way to write the
+    same rule. `within` on a condition that checks no import, such as `mustBeNamed`, has no meaning
+    and is refused either way.
+
 ## How it works
 
 ### Parts, groups and externals
@@ -300,7 +327,9 @@ externals: {
 ```
 
 A part is a set of files, and a file is in at most one of the config's parts; two parts that match
-one file give `part-overlap` with both names and the file. A group is a set of files, and a file can
+one file give `part-overlap` with both names, the file, and the way forward: narrow one pattern with
+`not`, or make one of them a group. Every overlap is fixed in the config, because the baseline holds
+violations of rules and this is not one. A group is a set of files, and a file can
 be in any number of groups. An externals set is a list of outside packages, matched as item 1 of
 "Decisions that need you" says. A name means one of the three, and a rule side, a table cell and an
 area can use any of them. A string that names nothing is a path pattern when it holds `/` or `*`,
@@ -313,13 +342,13 @@ config, the repository root in a usual setup, and never gets an implicit `**/`. 
 `src/domain/{kind}/**` matches only the root's `src`, and a monorepo writes `**/domain/{kind}/**`.
 An `entry` pattern starts at the root of the instance, as in 0.1; for a part without a capture, that
 root is the folders before its first wildcard, so `entry('canvas-document', 'src/*/index.ts')` on
-`packages/canvas-document/**` means `packages/canvas-document/src/*/index.ts`. `archangel explain`
-prints each pattern with its start.
+`packages/canvas-document/**` means `packages/canvas-document/src/*/index.ts`.
 
 A capture, such as `{feature}`, matches one or more characters of one folder or file name and makes
-an instance. Braces with a comma list alternatives. The capture `{kind}` differs in two ways: where
-a dot follows it in the pattern, it holds no dot (item 3 of "Decisions that need you"), and it may
-appear more than once in a kind pattern, each place taking the same name.
+an instance. Braces with a comma list alternatives. The capture `{kind}` matches as any capture
+does, and differs in two ways: it may appear more than once in a kind pattern, each place taking the
+same name, and a declaration file counts `.d.ts`, `.d.mts` or `.d.cts` as its extension for it
+(Decision 2).
 
 ### A table
 
@@ -350,7 +379,6 @@ gives `rule-unknown-element` with the closest name, so a misspelt cell never pas
 - `within`: an area that narrows which targets the table judges. Without it, the area of each row
   is every repository file and the externals sets that the table names in a cell or in
   `everyRowMayImport`.
-- `everyFileHasAKind`: on by default.
 - `everyRowMayImport`: cells that every row also has, such as a shared Result type.
 - `mayNotImportItself`: rows that do not permit their own name. A row in this list that also names
   itself in its cells is refused with `config-invalid`.
@@ -382,20 +410,22 @@ error[domain.entity]: entity may not import use-case, through "../application/sa
   = note: because: Each kind of domain file depends only on the kinds below it.
 ```
 
-A file in the table's files with no row gives one violation of `<table>.every-file-has-a-kind`,
-unless the table sets `everyFileHasAKind: false`. The message says whether the file has no kind, and
-how to give it one, or has a kind with no row, and which row is closest:
+A file in the table's files with no row gives one violation of `<table>.every-file-has-a-kind`, a
+rule that every table makes and that `off` can name. The message says whether the file has no kind,
+and how to give it one, or has a kind with no row, and which row is closest:
 
 ```
 error[domain.every-file-has-a-kind]: apps/api/src/board/domain/board.spec-helper.ts has the kind spec-helper, and the table domain has no row for it
   = help: add a row for spec-helper, rename the file, or leave it out of the table's files with not
 ```
 
-A file in two rows of one table gives `table-row-overlap`, which names the file and both rows; the
-file is judged by both rows, so no import passes in silence while the error stands. A row key that
+A file in two rows of one table gives `table-row-overlap`, which names the file and both rows and
+says to narrow one of the two with `not` or to leave the file out of the table's `files`; the
+file is judged by both rows, so no import passes in silence while the error stands, and the overlap
+is fixed in the config, because the baseline does not hold it. A row key that
 names a declared part or group means it, even when the kind pattern also gives that name as a kind
 to some file. `archangel explain` and `archangel rules` show that the key means the part or group,
-and a file with that kind that is not in the part or group falls under `everyFileHasAKind`, whose
+and a file with that kind that is not in the part or group falls under `every-file-has-a-kind`, whose
 message says that the row key of that name means the part or group, not the kind.
 
 **Rows with no file, and a table with none.** A kind that no file has yet is the team's declared
@@ -424,9 +454,13 @@ row and `domain.every-file-has-a-kind`, including rows added to the table later.
 A row, and a `mayOnlyImport` rule, permit an import of their own name in the same instance (item 9
 of "Decisions that need you"). An instance comes from a capture: in a part such as
 `src/features/{feature}/**`, and in a kind pattern's other captures, such as `{context}` in
-`apps/api/src/{context}/domain/**/*.{kind}.ts`. A name without a capture has one instance. A cell
-that names the row's own name permits every instance: `feature: ['feature', 'shared']` lets one
-feature import another. The rule `isolate` stays for teams that want it without a table.
+`apps/api/src/{context}/domain/**/*.{kind}.ts`. A group, an inline pattern and a name without a
+capture have one instance, so a rule or row on them permits itself everywhere. The values of a kind
+pattern's other captures are recorded for each file when it is classified, beside the values of its
+part's captures, so the instance comparison of a kind row reads stored values and matches no pattern
+per import (Cost). A cell that names the row's own name permits every instance:
+`feature: ['feature', 'shared']` lets one feature import another. The rule `isolate` stays for teams
+that want it without a table.
 
 ### Outside packages
 
@@ -442,8 +476,9 @@ judges every import, outside packages included, as in 0.1.
 
 `within` takes what a rule side takes: names, path patterns, externals sets, and `all`, `any` and
 `not`. On `mayOnlyImport`, it limits the imports the rule judges to those whose target is in the
-area. On `mayOnlyBeImportedBy`, it limits the importers. On `mayNotImport` it narrows the side to
-`{ all: [side, area] }`. Conditions that check no import refuse it. An area pattern that matches no
+area. On `mayOnlyBeImportedBy`, it limits the importers. On `mayNotImport` it is refused, with the
+one-line fix `mayNotImport: { all: [side, area] }`: 0.1 already writes that meaning, and an option
+that only forwards to it earns no place. Conditions that check no import refuse it too. An area pattern that matches no
 file is `selector-empty`, a misspelt name is `rule-unknown-element`, and an empty area is
 `config-invalid`. The violation message names the area.
 
@@ -460,7 +495,9 @@ rule('cli-uses-only-the-api-router', {
 
 An import is a type import when its statement has the `type` modifier, or when every name it
 imports or re-exports has the modifier and the file's tsconfig does not set `verbatimModuleSyntax`
-(item 10 of "Decisions that need you"). So under the option, `import { type A } from './a'` and
+(item 10 of "Decisions that need you"). The mark is set when the import is resolved, where the
+file's tsconfig is in hand, so a change to a tsconfig re-marks every import with no parse, in
+`archangel watch` and in the editor as in a check. So under the option, `import { type A } from './a'` and
 `export { type A } from './a'` are both runtime imports. `export type * from './x'`, an import type such as `import('./x').T`,
 triple-slash references and every import in a declaration file are type imports. Every rule counts
 type imports, except `noCycles` and a transitive rule, which count runtime imports only, and the
@@ -487,6 +524,8 @@ app  2 rows                                                     archangel.config
                                           6 files · 7 imports judged · 0 problems · 0 exceptions
   shared may import only itself
                                           1 file  · 0 imports judged · 0 problems · 0 exceptions
+  every file in the table's files has a kind with a row
+                                          checks nothing: every file of app is in a row
 
 feature-code  3 rows                                            archangel.config.ts:16
   because: A view shows a model. Only the api folder talks to the server.
@@ -506,15 +545,17 @@ Outside packages that no rule names: react (2 imports).
 The command runs a full check, then prints every rule and every row in config order, with nothing
 left out: its sentence in words, its reason, the file and line where it is written, and its reach.
 A rule written in a preset says so ("from the preset fsd-web"), and a config rule that replaces a
-preset rule says which one it replaces. A rule or row whose files are empty says "checks nothing: no
-file is in <name>". The last lines list the files and imports between repository files that no rule
+preset rule says which one it replaces. A rule or row whose files are empty says "checks nothing" and
+why: no file is in <name>, or, for a table's `every-file-has-a-kind` rule, every file of the table
+is in a row. The last lines list the files and imports between repository files that no rule
 judges, and, by package, the outside packages that no rule names. With a path, the command prints
 only the rules whose files include a file under that path, and the unjudged files under it; a path
 with no source file under it is refused with status 2, as for any path argument. With
 `--format json`, it prints the same content as data. The command exits with status 0 when it
 prints, whatever problems the check finds, because its job is to describe, and with status 2 for
 an invalid config. The file and line come from the config loader, which records where each builder
-was called; a rule written as a plain object gives the config file only.
+was called, in whichever file that is, so a rule built in a helper module names that module and its
+line; a rule written as a plain object gives the config file only.
 
 ### What `archangel explain` prints for one import
 
@@ -535,11 +576,14 @@ src/features/cart/views/cart-page.tsx:2  '../api/fetch-cart' -> src/features/car
 
 `archangel explain <file>:<line>` lists every rule: those that judged the import, with the verdict,
 and those that skipped it, with the reason: the file is not in the rule's files, the target is
-outside the area, the import kind or an import limit does not match, or the instance differs. An
-exception or a baseline match is shown beside the rule it permits. The line may be any line of the
-import statement, and a line with two or more imports gets one block for each. A line with no
-import says so and exits with status 1; a file that is not a source file exits with status 2, as
-for `archangel explain <file>`. `archangel explain <file>` keeps
+outside the area, the import kind or an import limit does not match, the instance differs, the
+import does not resolve, the rule is off, or the rule checks no import (a naming, `mustExport`,
+`mustContain`, `noCycles` or transitive rule). An import that does not resolve is shown with the
+reason of its `import-unresolved` diagnostic and no target. An exception or a baseline match is
+shown beside the rule it permits. The line may be any line of the import statement, and a line with
+two or more imports gets one block for each. A line with no import says so and exits with status 1,
+and so does a file that does not parse, with its `parse-failed` diagnostic; a file that is not a
+source file exits with status 2, as for `archangel explain <file>`. `archangel explain <file>` keeps
 its 0.1 output, and gains the file's kind in each table. Both answer in JSON with `--format json`.
 
 ### Examples that a test checks
@@ -611,11 +655,13 @@ export default defineConfig({
     rule('web-uses-api-types-only', {
       files: 'web', mayNotImport: 'api', imports: 'runtime',
       because: 'The web app types its requests from the API router. No API code ships to the browser.',
+      examples: { rejected: [{ 'apps/web/src/a.ts': "import { app } from '../../api/src/app';", 'apps/api/src/app.ts': '' }] },
     }),
 
     rule('core-not-to-driver', {
       files: ['domain', 'application'], mayNotImport: 'driver',
       because: 'The domain and application layers never touch an I/O driver. A use case that needs one declares a port.',
+      examples: { rejected: [{ 'apps/api/src/board/domain/a.entity.ts': "import { Client } from 'pg';" }] },
     }),
 
     mayImport('domain', {
@@ -640,7 +686,9 @@ export default defineConfig({
 });
 ```
 
-The domain table is the one enhance3 states, with one row added: `specification`. The stated table
+The two rules that are not tables carry a written rejected example, because 0.1's `rule-unproven`
+still applies to them. The domain table is the one enhance3 states, with one row added:
+`specification`. The stated table
 names `specification` as a cell but gives it no row, and 0.2 refuses a cell that is neither a row
 nor a declared name, so that a misspelt cell can never pass and the types can check every cell. The
 added row is the one enhance3's builder has today. review.md records this and two other notes about
@@ -662,7 +710,7 @@ preset). With the forms of this change:
 | Ignore list, presets and `off`, parts, groups and externals | | 80 |
 | The workspace table and its 2 narrow rules | about 20 | 40 |
 | 9 kind tables as shared `const` objects, with no self cells (the default permits them) | | 150 to 200 |
-| 14 table uses, about 6 lines each, with no written example and `everyFileHasAKind` on | up to 195 rows and about 20 naming rules | 90 |
+| 14 table uses, about 6 lines each, with no written example and the `every-file-has-a-kind` rule | up to 195 rows and about 20 naming rules | 90 |
 | API layers and editor models as tables, and 4 `entry` rules | 9 | 50 |
 | Naming rules for folders that no table covers, with brace alternatives | about 85 | 140 |
 | Other dependency rules, name first, each with a reason and a written rejected example | about 34 | 330 to 380 |
@@ -671,8 +719,8 @@ preset). With the forms of this change:
 | **Total** | about 380 | **about 1,150 to 1,350** |
 
 The main savings over the builder's output are that table rows need no written example (about 80
-lines), the workspace table and externals (about 90 lines of package rules), `everyFileHasAKind` on
-by default (about 10 naming rules), and the name-first form (about one line per rule). This is an
+lines), the workspace table and externals (about 90 lines of package rules), the `every-file-has-a-kind`
+rule (about 10 naming rules), and the name-first form (about one line per rule). This is an
 estimate from counts, not a measurement; the rewrite is a separate task, and task 9.1 measures the
 slice.
 
@@ -686,12 +734,20 @@ follows them in the table form and in disallow by default, and departs in one pl
 rule with its own name, because `off`, exceptions and the baseline refer to rules by name. A row's
 sentence, its area and its own-instance permission are all facts about the classes at the two ends,
 so they are decided when a pair entry is filled, as 0.1 decides a `mayNotImport` side and as
-dependency-cruiser's `from` and `to` describe a rule. The per-import cost stays one look-up.
+dependency-cruiser's `from` and `to` describe a rule. The per-import cost stays one look-up, plus
+the instance comparison that Cost names for an import inside a captured row.
 
 **2. Find kinds with one capture, `{kind}`.** The capture syntax already exists for instances, and a
 capture value is the kind's name, so one pattern gives every kind, including the kinds that have no
 row and need a "no row for" message. eslint-plugin-boundaries reads element types from captures the
-same way. A list of patterns per kind is what enhance3's builder computes today, and it cannot name
+same way, and its captures are ordinary path segments with no behaviour of their own, so `{kind}`
+matches as every capture does, one name of one or more characters; in `**/*.{kind}.ts` the `*`
+before it takes the most it can, which already makes `board.entity.test.ts` the kind `test` and
+`board.entity.ts` the kind `entity`. The one case that gives a wrong answer is a declaration file,
+where `env.d.ts` would be the kind `d`, so `.d.ts`, `.d.mts` and `.d.cts` count as one extension for
+`{kind}`; the repeat allowance is the other difference, because each place takes the same name. Both
+are scoped to `{kind}`, because changing every capture would change what a 0.1 pattern such as
+`src/{feature}.d.ts` matches. This spends a token: one capture name with two rules of its own. A list of patterns per kind is what enhance3's builder computes today, and it cannot name
 a kind it does not list.
 
 **3. Keep the self permission inside the row's sentence.** The 0.1 `mayOnlyImport` already permits
@@ -702,7 +758,7 @@ a row mean something its sentences cannot show.
 
 **4. Externals are package elements under a name.** 0.1 already classifies a package import by the
 package elements and inline package sides that list it, and decides that per pair of classes. An
-externals set is that mechanism with a name and stricter matching; it adds no new kind of set and
+externals set is that mechanism with a name, and the same patterns; it adds no new kind of set and
 no new store. One thing in that mechanism changes: 0.1 puts a package in the first package element
 that lists it, and an outside package is in every externals set that lists it.
 
@@ -724,59 +780,83 @@ the readers asked for. Rust's doc tests and the TypeScript handbook's checked sa
 precedent.
 
 **8. Name a row `<table>.<row>`.** A row's name is `<table>.<row>`, and a table or row name may
-not hold a dot, a colon, a slash or a space. An exception comment ends the rule name at the first
-colon, and the slash is a preset's prefix, so a table `roles` in the preset `fsd-x` is `fsd-x/roles`
-and its rows `fsd-x/roles.entity`. Fixing the exception parser for colons stays out of 0.2, because
-any reading that lets a name hold a colon changes what some 0.1 comment means.
+not hold a colon or a slash. An exception comment ends the rule name at the first colon, and the
+slash is a preset's prefix, so a table `roles` in the preset `fsd-x` is `fsd-x/roles` and its rows
+`fsd-x/roles.entity`. Fixing the exception parser for colons stays out of 0.2, because any reading
+that lets a name hold a colon changes what some 0.1 comment means. A dot and white space are
+accepted, as 0.1 accepts them in a rule name: nothing in archangel reads a rule name by its dots,
+`off: ['domain']` turns off the table's rules by identity and not by a prefix, and the exception
+parser keeps the spaces inside a name, so a row `api.v2`, the kind that a folder `api.v2` has (item
+3 of "Decisions that need you"), is one rule name like any other. The one clash, a table `a.b`
+beside a table `a` with a row `b`, is a duplicate name, `rule-name-duplicate`, as for any two
+rules.
 
 ## Cost
 
-An area, a row's sentence and its own-instance permission add no work per import beyond 0.1's. When
-a pair entry is filled, archangel tests one more set membership per sentence with an area or a row;
-that grows with connected class pairs times sentences, the cost that filling pair entries already
-has. The own-instance test compares two capture values for an import whose pair entry holds a row's
-sentence, which is part of that row's evaluation and adds no rule evaluation. A work-count test holds
-that entity files with 10 package imports and with 1,000 give the same rule evaluations, and that a
-table of 5 rows and the same table with 45 more rows that no import connects give the same rule
-evaluations and pattern passes. Fault controls that test the area per import, and every row per
-import, must fail those tests.
+An area and a row's sentence add no work per import beyond 0.1's. When a pair entry is filled,
+archangel tests one more set membership per sentence with an area or a row; that grows with
+connected class pairs times sentences, the cost that filling pair entries already has. The
+own-instance permission has one cost that 0.1 does not have. In 0.1, an import between two files of
+one `mayOnlyImport` rule costs no rule evaluation, because the sentence is left out of the pair entry
+of its own files. A class carries no capture value, so to refuse an import between two instances the
+sentence must go into that pair entry and compare the two instances per import. The cost is one more
+rule evaluation for each import between two files of a row, or of a part under a `mayOnlyImport`
+rule, whose name has an instance capture; it stays zero for a row or part without one. Work-count
+tests hold these exact numbers: entity files with 10 package imports and with 1,000 give the same
+rule evaluations; a table of 5 rows and the same table with 45 more rows that no import connects give
+the same rule evaluations and pattern passes; N imports inside one captured part, or inside one
+instance of a kind row whose pattern has another capture, cost N rule evaluations, and imports
+inside an uncaptured kind row cost 0. A deliberately slowed build that tests
+the area, or every row, on each import must fail these tests, so they cannot pass by accident.
 
 A kind pattern is one pattern in the compiled set, so pattern passes stay one per file. For a file
-that it matches, archangel reads the `{kind}` value with one more match of that pattern, so the work
-grows with files that have a kind, times tables with a kind pattern. A class carries one bit per row,
-not per kind value, so the number of classes grows with the rows that files really have; a kind with
-no row is named only when a message needs it. A work-count test holds that the files classified and
-the pattern passes of a check with a kind table equal those without it.
+that it matches, archangel reads the `{kind}` value, and the values of the pattern's other captures,
+with one more match of that pattern when the file is classified, and stores them beside the values
+of the file's part captures; so the work grows with files that have a kind, times tables with a kind
+pattern, and the instance comparison of a kind row reads stored values and matches no pattern per
+import. Each row, and each pattern cell or area, adds one set whose membership is tested for every
+file, so classification grows with files times sets. Archangel's counters, which
+`archangel check --stats` prints as `filesClassified`, `patternPasses`, `ruleEvaluations` and
+`structureEvaluations`, do not see this work, which is why task 9.1 reports the number of compiled
+sets beside the times. A class carries one bit per row, not per kind
+value, so the number of classes grows with the rows that files really have; a kind with no row is
+named only when a message needs it. A work-count test holds that the files classified and the
+pattern passes of a check with a kind table equal those without it.
 
 Externals add one membership per externals set for each distinct outside package, as 0.1's package
 elements do. `part-overlap` reads the matches that the compiled set already returns for a file, and
 `table-row-overlap` counts rows per class, so both grow with classes times rows, not with imports.
-`everyFileHasAKind` is one structure sentence per table, decided once per class, and adds no rule
-evaluation; a work-count test holds that. The list of rows with no file and `table-empty` read the
-count of files per class on each assembled report, in a check and after each edit.
+`<table>.every-file-has-a-kind` is one structure sentence per table, and a structure sentence is decided per
+file: one bit test per table for each file, and one structure evaluation for each file with no row.
+It adds no rule evaluation. A work-count test holds that `structureEvaluations` equals the number of
+files with no row, and that `ruleEvaluations` does not change. The list of rows with no file and
+`table-empty` read the count of files per class on each assembled report, in a check and after each
+edit.
 
 The type-import change reads one option per tsconfig, which the resolver already loads, and adds one
-test per import statement.
+test per import when it is resolved; a change to a tsconfig re-marks every import inside the
+re-resolution that it already causes, with no parse.
 
 `archangel rules` adds one counter increment per rule evaluation, only for that command, and reads
 classes times rules for the file counts. `archangel explain` of one import evaluates every rule on
-that one import, on demand. Generated proof runs one in-memory example per row with files, only in
-`archangel test`, so its work grows with rows, not with files. None of these is on the path of
-`archangel check`.
+that one import, on demand. Neither is on the path of `archangel check`.
 
 At enhance3's size a fixture cannot show whether the compiled pattern set still compiles as one, so
-task 8.1 measures the enhance3 slice once: pattern passes, files classified and rule evaluations from
-`archangel check --stats`, and the times.
+before release the enhance3 slice is measured once on enhance3 itself (task 9.1): pattern passes,
+files classified, rule evaluations and the number of compiled sets from `archangel check --stats`,
+and the times.
 
 ## Risks
 
 - **The self default changes some 0.1 rules.** A 0.1 `mayOnlyImport` rule on a part with a capture
   now refuses imports between instances (item 9 of "Decisions that need you"). The changelog names
   it, and `archangel rules` prints "and itself in the same instance" on every such rule.
-- **Generated proof shows that a row can fire, not that it is right.** A wrong cell passes until a
-  violation or a written example shows it. The property tests show that every cell is decided as
-  written, and `archangel rules` shows each row's reach.
-- **`everyFileHasAKind` on by default can give many violations on adoption.** The message says how to
+- **A table row needs no written example, so a wrong cell is not caught by `archangel test`.** It
+  passes until a violation or a written example shows it. The property tests show that every cell
+  is decided as written, and `archangel rules` shows each row's reach.
+- **The own-instance default costs one rule evaluation per import inside a captured row or part.**
+  Cost states the number and a work-count test holds it; task 9.1 measures it on enhance3.
+- **`<table>.every-file-has-a-kind` can give many violations on adoption.** The message says how to
   fix each file, and `archangel baseline add` records them, as for any new rule.
 - **Two spellings live until 1.0.** A config cannot mix them, and the docs show one.
 - **A one-word brace is a capture.** `archangel rules` and `explain` show the instance it makes.
@@ -794,23 +874,37 @@ changes touches is named in the test with the reason. The config gains `parts`, 
 `externals`, `because`, the name-first `rule`, `within` and the `mayImport` kind, in TypeScript and
 in the JSON schema, where a table is `{ "kind": "mayImport", "name", "rows", ... }`. The JSON summary
 gains `rowsWithNoFile` only when the config has a table, and `schemaVersion` stays. New diagnostic
-codes, each with a page: `table-empty`, `table-row-overlap`, `table-name-ambiguous` and
-`part-overlap`. The command line gains `archangel rules` and the `<file>:<line>` form of `explain`.
+codes, each with a page: `table-empty`, `table-row-overlap` and `part-overlap`. The command line
+gains `archangel rules` and the `<file>:<line>` form of `explain`.
 
 ## Limits
 
-- A file in a table's files that has no row is judged by no row as an importer. With
-  `everyFileHasAKind`, which is on by default, it is a violation; with the option off, the summary
-  counts it under its table. So it never passes in silence.
+- A file in a table's files that has no row is judged by no row as an importer; it is a violation
+  of `<table>.every-file-has-a-kind`, unless `off` names that rule, which `archangel rules` then
+  shows. A file with no kind is outside a table that has no `files`, so the suffix gap stays open
+  until the author writes `files`, as the enhance3 slice does (item 3 of "Decisions that need
+  you"); `archangel rules` lists such a file when no rule judges it.
 - A table judges an outside package only when it names an externals set that holds it. `archangel
   rules` lists, by package, the outside packages that no rule names.
 - A file that no rule judges, and an import between repository files that no rule judges, are listed
   by `archangel rules`, not by `archangel check`, because a check reports problems and an unjudged
   file is not one.
-- A row that permits every file that exists cannot be proven yet; `archangel test` lists it as
-  proving nothing yet, as `archangel check` lists a row with no file.
-- A kind is the text that `{kind}` captures, without a dot. A file whose kind holds a dot cannot be
-  written with a suffix pattern; a group can be a row instead.
+- A table row has no proof in `archangel test` unless the author writes one. What shows that a row
+  can fire is the summary's list of rows with no file, `table-empty` and the reach that
+  `archangel rules` prints (item 5 of "Decisions that need you").
+- In a suffix pattern such as `**/*.{kind}.ts`, the `*` before `{kind}` takes the most it can, so the
+  kind is the last dotted word before the extension, and the pattern cannot name a kind with a dot
+  in it; a group can be a row instead. A folder pattern such as `src/features/*/{kind}/**` gives a
+  folder named `api.v2` the kind `api.v2`.
+- A `.js` or `.mjs` config needs the same Node as a `.ts` config, 22.18 or later: the Node gate runs
+  before the loader for every config kind, and that is what makes `util.getCallSites()` available
+  to the loader. The npm package's `engines` field says `>=18`, which disagrees with the gate; this
+  change builds nothing around that, and a change to the gate is its own decision.
+- The runtime or type mark of an import reads only `verbatimModuleSyntax`. Two other inputs give the
+  same class of wrong answer and stay: without the option, TypeScript drops `import { A } from './a'`
+  when `A` is used only as a type, which archangel still counts as a runtime import, because telling
+  needs a semantic pass over every file; and the deprecated options `importsNotUsedAsValues` and
+  `preserveValueImports` are not read (item 10 of "Decisions that need you").
 - A preset rule is still replaced by a config rule with its prefixed name, with no explicit word;
   `archangel rules` shows each replacement. An explicit `replaces` would break 0.1 configs that
   replace by name, so it is deferred to a later change.
@@ -819,7 +913,8 @@ codes, each with a page: `table-empty`, `table-row-overlap`, `table-name-ambiguo
 
 None of these drops work silently. Searched: the config loader and its builders, the rule loader and
 its shorthand compilation, pattern parsing and its capture checks, element and package
-classification, the resolver's tsconfig reading, the import reader's type marking, the compiled
+classification, the resolver's tsconfig reading, the import reader's type marking, the graph's
+re-resolution after a tsconfig change, the compiled
 architecture and pair-entry filling, the structure conditions, the check's empty-set and
 preset-empty reports, the example runner and the test command, exception parsing, the baseline, the
 merge of presets and `off`, explain, the config types and the JSON schema.
@@ -831,29 +926,30 @@ This section is for whoever builds the change.
 | Part | Where |
 |---|---|
 | New config keys | `crates/archangel_config/src/parse.rs`: read `parts` beside `elements`, `groups` beside `selectors`, `externals`, and `because` beside `reason` (in `crates/archangel_config/src/rules.rs`); refuse both spellings of one key with `config-invalid`; `parts` refuses `{ packages }` values with the fix to move them to `externals` |
-| Externals | `crates/archangel_config/src/model.rs`: `Config.externals: Vec<Externals>` (name, package patterns), compiled as named package elements in `crates/archangel_config/src/matcher.rs` (`packages`); subpath and `node:` matching in `crates/archangel_config/src/pattern.rs`; refusal of a bare built-in name, an `@types/` name and a workspace package's name in `parse.rs`, the last after manifests are read |
+| Externals | No new model type: `crates/archangel_config/src/parse.rs` reads the `externals` key into `Config.elements` as `Element { kind: ElementKind::Packages(..) }` entries flagged as externals (`Element.externals: bool`), so the existing owner of named package sets holds them, the duplicate-name check in `crates/archangel_config/src/selectors.rs` ("is also an element") refuses an externals set with the name of a part or group, and a row key that names a flagged element is refused; matching stays `package_matches` in `crates/archangel_config/src/matcher.rs`. The one real change in the owner: `ElementMatcher::classify_package` in `crates/archangel_config/src/matcher.rs` returns the first package element today, and `ClassKey::Package { element, .. }` in `crates/archangel_rules/src/classes.rs` holds one element; both must record every set that lists a package. Refusal of a bare built-in name (the fix `node:x`), an `@types/` name, a name with a subpath (the fix is its package) and a workspace package's name in `parse.rs`, the last after manifests are read; the built-in names are `nodejs_built_in_modules::BUILTINS`, the list that oxc_resolver reads when `crates/archangel_graph/src/resolve.rs` sets `builtin_modules: true`, so the config and the resolver cannot disagree on what is a built-in |
 | Part overlap | `crates/archangel_config/src/matcher.rs`: `ElementMatcher` already returns every matching index; for `parts`, more than one own-part match gives `ProblemCode::PartOverlap`; a preset's parts form their own namespace in `Classification` (one `ElementId` per namespace); `elements` keeps the first match |
 | Pattern start | `crates/archangel_config/src/pattern.rs` (patterns start at the config folder, unchanged); entry roots for parts without a capture from `Classification.root` in `crates/archangel_config/src/matcher.rs` |
-| `{kind}` | `crates/archangel_config/src/pattern.rs`: a `Token::Capture("kind")` that never matches a dot, may repeat, and treats `.d.ts`, `.d.mts` and `.d.cts` as one extension; `PatternError::RepeatedCapture` still fires for any other name |
-| The table kind | `crates/archangel_config/src/rules.rs`: `"mayImport"` in `SHORTHANDS`, a `table` method beside `isolate` and `entry` that returns several `Rule`s; `parse_rule` returns `Vec<Rule>`, and its two callers in `parse.rs` push every row; keys resolved through `Names` (`crates/archangel_config/src/names.rs`) as parts or groups first, then kinds; cells must be rows, declared names or patterns; `instance` refused; precedent `layer_sentences` |
-| Table data | `crates/archangel_config/src/model.rs`: `Config.tables: Vec<Table>` (name, kind pattern, files, area, examples, `every_file_has_a_kind`, `every_row_may_import`, `may_not_import_itself`, preset), and `RuleKind::TableRow { table: usize, row: Option<String> }`; the row's own-instance permission as `ImportOptions.own: Own::SameInstance` read in `crates/archangel_rules/src/architecture.rs` |
-| `mayOnlyImport` self default | `crates/archangel_rules/src/architecture.rs`: the own-files test in `applies` compares instances as `instance: 'same'` does; recorded in `CHANGELOG.md` |
-| `everyFileHasAKind` | `crates/archangel_config/src/rules.rs`: one rule `<table>.every-file-has-a-kind` with one `MustNotExist` sentence on the table's files minus its rows; its message, with the file's kind or none and the closest row, in `crates/archangel_rules/src/messages.rs` |
+| `{kind}` | `crates/archangel_config/src/pattern.rs`: `Token::Capture("kind")` compiles to the same `(?P<name>[^/]+)` as every capture (line 113), so the suffix answer comes from the greedy `[^/]*` of the `*` before it, with no rule of its own. Two differences: it may repeat (the `RepeatedCapture` check skips `kind`, each place compiles to its own group, and the values are compared after the match, because the `regex` crate has no back-references), and `.d.ts`, `.d.mts` and `.d.cts` count as one extension for it; `PatternError::RepeatedCapture` still fires for any other name |
+| The table kind | `crates/archangel_config/src/rules.rs`: `"mayImport"` in `SHORTHANDS`, a `table` method beside `isolate` and `entry` that returns several `Rule`s; `parse_rule` returns `Vec<Rule>`, and its two callers in `parse.rs` push every row; keys resolved through `Names` (`crates/archangel_config/src/names.rs`) as parts or groups first, then kinds; cells must be rows, declared names or patterns; `instance`, `names`, `specifier`, `imports` and `dependency` copied into each row's `ImportOptions`, with `rule-needs-capture` for `instance` on a row without a capture; precedent `layer_sentences` |
+| Table data | `crates/archangel_config/src/model.rs`: `Config.tables: Vec<Table>` holds only what no row sentence holds: the name, the kind pattern (for classification), the files (the default and the rows' files), the examples and the preset; the area, `everyRowMayImport` and `mayNotImportItself` live only in the sentences they compile to, and no check result lives here, so `rules` and `explain` have one source; `RuleKind::TableRow { table: usize, row: Option<String> }` points a row at its table. No `own` flag: the row's own-instance permission is the changed own-files test of `mayOnlyImport` (next row) |
+| `mayOnlyImport` self default | `crates/archangel_rules/src/architecture.rs`: in `applies`, a `MayOnlyImport` sentence whose files have an instance capture now enters the pair entry of its own files (`to_in_files`) with a `Test::Facts` instance comparison (`facts::instances_compare`), as `instance: 'same'` does; for a kind row, `instances_compare` reads the kind pattern's capture values that classification stored in each end's `Classification` (`crates/archangel_config/src/matcher.rs`, beside the part's captures), not `sentence.files.element()`, so no pattern is matched per import; a sentence without a capture stays out of that pair entry as in 0.1; recorded in `CHANGELOG.md` |
+| `every-file-has-a-kind` | `crates/archangel_config/src/rules.rs`: one rule `<table>.every-file-has-a-kind` for every table, with one `MustNotExist` sentence on the table's files minus its rows; no option and no count; its message, with the file's kind or none and the closest row, in `crates/archangel_rules/src/messages.rs` |
 | Area | `crates/archangel_config/src/model.rs`: `within: Option<Side>` on `ImportOptions`; `crates/archangel_rules/src/architecture.rs`: one compiled-side value for `side` and `area`, tested in `applies` and `considers`; `report_inline` reports area patterns |
-| Type imports | `crates/archangel_graph/src/imports.rs`: `StatementNames::of` and `typed` take the file's `verbatimModuleSyntax` from the tsconfig that `crates/archangel_graph/src/resolve.rs` loads; `export type *` through `request.is_type` (test added) |
-| Overlap and ambiguity in a table | `crates/archangel_rules/src/check.rs`: in `Architecture::assemble`, `table-row-overlap` per class with two rows of one table, `table-name-ambiguous` when a group row key equals a kind value of some file, `table-empty`, and `Summary.rows_with_no_file`; `crates/archangel/src/render/json.rs` writes `rowsWithNoFile` only when the config has a table |
-| Diagnostic codes | `crates/archangel_config/src/problem.rs` and `crates/archangel_rules/src/messages.rs`: `PartOverlap`, `TableRowOverlap`, `TableNameAmbiguous`, `TableEmpty`; pages `crates/archangel_rules/docs/part-overlap.md`, `table-row-overlap.md`, `table-name-ambiguous.md`, `table-empty.md`, `may-import.md` |
-| Generated proof | `crates/archangel_rules/src/examples.rs`: `unproven_rules` skips `TableRow` rules; a new `generated_proofs` picks, per row, the first row file and the first refused class's first file from `Classes::files_in`, builds one in-memory example, and runs it through the existing runner; `crates/archangel_engine/src/test_command.rs` prints "generated" and the two files |
+| Type imports | The flaw is the `all_typed` inference in `StatementNames::of` in `crates/archangel_graph/src/imports.rs`, which marks a statement as typed when every import entry, or every re-export entry, carries the type mark, and so builds TypeScript's default elision into both statement forms. The mark is decided where the file's tsconfig is already in hand, not in the parser: `extract` stays syntactic and records the statement's `type` modifier and `all_typed` as facts; `resolve_file` in `crates/archangel_graph/src/graph.rs`, which already calls `resolver.tsconfig(file)` and holds the governing `TsConfig` (oxc_resolver 11.23 exposes `compiler_options.verbatim_module_syntax`, merged through `extends`), sets `ImportKind` from `all_typed && !verbatim_module_syntax`. So `resolve_all_again` in graph.rs, the path that `crates/archangel_engine/src/events.rs` takes for a tsconfig edit, re-derives every mark with zero parses, the language-server scenario "A change to a tsconfig" still holds, and an example's overlaid tsconfig (`crates/archangel_graph/src/overlay.rs`) is seen by `archangel test`; `export type *` through `request.is_type` (test added) |
+| Overlap in a table | `crates/archangel_rules/src/check.rs`: in `Architecture::assemble`, `table-row-overlap` per class with two rows of one table, with the way forward in its message (`messages.rs`), `table-empty`, and `Summary.rows_with_no_file`; `crates/archangel/src/render/json.rs` writes `rowsWithNoFile` only when the config has a table. A group row key that is also a kind value needs no check: the key resolves as the group, and `every-file-has-a-kind` names the group in its message for a file with that kind outside the group (`messages.rs`) |
+| Diagnostic codes | `crates/archangel_config/src/problem.rs` and `crates/archangel_rules/src/messages.rs`: `PartOverlap`, `TableRowOverlap`, `TableEmpty`; pages `crates/archangel_rules/docs/part-overlap.md`, `table-row-overlap.md`, `table-empty.md`, `may-import.md` |
+| Table rows and `rule-unproven` | `crates/archangel_rules/src/examples.rs`: `unproven_rules` skips `TableRow` rules and the `every-file-has-a-kind` rule; a table's written examples run against all its rows; no generated proof (item 5 of "Decisions that need you") |
 | `archangel rules` | `crates/archangel/src/commands/rules.rs` (new) and `crates/archangel/src/commands.rs`; reach counters per rule in `crates/archangel_rules/src/check.rs`, filled only when asked; the sentence printer shared with `crates/archangel/src/commands/explain.rs`; unjudged files and imports from pair entries with no sentence |
-| Source locations | `crates/archangel_config/src/load.mjs`: each builder records the file and line of its caller from the stack, and the loader sends them beside the config, keyed by rule index; `crates/archangel_config/src/load.rs` attaches them to `Rule` |
-| Explain of one import | `crates/archangel/src/commands/explain.rs`: parse `<file>:<line>`, evaluate every rule on that import with a reason for each skip (files, area, import kind, limits, instance) |
+| Source locations | `crates/archangel_config/src/load.mjs`: each builder records the file and line of its caller with `util.getCallSites()` (Node 22.9 and later), never by parsing stack text and with no fallback: `NODE_MINIMUM` in `crates/archangel_config/src/load.rs` is 22.18, and `Process::start` in `crates/archangel_engine/src/plugins.rs` applies it to every config before the loader starts, so the API is present on every Node that runs the loader (the npm `engines` field's `>=18` disagrees with the gate; Limits names it). The recorded frame is the first call-site frame outside `load.mjs`, whichever file that is, so a rule built in a helper module names that module and its line; a plain object gives the config file only. The loader sends the locations beside the config, keyed by rule index; `load.rs` attaches them to `Rule` |
+| Explain of one import | `crates/archangel/src/commands/explain.rs`: parse `<file>:<line>`, evaluate every rule on that import with a reason for each skip (files, area, import kind, limits, instance, an import that does not resolve, a rule that is off, a condition that judges no import); a file with `parse-failed` is reported with that diagnostic and status 1 |
+| Rules that `off` names | `crates/archangel_config/src/merge.rs` stays the one place that decides which rules are live: `off` still removes the rules it names from `Config.rules`, so no other reader changes, and now returns them in their own list, `Config.off`, beside `presets`. Only `archangel rules` and `explain` read that list, to print a rule as off. A table's name in `off` removes every rule of the table |
 | Stale entries | unchanged code paths: `exception-unknown-rule`, `exception-unused` and `baseline-stale` in `crates/archangel_rules/src/exceptions.rs` and `crates/archangel_rules/src/baseline.rs`; tests added for rows |
 | Fault controls | `crates/archangel_rules/src/architecture.rs`: fail points `rules::area_per_import` and `rules::every_row`, beside `rules::search_every_rule` |
-| Work counts | `crates/archangel_graph/src/work.rs`: no new counter; tests use `rule_evaluations`, `pattern_passes` and `files_classified` |
+| Work counts | `crates/archangel_graph/src/work.rs`: no new counter; tests use `rule_evaluations`, `structure_evaluations`, `pattern_passes` and `files_classified` |
 | Reference evaluator | `crates/archangel_rules/tests/rule_properties.rs`: extended with areas, tables of each row form, own-instance permission and externals |
 | Checked examples | `docs/examples/small-app/` and `docs/examples/enhance3-slice/` (config, files, expected output), one folder per other docs example; `crates/archangel/tests/doc_examples.rs` runs each and compares, and checks each config block in `README.md` and `docs/*.md` against a fixture |
-| Types | `npm/archangel/index.d.ts`: `parts`, `groups`, `externals`, `because`; `rule(name, body)` overload; `within?: Side` on the three import arms of `Sentence`; `mayImport<const N, const K extends string>(name, rows, options)` with cells typed as `K \| E \| S \| X \| PathPattern`; `TableName<N>` refuses a dot, colon, slash or space |
+| Types | `npm/archangel/index.d.ts`: `parts`, `groups`, `externals`, `because`; `rule(name, body)` overload; `within?: Side` on the `mayOnlyImport` and `mayOnlyBeImportedBy` arms of `Sentence`; `mayImport<const N, const K extends string>(name, rows, options)` with cells typed as `K \| E \| S \| X \| PathPattern`, where `E`, `S` and `X` are the type parameters that hold the config's declared part, group and externals names (`E` and `S` as `index.d.ts` already uses for elements and selectors; `X` is new, for `externals`); `TableName<N>` refuses a colon or a slash |
 | JSON schema | `npm/archangel/archangel.schema.json`: the new keys and the `mayImport` kind |
-| New terms | `openspec/glossary.md`: Part, Group, Externals set, Area, Table, Row, Cell, Kind, Kind pattern, Reach, Generated proof, Unjudged; Element and Selector point to Part and Group; Shorthand kind and Rule builder name four kinds |
-| Docs | `docs/rules.md`, `README.md`, `docs/commands.md` (`rules`, `explain <file>:<line>`), `docs/migrating.md` (the new spellings), `CHANGELOG.md` (0.2.0), versions in `Cargo.toml` and `npm/archangel/package.json` |
-| Precedents | `layer_sentences` in `crates/archangel_config/src/rules.rs`; `unproven_rules` in `crates/archangel_rules/src/examples.rs`; enhance3's builder at `packages/architecture/archangel.mjs` and vocabulary at `packages/architecture/index.mjs` on its main branch |
+| New terms | `openspec/glossary.md`: Part, Group, Externals set, Area, Table, Row, Cell, Kind, Kind pattern, Reach, Unjudged; Element instance renamed to Instance and widened to a kind pattern's other captures and to a name without a capture, with Element instance pointing at it; Element and Selector point to Part and Group; Shorthand kind and Rule builder name four kinds |
+| Docs | `crates/archangel_rules/docs/may-import.md` says that a table without `files` leaves a file with no kind outside the table, and that `files` closes that gap; `docs/rules.md`, `README.md`, `docs/commands.md` (`rules`, `explain <file>:<line>`), `docs/migrating.md` (the new spellings), `CHANGELOG.md` (0.2.0), versions in `Cargo.toml` and `npm/archangel/package.json` |
+| Precedents | `layer_sentences` in `crates/archangel_config/src/rules.rs`; `unproven_rules` in `crates/archangel_rules/src/examples.rs`; enhance3's builder at `packages/architecture/archangel.mjs` and vocabulary at `packages/architecture/index.mjs` on the main branch of https://github.com/enhance-labs-builds/enhance3 |

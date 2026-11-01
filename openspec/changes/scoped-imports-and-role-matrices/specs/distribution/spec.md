@@ -44,34 +44,35 @@ The npm package MUST export `defineConfig` and the types of the config. With the
 
 #### Scenario: A table cell that names nothing
 
-- **GIVEN** a config that uses `defineConfig` and a table with the kind pattern `**/*.{kind}.ts` and the rows `entity` and `value-object`, whose row `entity` has the cell `value-objekt`
+- **GIVEN** a config that uses `defineConfig` and a table with the kind pattern `**/*.{kind}.ts` and the rows `entity` and `value-object`, whose row `entity` has the cell `value-objects`
 - **WHEN** the TypeScript compiler checks the config
-- **THEN** the compiler reports an error on "value-objekt"
+- **THEN** the compiler reports an error on "value-objects"
 - **AND** the cells `value-object`, a declared part, an externals set and `apps/api/src/shared/result.ts` have no error
 - **TEST** `npm/archangel/test/types.test-d.ts` › "a table cell that names no row, no declared name and no pattern is a type error"
 
 #### Scenario: A row that names nothing in a table without a kind pattern
 
-- **GIVEN** a config that uses `defineConfig`, declares the part "canvas-document", and has a table with no kind pattern and the row `canvas-documnet`
+- **GIVEN** a config that uses `defineConfig`, declares the part "canvas-document", and has a table with no kind pattern and the row `canvas-documents`
 - **WHEN** the TypeScript compiler checks the config
-- **THEN** the compiler reports an error on "canvas-documnet"
+- **THEN** the compiler reports an error on "canvas-documents"
 - **AND** the same table with the row `canvas-document` has no error
 - **TEST** `npm/archangel/test/types.test-d.ts` › "a row of a table without kinds must be a declared part or group"
 
-#### Scenario: A table name with a dot
+#### Scenario: A table name with a colon
 
-- **GIVEN** a table named `api.domain`, and a table with the row `aggregate.root`
+- **GIVEN** a table named `api:domain`, and a table with the row `aggregate/root`
 - **WHEN** the TypeScript compiler checks the config
-- **THEN** the compiler reports an error on each name, which says that the name of a table or a row has no dot, colon, slash or space
-- **TEST** `npm/archangel/test/types.test-d.ts` › "a table or row name with a dot, colon, slash or space is a type error"
+- **THEN** the compiler reports an error on each name, which says that the name of a table or a row has no colon or slash
+- **AND** a table named `api.domain` with the row `my views` has no error
+- **TEST** `npm/archangel/test/types.test-d.ts` › "a table or row name with a colon or slash is a type error"
 
 #### Scenario: An area on a naming sentence
 
 - **GIVEN** a config with `rule('names', { files: 'entity', mustBeNamed: 'kebab-case', within: 'apps/api/src/**' })`
 - **WHEN** the TypeScript compiler checks the config
 - **THEN** the compiler reports an error on the rule
-- **AND** the same rule with `mayNotImport`, `mayOnlyImport` or `mayOnlyBeImportedBy` in place of `mustBeNamed` has no error, and an area that names an undeclared group gives an error on that name
-- **TEST** `npm/archangel/test/types.test-d.ts` › "within is typed as a rule side and only on import conditions"
+- **AND** the same rule with `mayOnlyImport` or `mayOnlyBeImportedBy` in place of `mustBeNamed` has no error, with `mayNotImport` gives an error, and an area that names an undeclared group gives an error on that name
+- **TEST** `npm/archangel/test/types.test-d.ts` › "within is typed as a rule side and only on mayOnlyImport and mayOnlyBeImportedBy"
 
 #### Scenario: Two spellings of one key
 

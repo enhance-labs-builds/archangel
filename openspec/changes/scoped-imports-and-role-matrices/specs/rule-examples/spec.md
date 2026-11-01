@@ -2,44 +2,6 @@
 
 ## ADDED Requirements
 
-### Requirement: Archangel proves each table row from two repository files
-
-`archangel test` MUST make one generated proof for each table row that has files. The proof MUST take the first file of the row, in path order, and the first repository file, in path order, that the row refuses. It MUST check that the row rejects an import from the first file to the second, with the in-memory check that every example uses. It MUST print the row, the word "generated" and the two files. A proof that the row does not reject MUST fail, and `archangel test` MUST exit with status 1.
-
-#### Scenario: The rows of the small app
-
-- **GIVEN** the small-app fixture, which has no written example
-- **WHEN** the developer runs `archangel test`
-- **THEN** archangel prints one generated proof for each of `app.feature`, `feature-code.views`, `feature-code.models` and `feature-code.api`, each with its two files
-- **AND** archangel gives no `rule-unproven` diagnostic, and exits with status 0
-- **TEST** `crates/archangel/tests/test_command.rs` › "each_table_row_is_proven_from_two_repository_files"
-
-#### Scenario: The fault control for generated proof
-
-- **GIVEN** a build of archangel with a fault that drops the sentence of every table row
-- **WHEN** the developer runs `archangel test` on the small-app fixture
-- **THEN** each generated proof fails, and archangel exits with status 1
-- **TEST** `crates/archangel/tests/test_command.rs` › "a_generated_proof_fails_when_its_row_cannot_reject"
-
-### Requirement: A row that cannot be proven yet is listed
-
-A table row with no file, or with no repository file that it refuses, MUST NOT fail `archangel test`. `archangel test` MUST list it as a row that proves nothing yet, with the reason.
-
-#### Scenario: A row with no file
-
-- **GIVEN** the enhance3-slice fixture, with no aggregate-root file
-- **WHEN** the developer runs `archangel test`
-- **THEN** archangel lists `domain.aggregate-root` as a row that proves nothing yet, because no file is in it
-- **AND** this does not change the exit status
-- **TEST** `crates/archangel/tests/test_command.rs` › "a_row_with_no_file_proves_nothing_yet"
-
-#### Scenario: A row that permits every file
-
-- **GIVEN** a table with the part rows `a: ['b']` and `b: ['a']`, on a repository whose files are all in `a` or `b`
-- **WHEN** the developer runs `archangel test`
-- **THEN** archangel lists `a` and `b` as rows that prove nothing yet, because no file is refused
-- **TEST** `crates/archangel/tests/test_command.rs` › "a_row_that_refuses_no_file_proves_nothing_yet"
-
 ### Requirement: A written example of a table runs against all its rows
 
 A table MAY have written examples. They MUST run once against all its rules. A rejected example MUST pass when one of these rules rejects it, and archangel MUST name that rule. It MUST fail when none rejects it, and the message MUST say that no row of the table rejected it.
@@ -92,7 +54,7 @@ An accepted example of a rule with an area MUST fail with `example-proves-nothin
 
 ### Requirement: Every rule proves that it can reject
 
-`archangel test` MUST fail when a rule has no rejected example, with a `rule-unproven` diagnostic that names the rule. A rule without a rejected example has no proof that it can find a violation. A table row, and the rule of a table's `everyFileHasAKind`, MUST NOT need a written rejected example, because the generated proofs prove the rows.
+`archangel test` MUST fail when a rule has no rejected example, with a `rule-unproven` diagnostic that names the rule. A rule without a rejected example has no proof that it can find a violation. A table row, and a table's `every-file-has-a-kind` rule, MUST NOT need a written rejected example: what shows that a row can fire is the summary's list of rows with no file, `table-empty` and the reach that `archangel rules` prints.
 
 #### Scenario: A rule without a rejected example
 
@@ -106,5 +68,6 @@ An accepted example of a rule with an area MUST fail with `example-proves-nothin
 
 - **GIVEN** the enhance3-slice fixture, whose tables have no written example, and whose other rules each have one
 - **WHEN** the developer runs `archangel test`
-- **THEN** archangel gives no `rule-unproven` diagnostic for a row of `workspace` or `domain`, or for `domain.every-file-has-a-kind`
+- **THEN** archangel gives no `rule-unproven` diagnostic for a row of `workspace` or `domain`, or for `workspace.every-file-has-a-kind` or `domain.every-file-has-a-kind`
+- **AND** archangel exits with status 0
 - **TEST** `crates/archangel/tests/test_command.rs` › "a_table_row_needs_no_written_example"

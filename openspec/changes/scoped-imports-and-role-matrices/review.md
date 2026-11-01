@@ -7,8 +7,9 @@ that the change makes, and what would change if the answer is different. Items 1
 rebuild of round 4; items 13 to 26 are earlier assumptions that still hold, renamed to the new terms.
 
 1. **The specs follow the recommendation of each item of "Decisions that need you".** If the owner
-   picks another option, the requirement named in that item and its tests change. Items 5
-   (generated proof), 7 (part overlap), 9 (self default) and 10 (type imports) change the most.
+   picks another option, the requirement named in that item and its tests change. Items 5 (no
+   written example for a row), 7 (part overlap), 9 (self default), 10 (type imports) and 12
+   (`table-empty`) change the most.
 2. **Conflict found: the owner asked for every change to be additive to 0.1 configs, and two
    recommendations are not.** The own-instance default of `mayOnlyImport` (item 9) and type imports
    under `verbatimModuleSyntax` (item 10) change 0.1 results, each because the 0.1 answer is a
@@ -22,28 +23,34 @@ rebuild of round 4; items 13 to 26 are earlier assumptions that still hold, rena
    enhance3's stated domain table needs a `specification` row (note A below). The other option is to
    accept any kind name as a cell and list unused ones in the summary, which lets a misspelt cell
    pass until a file of that kind appears.
-5. **Declared names win over kinds as row keys, and a clash is `table-name-ambiguous`.** The earlier
-   change let a role shadow a declared name. With rows that mix kinds, parts and groups, a declared
-   name must be reachable, so a key that names a part or group means it; when the kind pattern also
-   gives that name to a file, the check refuses the clash instead of choosing.
+5. **Declared names win over kinds as row keys, with no clash diagnostic.** With rows that mix
+   kinds, parts and groups, a declared name must be reachable, so a key that names a part or group
+   means it. When the kind pattern also gives that name to a file outside the part or group, that
+   file falls under `every-file-has-a-kind`, whose message says the key means the declared name, and
+   `archangel rules` and `explain` show the same. The alternative, a `table-name-ambiguous` error,
+   was dropped because archangel already has one meaning for the key.
 6. **Captures other than `{kind}` in a kind pattern make instances.** The earlier change made them
    wildcards with no instance. One rule, "a capture always names an instance", makes "itself in the
    same instance" mean the same for parts and kinds.
 7. **A file in two rows of one table is an error, `table-row-overlap`.** The earlier change judged it
    by both rows. The proposal says one row must say what a file may import; the file is still
    judged by both rows while the error stands, so no import passes in silence.
-8. **`{kind}` never holds a dot, and a declaration file counts `.d.ts` as its extension.** This makes
-   `board.entity.test.ts` the kind `test` and `board.entity.d.ts` an `entity`. A kind with a dot in
-   it must be written as a group.
+8. **`{kind}` holds no dot only where a literal dot follows it, and a declaration file counts
+   `.d.ts` as its extension.** This makes `board.entity.test.ts` the kind `test` and
+   `board.entity.d.ts` an `entity` under a suffix pattern, while a folder `api.v2` under
+   `src/features/*/{kind}/**` is the kind `api.v2`. A suffix kind with a dot in it must be written
+   as a group.
 9. **`parts` carries the new meaning and `elements` keeps the old one.** Overlap is an error and
    presets are separate namespaces only under `parts`, so a 0.1 config keeps its results. A config
    that moves from `elements` to `parts` sees each overlap as an error, never as a changed verdict.
 10. **The externals rules are archangel's own.** Matching subpaths, refusing a bare built-in name,
     an `@types/` name and a workspace package's name follow from the 0.1 resolver, which resolves
     `fs` to `node:fs` and a workspace package to a file. No other tool was copied.
-11. **Generated proof uses the first files in path order.** Path order makes the proof the same on
-    every machine. A row that refuses no existing file proves nothing yet and does not fail
-    `archangel test`. If the owner wants such a row to fail, its requirement changes.
+11. **A table row has no proof in `archangel test`, written or generated.** Generated proof was
+    dropped: it chose its refused file with the evaluator it then checked, so it could not fail on a
+    correct build, and the summary, `table-empty` and `archangel rules` already show whether a row
+    can fire. If the owner wants one written rejected example per table, the `rule-unproven`
+    requirement changes.
 12. **Deferred, with reasons:** an explicit word to replace a preset rule (it breaks 0.1 configs that
     replace by name; `archangel rules` shows each replacement), `mayOnlyImportTypesFrom` (the
     `imports: 'runtime'` option says the same), layers and isolate over groups, one-line examples,
@@ -54,12 +61,13 @@ rebuild of round 4; items 13 to 26 are earlier assumptions that still hold, rena
 14. **Row names are `<table>.<row>`, and table and row names refuse a dot, a colon, a slash and white
     space.** The colon is refused because exception comments end the rule name at the first colon.
 15. **`within` on `mayNotImport` narrows the side** to `{ all: [side, area] }`.
-16. **`off` takes row names only.** A table name in `off` is refused with the closest row names.
-17. **The options of a table apply to each row**, except `instance`, which a table refuses because
-    each row already permits its own instance.
+16. **A table name in `off` turns off every rule the table makes**, rows added later included, and
+    `archangel rules` shows them as off. `off` also takes single row names.
+17. **The options of a table apply to each row**, `instance` included: it filters which imports a
+    row judges, as on any rule, and a row without a capture gives `rule-needs-capture`.
 18. **The glossary is not edited by this change folder.** The run could edit only this folder. The
     specs use the new terms (part, group, externals set, area, table, row, cell, kind, kind pattern,
-    reach, generated proof, unjudged) before the glossary has them; task 2.1 adds them first. This
+    reach, instance, unjudged) before the glossary has them; task 2.1 adds them first. This
     is a conflict with the spec rule "add a new term there before a spec uses it", named here.
 19. **Conflict found: rule names with a colon cannot take an exception.** The exception parser splits
     at the first colon. This change refuses the colon only in table and row names, and fixing the
@@ -88,7 +96,7 @@ rebuild of round 4; items 13 to 26 are earlier assumptions that still hold, rena
 ### Notes for enhance3, not for archangel
 
 A. **The stated domain table names `specification` as a cell and has no row for it.** With
-   `everyFileHasAKind` on, a specification file in the domain folder is refused, and 0.2 refuses a
+   the `every-file-has-a-kind` rule, a specification file in the domain folder is refused, and 0.2 refuses a
    cell that names no row. The fixture adds `specification: ['entity', 'value-object',
    'aggregate-root', 'types', 'consts']`, the row enhance3's builder has today. enhance3's builder
    also has `domain-service`, which the stated table leaves out; it needs a row, or its files must
@@ -236,3 +244,97 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 24. Recorded the enhance3 notes: the missing `specification` row, the value-object and error cycle, and a port that cannot name an aggregate root. fixed
 25. Split six requirements over 500 characters so that `openspec validate --strict` passes. fixed
 
+### Round 1 (rebuilt design)
+
+1. cold-read: item 5 made a cold reader believe the generated proof checks their own cells. fixed (generated proof dropped; item 5 says what a proof could and could not show)
+2. cold-read: the proposal and "In short" called both 0.1 breaks plausible wrong answers, though item 9 changes a default on purpose. fixed
+3. cold-read: "pair entry" and "class" were used in step 3 before their definitions. fixed (the three ideas from 0.1 come before the steps)
+4. cold-read: "in the same instance" was undefined in the proposal and missing from the glossary. fixed
+5. cold-read: sentences referred to earlier drafts and to an unseen "proposal page". fixed (each alternative stated on its own terms)
+6. cold-read: Cost pointed at task 8.1 and used the undefined "fault controls". fixed
+7. cold-read: item 11 recommended neither of its two options. fixed
+8. cold-read: the bare `fs` refusal did not say which name archangel stores for a built-in. fixed
+9. cold-read: "trust tools" in item 8 was undefined. fixed
+10. cold-read: the 380-rule estimate read as 380 table rules plus 180 others. fixed
+11. limits: a table refused `instance` for a reason that does not match what `instance` does. fixed (accepted as an import filter on each row; `rule-needs-capture` without a capture)
+12. limits: a generated proof could miss a table's `names`, `specifier`, `imports` or `dependency` and fail a correct row. rejected: generated proof is removed (innovation-tokens, finding 20)
+13. limits: `{kind}` never held a dot, so a dotted folder kind dropped out of the table in silence. fixed (no dot only where a literal dot follows the capture)
+14. limits: `table-name-ambiguous` refused a key that archangel already gives one meaning. fixed (dropped; the declared name wins and `every-file-has-a-kind` says so)
+15. limits: a table's name in `off` was refused although it has an obvious meaning. fixed (turns off every rule of the table)
+16. limits: `table-empty` failed the check without an item in "Decisions that need you". fixed (item 12, with the summary-line option)
+17. limits: explain of a line with two imports did not say which one it explains. fixed (one block each, with a scenario)
+18. limits: a row whose only refusals are packages was listed with a wrong reason. rejected: generated proof is removed (innovation-tokens, finding 20)
+19. executable-spec: an externals set with the name of a part or group had no outcome. fixed (refused with `config-invalid`; the loader catches it, the types do not)
+20. innovation-tokens: generated proof was a new gate that chose its target with the evaluator under test, so it could not fail on a correct build. fixed (dropped; table rows are exempt from `rule-unproven`, and reach, `table-empty` and the summary show that a row can fire)
+21. executable-spec: the spelling scenario skipped `groups` with `selectors` and the name-first builder with a `name` key. fixed
+22. executable-spec: explain had no outcome for a multi-line statement, a missing file, the exact skip reasons, or an exception beside a rule. fixed
+23. executable-spec: `archangel rules` had no exit status, no outcome for a folder with no file, and no reach scenario for exceptions and baseline matches. fixed (status 0 when it prints, 2 for a path with no file, as for any path argument)
+24. executable-spec: `names`, `dependency`, `everyRowMayImport` with an externals set, an empty area and the default files of a table of parts had no scenario. fixed
+25. executable-spec: three requirements each packed several behaviours. fixed (split)
+26. executable-spec: three existing tests that scenarios keep were not in task 1.24. fixed (plus the fuzz target in 9.2)
+27. executable-spec: "with the in-memory check that every example uses" was implementation detail in a spec. rejected: generated proof is removed (finding 20)
+28. innovation-tokens: the loader parsed stack text for source locations. fixed (`util.getCallSites()`, else V8 `CallSite` objects)
+29. innovation-tokens: the built-in module list had no named source. fixed (`nodejs_built_in_modules::BUILTINS`, the list oxc_resolver reads)
+30. abstractions: `Config.externals` duplicated the owner of named package sets. fixed (externals are flagged package elements in `Config.elements`; `classify_package` and `ClassKey::Package` record every set)
+31. abstractions: `Own::SameInstance` had one value and one use. fixed (removed; the permission is the changed own-files test)
+32. abstractions: `Table` stored four facts that the row sentences also hold. fixed (`Table` keeps name, kind pattern, files, examples and preset)
+33. standalone: neither the spec nor the design said what area a row gets without `within`. fixed
+34. standalone: `app.shared` was missing from the proof list. rejected: generated proof is removed (finding 20)
+35. standalone: the design and the spec ordered the proof's refused file differently. rejected: generated proof is removed (finding 20)
+36. standalone: Cost named task 8.1 for the enhance3 measurement. fixed
+37. standalone: sentences relied on earlier versions of the change. fixed (same fix as finding 5)
+38. standalone: "the proposal page" and "one-line examples" were undefined. fixed
+39. standalone: scenarios relied on the two fixture configs without saying where they are. fixed (the documentation spec names the folders and the design sections)
+40. standalone: "the result type" was not a term of the change. fixed
+41. root-cause: item 10 fixed the reported import but not the re-export that runs through the same `all_typed` inference. fixed (class and flaw named; requirement, scenarios and a cycle test cover export-from)
+42. root-cause: other inputs to the type mark were neither handled nor named. fixed (named in item 10 and in Limits, with the reason each stays)
+43. performance: the own-instance permission costs one rule evaluation per import inside a captured row or part, which Cost denied. fixed (cost stated, work-count test holds the exact number, task 9.1 expects the rise)
+44. performance: generated proof cost rows times files, not rows. rejected: generated proof is removed (finding 20)
+45. performance: `table-name-ambiguous` needed a walk over every file on each edit. rejected: the diagnostic is removed (finding 14)
+46. performance: `everyFileHasAKind` was costed per class, but a structure sentence is decided per file. fixed (per-file cost stated; the test holds `structureEvaluations`)
+47. performance: classification grows with files times sets, and nothing measured the set count. fixed (Cost states it; task 9.1 reports the number of compiled sets)
+
+### Round 2 (rebuilt design)
+
+1. cold-read: the proposal's "fail closed" read as refusing every outside package. fixed (fails closed for repository files; a package only through an externals set)
+2. cold-read: step 1 and the `archangel rules` example disagreed on whether a table without a kind pattern makes `every-file-has-a-kind`. fixed (every table makes it; the `app` line is in the example as checking nothing)
+3. cold-read: the Kinds bullet read as if a group row were a kind. fixed
+4. cold-read: "instance" was defined as any capture, so groups and inline patterns seemed to get instances. fixed (parts and a kind pattern's other captures only; stated in the terms, item 9 and the spec)
+5. cold-read: item 3 did not show the `not` list that leaves out index and declaration files. fixed (example given; the slice leaves out only `tests`, so an `index.ts` there is refused)
+6. cold-read: Cost used the `--stats` counters before naming them. fixed
+7. limits: a dot and white space in a table or row name were refused for no reason, and item 3's own kind `api.v2` could not be a row. fixed (accepted; only a colon and a slash are refused; a clash is `rule-name-duplicate`; Decision 8, the spec, the types and the tasks changed)
+8. limits: a rule built in a helper module was given the config file with no line. fixed (the first call-site frame outside `load.mjs`, whichever file; scenario and test added)
+9. limits: explain had no reason for a rule that is off or a condition that judges no import. fixed (two reasons added, one scenario with both; `off` keeps the rules marked off instead of dropping them, a new row in "Where in the code")
+10. limits: item 3 claimed the suffix gap was closed while a file with no kind was outside a table without `files`. fixed (item 3, Limits, the spec and the docs page say that `files` is what closes it; scenario added)
+11. limits: `table-row-overlap` and `part-overlap` gave no way forward and the baseline cannot hold them. fixed (messages say what to do and that the config must change; assertions added)
+12. executable-spec: the dependency half of "Names and dependency" tested nothing. fixed (`dependency: 'dev'`, an externals set, a manifest, one violation for `vitest`)
+13. executable-spec: the double-negative property disagreed with the own-instance rule when files have a capture. fixed (the generator leaves captures out and says why; the captured case is held by "One feature imports another" and the reference evaluator)
+14. executable-spec: explain of an unresolved import had no outcome. fixed (reason, no target, scenario and test)
+15. executable-spec: explain of a file that does not parse had no outcome. fixed (`parse-failed`, status 1, scenario and test)
+16. executable-spec: explain had no outcome for a rule that `off` turns off. fixed (with finding 9, one scenario)
+17. executable-spec: the README clause had no scenario. fixed (`the_readme_shows_the_small_app_and_its_error`, in task 1.2)
+18. executable-spec: the explain JSON scenario asserted "the same answer". fixed (fields named)
+19. executable-spec: `part-overlap` had no edit-during-a-session scenario. fixed (`a_part_overlap_appears_and_goes_with_the_file_in_the_editor`, in task 1.22; `table-row-overlap` is computed in the same assemble as rows with no file, whose two editor scenarios exercise that path)
+20. innovation-tokens: the call-site fallback rebuilt `util.getCallSites()` for a Node that the gate never lets reach the loader. fixed (`getCallSites()` alone; the gate named; the `engines >=18` disagreement named in Limits, not built around)
+21. innovation-tokens: `{kind}` had a no-dot rule that the ordinary capture plus greedy `*` already gives. fixed (no-dot rule dropped; only the repeat and `.d.ts` differences stay, scoped to `{kind}` with the reason and the token named in Decision 2)
+22. abstractions: `Config.tables` held a check result, the count of files with no row. fixed (the count is gone with the option, finding 23)
+23. abstractions: `everyFileHasAKind: false` duplicated `off` for a user the change cannot name. fixed (option, summary line, count, scenario and test removed; the rule is always made)
+24. abstractions: the new term Instance duplicated the glossary's Element instance. fixed (Element instance renamed to Instance and widened; task 2.1 adds eleven terms)
+25. abstractions: `within` on `mayNotImport` only forwarded to `{ all: [side, area] }`. fixed (refused with that one-line fix; the requirement, two tests and the evaluator case dropped)
+26. standalone: the enhance3-slice config gave its two rules no rejected example, so `archangel test` would fail on the fixture. fixed (examples added, sentence after the block)
+27. standalone: nothing in the repository said what or where enhance3 is. fixed (proposal "Why" and the Precedents row)
+28. standalone: "reach" was used in the proposal before its definition. fixed
+29. standalone: "`archangel explain` prints each pattern with its start" was promised and not specified. fixed (sentence removed)
+30. standalone: `E`, `S` and `X` were undeclared in the Types row. fixed
+31. root-cause: the type mark was set in the parser, so a tsconfig change left every mark stale on the re-resolution path and in examples. fixed (mark set in `resolve_file` from the governing tsconfig; scenario and test in `work.rs`; the Type imports row and task 6.1 name graph.rs)
+32. performance: the instance comparison of a kind row with another capture would match the kind pattern per import. fixed (capture values stored at classification; the self-default row and Cost say so; the `{context}` case is in the captured-row scenario with the pattern passes held equal)
+
+### Final check, closed by hand
+
+- limits: externals said nothing about the other 0.1 pattern forms: fixed, an externals name is now a 0.1 package pattern.
+- innovation-tokens: subpath matching was a second matcher, on a fact the graph does not record: fixed, externals use `package_matches`; a name with a subpath is refused with the fix.
+- limits: `within` on `mayNotImport` was refused without a decision: fixed, item 13 of "Decisions that need you".
+- executable-spec: the dot-or-space scenario asserted a check in the config crate: fixed, split into a loader scenario and a check scenario.
+- abstractions: `Rule.off` moved liveness out of `merge::off`: fixed, `off` still removes rules, and `Config.off` holds them for `rules` and `explain`.
+- limits, minor: the every-file message for a table without a kind pattern: fixed, with a scenario.
+- limits, minor: the split of `<file>:<line>` on a Windows path: fixed, the line follows the last colon.

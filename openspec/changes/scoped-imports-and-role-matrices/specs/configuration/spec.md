@@ -16,14 +16,16 @@ The config MUST accept the key `parts` with the values of `elements`, and the ke
 
 ### Requirement: A config uses one spelling for each key
 
-A config that has both `parts` and `elements`, or both `groups` and `selectors`, MUST be refused with `config-invalid`. A rule of the config that has both `because` and `reason` MUST be refused with `config-invalid`. The rules of a preset MAY use the other spelling.
+A config that has both `parts` and `elements`, or both `groups` and `selectors`, MUST be refused with `config-invalid`. A rule of the config that has both `because` and `reason` MUST be refused with `config-invalid`. A rule builder call with a name as its first argument and a `name` key MUST be refused with `config-invalid`. The rules of a preset MAY use the other spelling.
 
 #### Scenario: Two spellings of one key
 
 - **GIVEN** a config with both `parts` and `elements`
+- **AND** a config with both `groups` and `selectors`
 - **AND** a config with a rule that has both `because` and `reason`
+- **AND** a config with `rule('a', { name: 'b', files: 'src/**', mayNotImport: 'tests' })`
 - **WHEN** archangel loads each config
-- **THEN** each gives `config-invalid` at the second key, saying that a config uses one spelling for each key
+- **THEN** each gives `config-invalid` at the second spelling, saying that a config uses one spelling for each key
 - **TEST** `crates/archangel_config/tests/spellings.rs` › "a_config_cannot_mix_two_spellings_of_one_key"
 
 #### Scenario: A preset written with the old spellings
@@ -33,33 +35,9 @@ A config that has both `parts` and `elements`, or both `groups` and `selectors`,
 - **THEN** archangel gives no diagnostic about spellings
 - **TEST** `crates/archangel_config/tests/spellings.rs` › "a_preset_may_use_the_other_spelling"
 
-### Requirement: An externals set names outside packages exactly
+### Requirement: An externals set is a named list of package patterns
 
-The config MUST accept the key `externals`, an object of named lists of package names. A name MUST match the package of that name and every subpath of it. A name with a subpath MUST match only that subpath and the subpaths below it. A name that ends with `/*` MUST match every package in that scope. A name `node:x` MUST match the built-in module `x`, written with or without the prefix, and its subpaths.
-
-#### Scenario: A package and its subpaths
-
-- **GIVEN** the externals set `driver` as `['pg']`, and a rule `rule('no-driver', { files: 'src/**', mayNotImport: 'driver' })`
-- **AND** a file that imports `pg`, `pg/lib/client` and `pg-format`
-- **WHEN** archangel makes a check
-- **THEN** archangel gives one violation for each of `pg` and `pg/lib/client`, and none for `pg-format`
-- **TEST** `crates/archangel_rules/tests/externals.rs` › "a_name_matches_its_package_and_every_subpath"
-
-#### Scenario: A name with a subpath
-
-- **GIVEN** the externals set `client` as `['pg/lib/client']`, and a rule that refuses `client`
-- **AND** a file that imports `pg`, `pg/lib/client` and `pg/lib/client/pool`
-- **WHEN** archangel makes a check
-- **THEN** archangel gives one violation for each of `pg/lib/client` and `pg/lib/client/pool`, and none for `pg`
-- **TEST** `crates/archangel_rules/tests/externals.rs` › "a_name_with_a_subpath_matches_that_subpath_and_below"
-
-#### Scenario: Built-in modules
-
-- **GIVEN** the externals set `fs` as `['node:fs']`, and a rule that refuses `fs`
-- **AND** a file that imports `fs`, `node:fs`, `fs/promises`, `node:fs/promises` and `node:path`
-- **WHEN** archangel makes a check
-- **THEN** archangel gives one violation for each of the first four imports, and none for `node:path`
-- **TEST** `crates/archangel_rules/tests/externals.rs` › "node_names_match_the_built_in_with_and_without_the_prefix"
+The config MUST accept the key `externals`, an object of named lists of package patterns. A pattern MUST mean what it means in a 0.1 package element: a package name, `@scope/*` for every package in a scope, `node:x` for one built-in module, `node:*` for every built-in module, `*` for every package, and any other `*` as a wildcard in the name. A package MUST be in every set that lists it.
 
 #### Scenario: A scope
 
@@ -69,9 +47,48 @@ The config MUST accept the key `externals`, an object of named lists of package 
 - **THEN** archangel gives one violation, for `@aws-sdk/client-s3`
 - **TEST** `crates/archangel_rules/tests/externals.rs` › "a_scope_name_matches_every_package_in_the_scope"
 
-### Requirement: An externals name that could never match is refused, and a part holds no packages
+#### Scenario: A pattern means what it means in a 0.1 package element
 
-A bare name of a built-in module MUST be refused with `config-invalid` and the fix `node:x`. A name that starts with `@types/` MUST be refused with `config-invalid`. A name of a package of the workspace MUST be refused with `config-invalid`. A value of `parts` with packages MUST be refused with `config-invalid` and the fix to move it to `externals`.
+- **GIVEN** the externals sets `builtins` as `['node:*']`, `db` as `['knex*']` and `all` as `['*']`, each in a rule that refuses it, in its own config
+- **AND** a file that imports `node:path`, `knex-utils` and `react`
+- **WHEN** archangel makes a check of each config
+- **THEN** the first gives one violation, for `node:path`; the second one, for `knex-utils`; and the third one for each of the three imports
+- **TEST** `crates/archangel_rules/tests/externals.rs` › "an_externals_name_is_a_package_pattern_as_in_0_1"
+
+### Requirement: An import counts as the package it resolves to
+
+An import of a subpath MUST count as an import of its package, because archangel records the package that an import resolves to. An import of a built-in module MUST count under its `node:` name, written with or without the prefix.
+
+#### Scenario: A package and its subpaths
+
+- **GIVEN** the externals set `driver` as `['pg']`, and a rule `rule('no-driver', { files: 'src/**', mayNotImport: 'driver' })`
+- **AND** a file that imports `pg`, `pg/lib/client` and `pg-format`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation for each of `pg` and `pg/lib/client`, and none for `pg-format`
+- **TEST** `crates/archangel_rules/tests/externals.rs` › "a_name_matches_its_package_and_every_subpath"
+
+#### Scenario: Built-in modules
+
+- **GIVEN** the externals set `fs` as `['node:fs', 'node:fs/promises']`, and a rule that refuses `fs`
+- **AND** a file that imports `fs`, `node:fs`, `fs/promises`, `node:fs/promises` and `node:path`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation for each of the first four imports, and none for `node:path`
+- **TEST** `crates/archangel_rules/tests/externals.rs` › "node_names_match_the_built_in_with_and_without_the_prefix"
+
+### Requirement: An externals set has a name of its own
+
+An externals set with the name of a part or a group MUST be refused with `config-invalid`, which names both declarations.
+
+#### Scenario: An externals set with the name of a group
+
+- **GIVEN** the group `driver` as `src/drivers/**` and the externals set `driver` as `['pg']`
+- **WHEN** archangel loads the config
+- **THEN** archangel gives `config-invalid` at the externals set `driver`, saying that it is also a group
+- **TEST** `crates/archangel_config/tests/validate.rs` › "an_externals_set_with_the_name_of_a_part_or_group_is_refused"
+
+### Requirement: An externals name that could never match is refused
+
+A bare name of a built-in module MUST be refused with `config-invalid` and the fix `node:x`; the built-in names MUST be the list that the resolver uses. A name that starts with `@types/` MUST be refused with `config-invalid`. A name of a package of the workspace MUST be refused with `config-invalid`.
 
 #### Scenario: Names that could never match
 
@@ -81,6 +98,21 @@ A bare name of a built-in module MUST be refused with `config-invalid` and the f
 - **AND** archangel gives `config-invalid` for `@types/react`, saying that archangel judges the package that an import names, such as `react`
 - **AND** archangel gives `config-invalid` for `@enhance/contract`, saying that it resolves to a repository file and its part judges it
 - **TEST** `crates/archangel_config/tests/validate.rs` › "an_externals_name_that_could_never_match_is_refused"
+
+### Requirement: An externals name with a subpath is refused
+
+A name with a subpath, such as `pg/lib/client`, MUST be refused with `config-invalid` and the fix `pg`, because archangel records the package that an import resolves to. A `node:` name with a subpath is a built-in module and MUST be accepted.
+
+#### Scenario: A subpath of a package, and of a built-in
+
+- **GIVEN** the externals sets `a` as `['pg/lib/client']` and `b` as `['node:fs/promises']`
+- **WHEN** archangel loads the config
+- **THEN** archangel gives `config-invalid` for `pg/lib/client` with the fix `pg`, and accepts `node:fs/promises`
+- **TEST** `crates/archangel_config/tests/validate.rs` › "an_externals_name_with_a_subpath_is_refused_unless_it_is_a_built_in"
+
+### Requirement: A part holds no packages
+
+A value of `parts` with packages MUST be refused with `config-invalid` and the fix to move it to `externals`.
 
 #### Scenario: Packages in parts
 
@@ -180,7 +212,7 @@ Archangel MUST refuse a pattern that has an empty folder name, a `**` that is no
 
 ### Requirement: Each file is in one element at most
 
-With `elements`, archangel MUST put each repository file in the first file element, in declaration order, that has a pattern which matches the file. With `parts`, a file that two of the config's own parts match MUST give one `part-overlap` diagnostic, which names the file and both parts, and the check MUST fail. The parts of each preset MUST be a separate set, so a file MAY be in one of the config's parts and in one part of each preset. A file that no pattern matches MUST be in no element.
+With `elements`, archangel MUST put each repository file in the first file element, in declaration order, that has a pattern which matches the file. With `parts`, a file that two of the config's own parts match MUST give one `part-overlap` diagnostic, which names the file and both parts, and the check MUST fail. The message MUST say to narrow one of the two patterns with `not` or to make one of them a group, and that every overlap is fixed in the config because the baseline does not hold it. The parts of each preset MUST be a separate set, so a file MAY be in one of the config's parts and in one part of each preset. A file that no pattern matches MUST be in no element.
 
 #### Scenario: Two elements match the same file
 
@@ -194,8 +226,17 @@ With `elements`, archangel MUST put each repository file in the first file eleme
 - **GIVEN** the parts "model" with `src/**/*.model.ts` and "feature" with `src/features/{feature}/**`
 - **WHEN** archangel makes a check on a repository with `src/features/login/session.model.ts`
 - **THEN** archangel gives one `part-overlap` diagnostic that names the file, "model" and "feature"
+- **AND** the message says to narrow one of the two patterns with `not` or to make one of them a group, and that the baseline does not hold it
 - **AND** archangel exits with status 1
 - **TEST** `crates/archangel_rules/tests/elements.rs` › "two_parts_that_match_one_file_are_an_error"
+
+#### Scenario: A part overlap appears and goes in the editor
+
+- **GIVEN** a session with the parts "model" and "feature" of this requirement, and no file that both match
+- **WHEN** the developer creates `src/features/login/session.model.ts`
+- **THEN** the language server reports `part-overlap` for that file, and the result is the same as a full check
+- **AND** when the developer deletes the file, the diagnostic is gone, and the result is the same as a full check
+- **TEST** `crates/archangel_engine/tests/sessions.rs` › "a_part_overlap_appears_and_goes_with_the_file_in_the_editor"
 
 #### Scenario: A part of the config and a part of a preset
 

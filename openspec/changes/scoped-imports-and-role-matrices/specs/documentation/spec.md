@@ -27,20 +27,27 @@ Each config example in the README and in the docs folder MUST be the text of a f
 
 ### Requirement: The small app fixture shows the whole loop
 
-The small-app fixture MUST have features in `src/features/<name>/`, shared code in `src/shared/`, and the two tables `app` and `feature-code`. Its views MUST import only models and shared code, except one view that imports an api file. The README MUST show its config in full, and the error that `archangel check` gives.
+The fixture is `docs/examples/small-app/`, and its config is the one in design.md, "In short". It MUST have features in `src/features/<name>/`, shared code in `src/shared/`, and the two tables `app` and `feature-code`. Its views MUST import only models and shared code, except one view that imports an api file. The README MUST show its config in full, and the error that `archangel check` gives.
 
 #### Scenario: The small app
 
 - **GIVEN** the small-app fixture
 - **WHEN** the test runs `archangel check`, `archangel test` and `archangel rules` on it
 - **THEN** `archangel check` gives one violation of `feature-code.views` and exits with status 1
-- **AND** `archangel test` passes with one generated proof for each row
+- **AND** `archangel test` exits with status 0 with no written example and no `rule-unproven` diagnostic
 - **AND** each output is the expected output of the fixture
 - **TEST** `crates/archangel/tests/doc_examples.rs` › "the_small_app_gives_its_documented_output"
 
+#### Scenario: The README shows the small app and its error
+
+- **GIVEN** the README
+- **WHEN** the test reads it
+- **THEN** it holds one config block whose text is the config of `docs/examples/small-app/`, and one output block whose text is the fixture's expected output of `archangel check`
+- **TEST** `crates/archangel/tests/doc_examples.rs` › "the_readme_shows_the_small_app_and_its_error"
+
 ### Requirement: The enhance3 slice fixture checks a real architecture
 
-The enhance3-slice fixture MUST hold the workspace table of enhance3's apps and packages, its API domain table, and the rules `web-uses-api-types-only` and `core-not-to-driver`, with a small set of files. Its files MUST include one import that each table refuses.
+The fixture is `docs/examples/enhance3-slice/`, and its config is the one in design.md, "What enhance3 gains". It MUST hold the workspace table of enhance3's apps and packages, its API domain table, and the rules `web-uses-api-types-only` and `core-not-to-driver`, with a small set of files. Its files MUST include one import that each table refuses.
 
 #### Scenario: The enhance3 slice
 
