@@ -2,7 +2,7 @@
 //! class are alike to every rule, so the rule table has one cell per pair of classes that an import
 //! connects, and a session keeps each file's class so that an edit classifies one file.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use archangel_config::{Classification, ElementId, FileSet, Term};
 use archangel_graph::{ImportGraph, SourceFile, Work};
@@ -12,14 +12,14 @@ use crate::architecture::{Architecture, Check};
 /// What makes two files, or two packages, alike to every rule.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ClassKey {
-    /// A file: its element and, for each set of files the rules name, whether it is in it.
+    /// A file: its elements and, for each set of files the rules name, whether it is in it.
     File {
-        element: Option<ElementId>,
+        elements: Vec<ElementId>,
         bits: Vec<bool>,
     },
-    /// A package: its element and, for each inline package name, whether it names the package.
+    /// A package: its elements and, for each inline package name, whether it names the package.
     Package {
-        element: Option<ElementId>,
+        elements: Vec<ElementId>,
         names: Vec<bool>,
     },
 }
@@ -78,6 +78,8 @@ pub struct Classes {
     /// one the ignore list leaves out, is in no count, because the walk never visits it.
     counts: Vec<u64>,
     cells: HashMap<(u32, u32), Vec<Check>>,
+    /// The files that the walk visited in two or more of the config's own parts, with the parts.
+    overlaps: BTreeMap<String, Vec<ElementId>>,
 }
 
 impl Classes {
@@ -99,6 +101,7 @@ impl Classes {
             .map(|(path, _)| path.clone())
             .collect();
         for path in gone {
+            self.overlaps.remove(&path);
             if let Some(file) = self.files.remove(&path) {
                 self.counts[file.class as usize] -= 1;
             }
@@ -192,17 +195,12 @@ impl Classes {
         if let Some((class, classification)) = self.packages.get(name) {
             return (*class, classification.clone());
         }
-        let element = architecture.matcher.classify_package(name);
+        let elements = architecture.matcher.package_elements(name);
         let names = (0..architecture.package_names.len())
             .map(|index| architecture.package_named(index, name))
             .collect();
-        let class = self.intern(ClassKey::Package { element, names });
-        let classification = element.map(|element| Classification {
-            element,
-            captures: Vec::new(),
-            names: Vec::new(),
-            root: name.to_owned(),
-        });
+        let class = self.intern(ClassKey::Package { elements, names });
+        let classification = architecture.matcher.package_place(name);
         self.packages
             .insert(name.to_owned(), (class, classification.clone()));
         (class, classification)
@@ -255,9 +253,21 @@ impl Classes {
             .map(|set| place.contains(set, &mut answers))
             .collect();
         let class = self.intern(ClassKey::File {
-            element: found.classification.as_ref().map(|c| c.element),
+            elements: found
+                .classification
+                .iter()
+                .flat_map(Classification::all)
+                .map(|c| c.element)
+                .collect(),
             bits,
         });
+        if placed.counted {
+            if found.overlap.is_empty() {
+                self.overlaps.remove(placed.path);
+            } else {
+                self.overlaps.insert(placed.path.to_owned(), found.overlap);
+            }
+        }
         let file = FileClass {
             classification: found.classification,
             class,
@@ -312,10 +322,15 @@ impl Classes {
             .iter()
             .zip(&self.counts)
             .filter(
-                |(key, _)| matches!(key, ClassKey::File { element: Some(e), .. } if *e == element),
+                |(key, _)| matches!(key, ClassKey::File { elements, .. } if elements.contains(&element)),
             )
             .map(|(_, count)| count)
             .sum()
+    }
+
+    /// The files in two or more of the config's own parts, in path order, with the parts.
+    pub(crate) fn overlaps(&self) -> &BTreeMap<String, Vec<ElementId>> {
+        &self.overlaps
     }
 
     /// The element instance of a file that has a class.
@@ -378,13 +393,17 @@ impl Place<'_> {
     fn leaf(&self, term: &Term) -> bool {
         match term {
             Term::Pattern(id) => self.patterns[id.0 as usize],
-            Term::Element(element) => self.classification.is_some_and(|c| c.element == *element),
-            Term::Instance { element, captures } => self.classification.is_some_and(|c| {
-                c.element == *element
-                    && captures
+            Term::Element(element) => self
+                .classification
+                .is_some_and(|c| c.of(*element).is_some()),
+            Term::Instance { element, captures } => self
+                .classification
+                .and_then(|c| c.of(*element))
+                .is_some_and(|c| {
+                    captures
                         .iter()
                         .all(|(name, value)| capture(c, name).is_some_and(|found| found == value))
-            }),
+                }),
             Term::AnyElement => self.classification.is_some(),
             Term::Directive(text) => self.directive == Some(text.as_str()),
             Term::Selector(id) => self.selectors[id.0 as usize],

@@ -914,3 +914,54 @@ fn a_class_change_re_checks_the_files_structure_and_export_rules() {
         "the naming rule runs for b.tsx alone"
     );
 }
+
+#[test]
+fn a_part_overlap_appears_and_goes_with_the_file_in_the_editor() {
+    let repo = FixtureRepo::new()
+        .file("src/features/login/a.ts", "")
+        .file("src/x.model.ts", "")
+        .json_config(&json!({
+            "parts": { "model": "src/**/*.model.ts", "feature": "src/features/{feature}/**" },
+        }));
+    let overlaps = |report: &archangel_rules::Report| {
+        report
+            .diagnostics
+            .iter()
+            .filter(|d| d.code == archangel_rules::Code::PartOverlap)
+            .map(|d| d.file.clone().unwrap_or_default())
+            .collect::<Vec<_>>()
+    };
+    let mut session = Session::open(repo.path(), None).expect("the session opens");
+    assert_eq!(
+        overlaps(session.report()),
+        [] as [String; 0],
+        "none at first"
+    );
+    let path = "src/features/login/session.model.ts";
+    repo.write(path, "");
+    let (found, full) = after_events(
+        &repo,
+        &mut session,
+        vec![PathEvent::Created(repo.join(path))],
+    );
+    assert_eq!(overlaps(&found), [path], "the file is in two parts");
+    assert_eq!(
+        found.diagnostics, full.diagnostics,
+        "the same as a full check"
+    );
+    repo.remove(path);
+    let (found, full) = after_events(
+        &repo,
+        &mut session,
+        vec![PathEvent::Deleted(repo.join(path))],
+    );
+    assert_eq!(
+        overlaps(&found),
+        [] as [String; 0],
+        "the diagnostic is gone"
+    );
+    assert_eq!(
+        found.diagnostics, full.diagnostics,
+        "the same as a full check"
+    );
+}

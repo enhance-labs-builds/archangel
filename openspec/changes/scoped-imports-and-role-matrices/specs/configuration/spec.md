@@ -148,7 +148,7 @@ A brace without a comma MUST be a capture, also when its name looks like an exte
 
 - **GIVEN** the part `code` as `src/**/*.{ts}`, and the file `src/a.ts`
 - **WHEN** the developer runs `archangel explain src/a.ts`
-- **THEN** the output shows the part `code` with the capture `ts` and the value `a`
+- **THEN** the output shows the part `code` with the capture `ts` and the value `ts`, because the capture matches the text after the dot
 - **TEST** `crates/archangel/tests/cli.rs` › "explain_shows_a_one_word_brace_as_a_capture"
 
 ## MODIFIED Requirements

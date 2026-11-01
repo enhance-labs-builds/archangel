@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use crate::names::{NamePattern, Style};
 use crate::pattern::Pattern;
+use crate::problem::{ConfigProblem, ProblemCode};
 
 /// The index of an element in [`Config::elements`], in declaration order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -40,6 +41,39 @@ pub struct Config {
     pub plugins: Vec<Plugin>,
     /// The presets the config extends, in order.
     pub presets: Vec<Preset>,
+}
+
+impl Config {
+    /// A problem for each name of an externals set that is a package of the workspace, which only
+    /// a check can know, because an import of it resolves to a repository file.
+    #[must_use]
+    pub fn externals_in_workspace(
+        &self,
+        is_workspace_package: impl Fn(&str) -> bool,
+    ) -> Vec<ConfigProblem> {
+        let mut problems = Vec::new();
+        for element in self.elements.iter().filter(|element| element.externals) {
+            let ElementKind::Packages(patterns) = &element.kind else {
+                continue;
+            };
+            for name in patterns.iter().map(Pattern::source) {
+                if is_workspace_package(name) {
+                    problems.push(
+                        ConfigProblem::new(
+                            ProblemCode::ConfigInvalid,
+                            format!(
+                                "`{name}` is a package of the workspace, so an import of it \
+                                 resolves to a repository file and its part judges it; name that \
+                                 part in the rule"
+                            ),
+                        )
+                        .at(format!("externals.{}", element.name)),
+                    );
+                }
+            }
+        }
+        problems
+    }
 }
 
 /// A preset the config extends, after the merge: its name, its root, and what it declared.
@@ -506,6 +540,14 @@ pub struct Element {
     pub name: String,
     /// What the element matches.
     pub kind: ElementKind,
+    /// The set of elements it belongs to: a file is in one element of each set. Set 0 is the
+    /// config's own; with `parts`, each preset has a set of its own.
+    pub set: u32,
+    /// Whether the config declares it under `parts`, so that a second match is `part-overlap`.
+    pub part: bool,
+    /// Whether the config declares it under `externals`, so that a package is in every such set
+    /// that lists it.
+    pub externals: bool,
 }
 
 /// What an element matches.

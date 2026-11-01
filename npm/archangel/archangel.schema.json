@@ -5,13 +5,31 @@
   "description": "The elements of a repository, named sets of its files, and the rules between them. Archangel checks the same fields, with every problem at once.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "elements"
-  ],
   "properties": {
     "$schema": {
       "type": "string",
       "description": "This schema, for editors; archangel ignores it."
+    },
+    "parts": {
+      "type": "object",
+      "description": "The parts of the code, by file pattern. A file is in one part at most.",
+      "minProperties": 1,
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "A path pattern; `{name}` captures one instance, such as one feature."
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "Several path patterns."
+          }
+        ]
+      }
     },
     "elements": {
       "type": "object",
@@ -51,11 +69,30 @@
         ]
       }
     },
+    "groups": {
+      "type": "object",
+      "description": "The same as `selectors`: named sets of files, which may overlap.",
+      "additionalProperties": {
+        "$ref": "#/definitions/selector"
+      }
+    },
     "selectors": {
       "type": "object",
       "description": "Named sets of files, which rules and other selectors use by name. A selector's name may not be an element's.",
       "additionalProperties": {
         "$ref": "#/definitions/selector"
+      }
+    },
+    "externals": {
+      "type": "object",
+      "description": "Named lists of outside packages, such as `pg`, `@aws-sdk/*` or `node:fs`.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "description": "Package names. A package is in every set that lists it."
       }
     },
     "rules": {
@@ -82,6 +119,10 @@
               "reason": {
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
+              },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
               },
               "link": {
                 "type": "string",
@@ -129,6 +170,10 @@
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
               },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
+              },
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
@@ -171,6 +216,10 @@
               "reason": {
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
+              },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
               },
               "link": {
                 "type": "string",
@@ -223,6 +272,10 @@
               "reason": {
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
+              },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
               },
               "link": {
                 "type": "string",
@@ -342,6 +395,10 @@
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
               },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
+              },
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
@@ -415,6 +472,10 @@
               "reason": {
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
+              },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
               },
               "link": {
                 "type": "string",
@@ -490,6 +551,10 @@
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
               },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
+              },
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
@@ -544,6 +609,10 @@
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
               },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
+              },
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
@@ -584,6 +653,10 @@
               "reason": {
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
+              },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
               },
               "link": {
                 "type": "string",
@@ -645,6 +718,10 @@
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
               },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
+              },
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
@@ -691,6 +768,10 @@
               "reason": {
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
+              },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
               },
               "link": {
                 "type": "string",
@@ -739,6 +820,10 @@
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
               },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
+              },
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
@@ -773,6 +858,10 @@
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
               },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
+              },
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
@@ -806,6 +895,10 @@
               "reason": {
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
+              },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
               },
               "link": {
                 "type": "string",
@@ -851,6 +944,10 @@
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
               },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
+              },
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
@@ -884,6 +981,10 @@
               "reason": {
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
+              },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
               },
               "link": {
                 "type": "string",
@@ -922,6 +1023,10 @@
               "reason": {
                 "type": "string",
                 "description": "Why the rule exists, shown with each violation."
+              },
+              "because": {
+                "type": "string",
+                "description": "The same as `reason`: why the rule exists. A rule has one of the two."
               },
               "link": {
                 "type": "string",
@@ -1188,5 +1293,17 @@
       "minLength": 1,
       "description": "A name: text, `*` for any text, and `{FileName}`, `{fileName}`, `{file-name}`, `{file_name}` or `{FILE_NAME}` for the file's name in each style, or the same spellings of `{FolderName}` for the name of the folder that holds it."
     }
-  }
+  },
+  "anyOf": [
+    {
+      "required": [
+        "parts"
+      ]
+    },
+    {
+      "required": [
+        "elements"
+      ]
+    }
+  ]
 }

@@ -150,6 +150,8 @@ impl Architecture {
         run.empty_elements();
         run.empty_selectors();
         run.graph_problems();
+        run.part_overlaps();
+        run.externals_in_workspace();
         if let Some(baseline) = baseline {
             run.apply_baseline(baseline);
         }
@@ -259,8 +261,10 @@ impl<'a> Run<'a> {
         let lookup = Lookup::new(self.architecture, self.graph);
         let found = self.classes.file(lookup, path, work);
         if let Some(class) = &found.1 {
-            self.used_elements.insert(class.element);
-            self.touched.insert(class.element);
+            for place in class.all() {
+                self.used_elements.insert(place.element);
+                self.touched.insert(place.element);
+            }
         }
         found
     }
@@ -291,7 +295,7 @@ impl<'a> Run<'a> {
         } else {
             let found = self.classes.example_file(self.architecture, file, work);
             if let Some(class) = &found.1 {
-                self.touched.insert(class.element);
+                self.touched.extend(class.all().map(|place| place.element));
             }
             found
         };
@@ -349,8 +353,10 @@ impl<'a> Run<'a> {
             Resolution::Package(name) => {
                 let (class, classification) = self.classes.package(self.architecture, name);
                 if let Some(class) = &classification {
-                    self.used_elements.insert(class.element);
-                    self.touched.insert(class.element);
+                    for place in class.all() {
+                        self.used_elements.insert(place.element);
+                        self.touched.insert(place.element);
+                    }
                 }
                 if let ClassKey::Package { names, .. } = self.classes.key(class) {
                     let reached = names
@@ -572,6 +578,42 @@ impl<'a> Run<'a> {
         }
     }
 
+    /// A file in two of the config's own parts. The config holds the fix, so the baseline does not
+    /// hold it.
+    fn part_overlaps(&mut self) {
+        let elements = &self.architecture.config.elements;
+        for (path, parts) in self.classes.overlaps() {
+            let names: Vec<String> = parts
+                .iter()
+                .map(|part| format!("\"{}\"", elements[part.index()].name))
+                .collect();
+            let message = format!(
+                "{path} is in the parts {}, and a file is in one part at most; narrow one of the \
+                 patterns with `not`, or make one of them a group. The baseline does not hold this \
+                 problem, so fix it in the config",
+                names.join(" and ")
+            );
+            self.other
+                .push(Diagnostic::new(Code::PartOverlap, message).at(path, 0, 0));
+        }
+    }
+
+    /// A name of an externals set that is a package of the workspace, which only the graph knows.
+    fn externals_in_workspace(&mut self) {
+        let graph = self.graph;
+        let problems = self
+            .architecture
+            .config
+            .externals_in_workspace(|name| graph.is_workspace_package(name));
+        for problem in problems {
+            let field = problem.field.unwrap_or_default();
+            self.other.push(Diagnostic::new(
+                Code::ConfigInvalid,
+                format!("{field}: {}", problem.message),
+            ));
+        }
+    }
+
     fn exceptions(&mut self) {
         let rule_names: Vec<&str> = self
             .architecture
@@ -649,7 +691,10 @@ impl<'a> Run<'a> {
                     // Node's built-in modules are always installed, though no manifest lists them.
                     patterns.iter().any(|p| p.source().starts_with("node:"))
                         || dependencies.iter().any(|name| {
-                            self.architecture.matcher.classify_package(name) == Some(id)
+                            self.architecture
+                                .matcher
+                                .package_elements(name)
+                                .contains(&id)
                         }),
                     pattern_list(patterns.iter().map(Pattern::source)),
                 ),

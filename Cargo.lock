@@ -122,6 +122,7 @@ version = "0.1.1"
 dependencies = [
  "archangel_testkit",
  "jsonschema",
+ "nodejs-built-in-modules",
  "proptest",
  "regex",
  "serde_json",

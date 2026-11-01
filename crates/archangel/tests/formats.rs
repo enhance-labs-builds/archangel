@@ -84,7 +84,7 @@ fn sarif_format_is_a_sarif_log_with_every_code_as_a_rule() {
         "columns count characters, as the other formats do, not SARIF's default UTF-16 units"
     );
     let rules = driver["rules"].as_array().unwrap();
-    assert_eq!(rules.len(), 40, "every code is a rule");
+    assert_eq!(rules.len(), 41, "every code is a rule");
     let layers = rules.iter().position(|r| r["id"] == "layers").unwrap();
     assert!(
         rules[layers]["help"]["markdown"]
@@ -273,7 +273,7 @@ fn misspelled_config() -> FixtureRepo {
     FixtureRepo::new().json_config(&json!({ "elements": { "app": "src/**" }, "rulez": [] }))
 }
 
-const RULEZ: &str = "rulez: archangel does not know this field; did you mean `rules`? The known fields are $schema, elements, selectors, rules, ignore, allowUnresolved, plugins, extends, off";
+const RULEZ: &str = "rulez: archangel does not know this field; did you mean `rules`? The known fields are $schema, parts, elements, groups, selectors, externals, rules, ignore, allowUnresolved, plugins, extends, off";
 
 #[test]
 fn json_format_prints_the_config_that_stops_a_command_as_one_document() {

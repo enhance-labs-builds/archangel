@@ -260,3 +260,18 @@ fn a_pattern_lists_its_capture_names_in_the_order_they_appear() {
         "the captures, and no name for the alternatives"
     );
 }
+
+#[test]
+fn a_pattern_starts_at_the_config_folder() {
+    let pattern = Pattern::parse("src/domain/{kind}/**").unwrap();
+    assert!(
+        pattern.matches("src/domain/entities/a.ts").is_some(),
+        "the root's src"
+    );
+    assert!(
+        pattern
+            .matches("apps/api/src/domain/entities/b.ts")
+            .is_none(),
+        "no implicit **/ before a pattern"
+    );
+}

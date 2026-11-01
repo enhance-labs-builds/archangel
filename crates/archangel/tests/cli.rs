@@ -527,3 +527,54 @@ fn stats_prints_work_counts_and_stage_durations() {
         assert!(has, "the stats time the {stage} stage: {}", found.stdout);
     }
 }
+
+#[test]
+fn explain_shows_a_one_word_brace_as_a_capture() {
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "")
+        .json_config(&json!({ "parts": { "code": "src/**/*.{ts}" } }));
+    let found = run(&repo, &["explain", "src/a.ts"]);
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    assert!(
+        found.stdout.contains("element: \"code\", instance \"ts\""),
+        "the part with the capture's value: {}",
+        found.stdout
+    );
+}
+
+#[test]
+fn explain_shows_a_file_in_a_part_and_in_a_part_of_a_preset() {
+    let repo = FixtureRepo::new()
+        .file("apps/web/src/features/cart/a.ts", "")
+        .file(
+            "archangel.config.mjs",
+            "export default {
+               extends: [{
+                 name: 'fsd-web',
+                 root: 'apps/web/src',
+                 parts: { features: 'features/{slice}/**' },
+               }],
+               parts: { web: 'apps/web/**' },
+             };",
+        );
+    let found = run(&repo, &["explain", "apps/web/src/features/cart/a.ts"]);
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    for line in [
+        "element: \"web\"\n",
+        "element: \"fsd-web/features\", instance \"cart\"\n",
+    ] {
+        assert!(found.stdout.contains(line), "{line} in: {}", found.stdout);
+    }
+}
+
+#[test]
+fn two_parts_that_match_one_file_exit_one() {
+    let repo = FixtureRepo::new()
+        .file("src/features/login/session.model.ts", "")
+        .json_config(&json!({
+            "parts": { "model": "src/**/*.model.ts", "feature": "src/features/{feature}/**" },
+        }));
+    let found = run(&repo, &["check"]);
+    assert_eq!(found.status, 1, "{}{}", found.stdout, found.stderr);
+    assert!(found.stdout.contains("part-overlap"), "{}", found.stdout);
+}

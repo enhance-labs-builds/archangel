@@ -24,16 +24,16 @@ pub(crate) fn hold(sentence: &Sentence, edge: &Edge<'_>) -> bool {
 
 /// Whether both ends are in the element of `files`, in one instance or in two as asked.
 fn instances_compare(sentence: &Sentence, edge: &Edge<'_>, instance: InstanceMatch) -> bool {
-    let (Some(element), Some(a), Some(b)) = (
-        sentence.files.element(),
-        edge.from.classification,
-        edge.to.classification,
+    let Some(element) = sentence.files.element() else {
+        return false;
+    };
+    let (Some(a), Some(b)) = (
+        edge.from.classification.and_then(|c| c.of(element)),
+        edge.to.classification.and_then(|c| c.of(element)),
     ) else {
         return false;
     };
-    a.element == element
-        && b.element == element
-        && (instance == InstanceMatch::Same) == (a.captures == b.captures)
+    (instance == InstanceMatch::Same) == (a.captures == b.captures)
 }
 
 /// Whether the importing file's nearest manifest lists the package as asked. Node's built-in

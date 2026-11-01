@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use archangel_config::{Classification, Condition, NameRule, Rule};
+use archangel_config::{Classification, Condition, ElementId, NameRule, Rule};
 use archangel_graph::{ImportGraph, OverlayFiles, Work};
 
 use crate::architecture::{Architecture, Compiled};
@@ -583,11 +583,9 @@ impl<'e> Evaluation<'e, '_> {
         let lookup = Lookup::new(self.architecture, self.graph);
         paths
             .iter()
-            .filter_map(|path| {
+            .flat_map(|path| {
                 let (_, classification) = self.classes.file(lookup, path, self.work);
-                classification
-                    .filter(|c| elements.contains(&c.element.0))
-                    .map(|c| (c.element.0, c.root))
+                classification.map_or_else(Vec::new, |c| instances_in(&c, &elements))
             })
             .collect()
     }
@@ -602,8 +600,7 @@ impl<'e> Evaluation<'e, '_> {
         paths
             .iter()
             .filter_map(|path| self.architecture.matcher.classify_file(path))
-            .filter(|c| elements.contains(&c.element.0))
-            .map(|c| (c.element.0, c.root))
+            .flat_map(|c| instances_in(&c, &elements))
             .collect()
     }
 
@@ -651,6 +648,7 @@ impl<'e> Evaluation<'e, '_> {
                     let instance = self
                         .classes
                         .classification(&members[0])
+                        .and_then(|c| c.of(ElementId(*element)))
                         .map(|c| self.instance_name(c))
                         .unwrap_or_default();
                     let wanted = crate::words::either(patterns);
@@ -684,7 +682,10 @@ impl<'e> Evaluation<'e, '_> {
                 self.classes
                     .file(lookup, path, self.work)
                     .1
-                    .is_some_and(|c| c.element.0 == element && c.root == root)
+                    .is_some_and(|c| {
+                        c.of(ElementId(element))
+                            .is_some_and(|place| place.root == root)
+                    })
             })
             .collect()
     }
@@ -693,6 +694,15 @@ impl<'e> Evaluation<'e, '_> {
         let element = &self.architecture.config.elements[class.element.index()].name;
         format!("\"{}\" of \"{element}\"", class.captures.join("/"))
     }
+}
+
+/// The places of a file in these elements, each as its element and instance root.
+fn instances_in(class: &Classification, elements: &BTreeSet<u32>) -> Vec<(u32, String)> {
+    class
+        .all()
+        .filter(|place| elements.contains(&place.element.0))
+        .map(|place| (place.element.0, place.root.clone()))
+        .collect()
 }
 
 /// The violation of a naming rule by a file, if it breaks it.

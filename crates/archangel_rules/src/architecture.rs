@@ -360,7 +360,7 @@ impl Architecture {
                 to_in_files && !from_in_side && !from_in
             }
             Condition::Entry { element, .. } => {
-                matches!(to, ClassKey::File { element: Some(e), .. } if e == element)
+                matches!(to, ClassKey::File { elements, .. } if elements.contains(element))
             }
             Condition::MustNotExist
             | Condition::NoCycles
@@ -377,8 +377,8 @@ impl Architecture {
     pub(crate) fn in_side_class(compiled: &Compiled, to: &ClassKey) -> bool {
         match to {
             ClassKey::File { bits, .. } => compiled.side_files.iter().any(|&s| bits[s]),
-            ClassKey::Package { element, names } => {
-                element.is_some_and(|e| compiled.side_elements.contains(&e))
+            ClassKey::Package { elements, names } => {
+                elements.iter().any(|e| compiled.side_elements.contains(e))
                     || compiled.side_packages.iter().any(|&n| names[n])
             }
         }
@@ -394,18 +394,20 @@ impl Architecture {
     /// rule looked at one of its imports. No-cycles looks at the graph, not at single imports, so
     /// it answers false here.
     pub(crate) fn considers(&self, rule: usize, from: &ClassKey, to: &ClassKey) -> bool {
-        let element = |key: &ClassKey| match key {
-            ClassKey::File { element, .. } | ClassKey::Package { element, .. } => *element,
-        };
+        fn elements(key: &ClassKey) -> &[ElementId] {
+            match key {
+                ClassKey::File { elements, .. } | ClassKey::Package { elements, .. } => elements,
+            }
+        }
         match &self.config.rules[rule].kind {
             RuleKind::Layers { order } => {
-                element(from).is_some_and(|f| order.contains(&f))
-                    && element(to).is_some_and(|t| order.contains(&t))
+                elements(from).iter().any(|f| order.contains(f))
+                    && elements(to).iter().any(|t| order.contains(t))
             }
             RuleKind::Isolate { element: e } => {
-                element(from) == Some(*e) && element(to) == Some(*e)
+                elements(from).contains(e) && elements(to).contains(e)
             }
-            RuleKind::Entry { element: e, .. } => element(to) == Some(*e),
+            RuleKind::Entry { element: e, .. } => elements(to).contains(e),
             RuleKind::Sentence => self
                 .sentences
                 .iter()
@@ -436,18 +438,32 @@ impl Architecture {
         let sentence = &self.config.rules[compiled.rule].sentences[compiled.sentence];
         match check.test {
             Test::Always => true,
-            Test::Entry => {
-                edge.from.classification != edge.to.classification && !is_entry(sentence, &edge.to)
-            }
+            Test::Entry => different_instances(sentence, edge) && !is_entry(sentence, &edge.to),
             Test::Facts => crate::facts::hold(sentence, edge),
         }
     }
 }
 
+/// Whether the two ends of an import are in different instances of an entry sentence's element.
+fn different_instances(sentence: &Sentence, edge: &Edge<'_>) -> bool {
+    let Condition::Entry { element, .. } = &sentence.condition else {
+        return false;
+    };
+    let from = edge.from.classification.and_then(|c| c.of(*element));
+    let to = edge.to.classification.and_then(|c| c.of(*element));
+    match (from, to) {
+        (Some(from), Some(to)) => !from.same_instance(to),
+        (None, None) => false,
+        _ => true,
+    }
+}
+
 /// Whether the target of an import is one of an entry sentence's entry files.
 fn is_entry(sentence: &Sentence, to: &End<'_>) -> bool {
-    let (Condition::Entry { files, .. }, Some(class), Some(path)) =
-        (&sentence.condition, to.classification, to.path)
+    let Condition::Entry { files, element } = &sentence.condition else {
+        return false;
+    };
+    let (Some(class), Some(path)) = (to.classification.and_then(|c| c.of(*element)), to.path)
     else {
         return false;
     };

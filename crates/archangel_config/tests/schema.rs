@@ -133,7 +133,7 @@ fn sentence_fields(condition: &str, scope: &str) -> Vec<String> {
     let fields = known_fields(Some(
         json!({ "files": "app", "noCycles": true, "unknownField": 1 }),
     ));
-    let common = ["name", "reason", "link", "examples"];
+    let common = ["name", "reason", "because", "link", "examples"];
     fields
         .into_iter()
         .filter(|field| {

@@ -264,7 +264,7 @@ impl Texts<'_> {
         } = *parties;
         let from_name = self.of(from);
         let position = from
-            .and_then(|c| order.iter().position(|e| *e == c.element))
+            .and_then(|c| order.iter().position(|e| c.of(*e).is_some()))
             .unwrap_or(0);
         let allowed: Vec<String> = order[position..]
             .iter()

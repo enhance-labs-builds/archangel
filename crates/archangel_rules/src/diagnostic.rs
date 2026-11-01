@@ -56,6 +56,8 @@ pub enum Code {
     SelectorEmpty,
     /// A preset whose elements together match no file.
     PresetEmpty,
+    /// A file in two of the config's own parts.
+    PartOverlap,
     /// A file whose exports an export rule needs, which an `export *` chain hides.
     ExportsUnknown,
     /// A file or folder that cannot be opened, or a file that is not text.
@@ -89,7 +91,7 @@ pub enum Code {
 }
 
 /// The names of the codes, in declaration order, so a code's discriminant indexes its name.
-const NAMES: [&str; 40] = [
+const NAMES: [&str; 41] = [
     "layers",
     "isolate",
     "entry",
@@ -115,6 +117,7 @@ const NAMES: [&str; 40] = [
     "element-empty",
     "selector-empty",
     "preset-empty",
+    "part-overlap",
     "exports-unknown",
     "file-unreadable",
     "parse-failed",
@@ -133,7 +136,7 @@ const NAMES: [&str; 40] = [
 ];
 
 /// Each code's documentation page, in the order of [`NAMES`].
-const PAGES: [&str; 40] = [
+const PAGES: [&str; 41] = [
     include_str!("../docs/layers.md"),
     include_str!("../docs/isolate.md"),
     include_str!("../docs/entry.md"),
@@ -159,6 +162,7 @@ const PAGES: [&str; 40] = [
     include_str!("../docs/element-empty.md"),
     include_str!("../docs/selector-empty.md"),
     include_str!("../docs/preset-empty.md"),
+    include_str!("../docs/part-overlap.md"),
     include_str!("../docs/exports-unknown.md"),
     include_str!("../docs/file-unreadable.md"),
     include_str!("../docs/parse-failed.md"),
@@ -178,7 +182,7 @@ const PAGES: [&str; 40] = [
 
 impl Code {
     /// Every code, in the order the documentation lists them.
-    pub const ALL: [Self; 40] = [
+    pub const ALL: [Self; 41] = [
         Self::Layers,
         Self::Isolate,
         Self::Entry,
@@ -204,6 +208,7 @@ impl Code {
         Self::ElementEmpty,
         Self::SelectorEmpty,
         Self::PresetEmpty,
+        Self::PartOverlap,
         Self::ExportsUnknown,
         Self::FileUnreadable,
         Self::ParseFailed,

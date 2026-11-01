@@ -353,7 +353,7 @@ fn a_field_after_a_number_or_a_boolean_has_its_own_line_and_column() {
                 "rules[2].reasn",
                 (6, 44),
                 "archangel does not know this field; did you mean `reason`? The known fields are \
-                 files, folders, name, reason, link, imports, examples, mayNotImport, \
+                 files, folders, name, reason, because, link, imports, examples, mayNotImport, \
                  mayOnlyImport, mayOnlyBeImportedBy, mustBeNamed, mustContain, mustNotExist, \
                  mustExport, mayNotExport, mustOnlyReExport, noCycles, names, specifier, \
                  instance, dependency, transitively, stopAt"
@@ -762,7 +762,7 @@ fn a_problem_displays_as_its_code_its_field_and_its_message() {
         [with_field.to_string(), without_field.to_string()],
         [
             "config-invalid: rules[0].colour: archangel does not know this field; the known fields \
-             are files, folders, name, reason, link, imports, examples, mayNotImport, \
+             are files, folders, name, reason, because, link, imports, examples, mayNotImport, \
              mayOnlyImport, mayOnlyBeImportedBy, mustBeNamed, mustContain, mustNotExist, \
              mustExport, mayNotExport, mustOnlyReExport, noCycles, names, specifier, instance, \
              dependency, transitively, stopAt"
@@ -1045,4 +1045,120 @@ fn a_json_config_cannot_extend_a_preset() {
         "the message says presets need a TypeScript or JavaScript config: {}",
         problem.message
     );
+}
+
+/// The one problem of a config with these externals sets.
+fn externals_problems(sets: &Value) -> Vec<ConfigProblem> {
+    problems(&json!({ "parts": { "src": "src/**" }, "externals": sets }))
+}
+
+#[test]
+fn an_externals_name_that_could_never_match_is_refused() {
+    let found = externals_problems(&json!({ "a": ["fs"], "b": ["@types/react"] }));
+    let fields: Vec<_> = found.iter().map(|p| p.field.as_deref()).collect();
+    assert_eq!(
+        fields,
+        [Some("externals.a"), Some("externals.b")],
+        "{found:?}"
+    );
+    assert!(
+        found.iter().all(|p| p.code == ProblemCode::ConfigInvalid),
+        "{found:?}"
+    );
+    assert!(
+        found[0].message.contains("`node:fs`"),
+        "{}",
+        found[0].message
+    );
+    assert!(
+        found[1]
+            .message
+            .contains("judges the package that an import names")
+            && found[1].message.contains("`react`"),
+        "{}",
+        found[1].message
+    );
+    let config = parse_json(
+        &json!({
+            "parts": { "src": "src/**" },
+            "externals": { "c": ["@enhance/contract"], "d": ["pg"], "e": ["@enhance/*"] },
+        })
+        .to_string(),
+    )
+    .expect("the config alone cannot know a workspace's packages");
+    let workspace = config.externals_in_workspace(|name| name == "@enhance/contract");
+    assert_eq!(workspace.len(), 1, "{workspace:?}");
+    assert_eq!(
+        workspace[0].code,
+        ProblemCode::ConfigInvalid,
+        "{workspace:?}"
+    );
+    assert_eq!(
+        workspace[0].field.as_deref(),
+        Some("externals.c"),
+        "{workspace:?}"
+    );
+    assert!(
+        workspace[0]
+            .message
+            .contains("resolves to a repository file")
+            && workspace[0].message.contains("its part judges it"),
+        "{}",
+        workspace[0].message
+    );
+}
+
+#[test]
+fn an_externals_name_with_a_subpath_is_refused_unless_it_is_a_built_in() {
+    let found = externals_problems(&json!({
+        "a": ["pg/lib/client"],
+        "b": ["node:fs/promises"],
+        "c": ["@acme/ui/button"],
+    }));
+    let fields: Vec<_> = found.iter().map(|p| p.field.as_deref()).collect();
+    assert_eq!(
+        fields,
+        [Some("externals.a"), Some("externals.c")],
+        "{found:?}"
+    );
+    assert!(found[0].message.contains("`pg`"), "{}", found[0].message);
+    assert!(
+        found[1].message.contains("`@acme/ui`"),
+        "{}",
+        found[1].message
+    );
+}
+
+#[test]
+fn an_externals_set_with_the_name_of_a_part_or_group_is_refused() {
+    let group = only_problem(&json!({
+        "parts": { "src": "src/**" },
+        "groups": { "driver": "src/drivers/**" },
+        "externals": { "driver": ["pg"] },
+    }));
+    assert_eq!(group.code, ProblemCode::ConfigInvalid, "{group:?}");
+    assert_eq!(
+        group.field.as_deref(),
+        Some("externals.driver"),
+        "{group:?}"
+    );
+    assert!(
+        group.message.contains("is also a group"),
+        "{}",
+        group.message
+    );
+    let part = only_problem(&json!({
+        "parts": { "driver": "src/drivers/**" },
+        "externals": { "driver": ["pg"] },
+    }));
+    assert_eq!(part.field.as_deref(), Some("externals.driver"), "{part:?}");
+    assert!(part.message.contains("is also a part"), "{}", part.message);
+}
+
+#[test]
+fn parts_refuse_packages() {
+    let found = only_problem(&json!({ "parts": { "react": { "packages": ["react"] } } }));
+    assert_eq!(found.code, ProblemCode::ConfigInvalid, "{found:?}");
+    assert_eq!(found.field.as_deref(), Some("parts.react"), "{found:?}");
+    assert!(found.message.contains("`externals`"), "{}", found.message);
 }

@@ -456,3 +456,34 @@ fn no_cycles_breaks_a_tie_between_shortest_cycles_by_path() {
         "through b.ts and through c.ts are equally short, and b.ts sorts first"
     );
 }
+
+#[test]
+fn an_entry_pattern_starts_at_the_root_of_a_part_without_a_capture() {
+    let repo = FixtureRepo::new()
+        .file(
+            "packages/canvas-document/src/flex-grid/index.ts",
+            "export const grid = 1;\n",
+        )
+        .file(
+            "packages/canvas-document/src/flex-grid/grid.ts",
+            "export const grid = 1;\n",
+        )
+        .file(
+            "apps/web/a.ts",
+            "import '../../packages/canvas-document/src/flex-grid/index';\n",
+        )
+        .file(
+            "apps/web/b.ts",
+            "import '../../packages/canvas-document/src/flex-grid/grid';\n",
+        );
+    let config = json!({
+        "parts": { "web": "apps/web/**", "canvas-document": "packages/canvas-document/**" },
+        "rules": [{ "kind": "entry", "name": "entry", "element": "canvas-document", "files": ["src/*/index.ts"] }],
+    });
+    let (found, _) = support::check(&config, &repo, None);
+    assert_eq!(
+        violations(&found),
+        [(Code::Entry, "apps/web/b.ts".to_owned())],
+        "one violation, for the import of grid.ts"
+    );
+}

@@ -34,7 +34,9 @@ pub(crate) fn run_explain(options: &Options, file: &Path) -> Answer {
     let mut out = format!("{path}\n");
     match &class {
         Some(class) => {
-            let _ = writeln!(out, "  element: {}", instance(&session, class));
+            for place in class.all() {
+                let _ = writeln!(out, "  element: {}", instance(&session, place));
+            }
         }
         None => out.push_str(&no_element(&session, &path)),
     }
@@ -75,10 +77,23 @@ fn rules_that_apply<'s>(session: &'s Session, path: &str) -> Vec<&'s str> {
 /// The same answer as the text, as one JSON document.
 fn json_document(session: &Session, path: &str, class: Option<&Classification>) -> String {
     let element = |class: &Classification| {
-        json!({
+        let mut found = json!({
             "name": session.architecture().config().elements[class.element.index()].name,
             "instance": class.captures,
-        })
+        });
+        if !class.also.is_empty() {
+            found["also"] = class
+                .also
+                .iter()
+                .map(|place| {
+                    json!({
+                        "name": session.architecture().config().elements[place.element.index()].name,
+                        "instance": place.captures,
+                    })
+                })
+                .collect();
+        }
+        found
     };
     let graph = session.graph();
     let facts = graph.file(path).and_then(|f| f.facts.as_ref());
@@ -195,15 +210,7 @@ fn resolved<'s>(
         ),
         Resolution::Package(name) => (
             Some(Target::Package(name)),
-            architecture
-                .matcher()
-                .classify_package(name)
-                .map(|element| Classification {
-                    element,
-                    captures: Vec::new(),
-                    names: Vec::new(),
-                    root: name.clone(),
-                }),
+            architecture.matcher().package_place(name),
         ),
         Resolution::Unresolved(_) => (None, None),
     };

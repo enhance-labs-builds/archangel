@@ -10,20 +10,20 @@ use crate::model::{
 };
 use crate::names::{NamePattern, Owner, Style};
 use crate::parse::{
-    nearest, optional_string, parse_examples, patterns, string_list, unknown_fields,
+    nearest, one_spelling, optional_string, parse_examples, patterns, string_list, unknown_fields,
 };
 use crate::pattern::Pattern;
 use crate::plugins::plugin_use;
 use crate::problem::{ConfigProblem, ProblemCode};
 use crate::selectors::{Names, Placement, written};
 
-const COMMON_FIELDS: [&str; 5] = ["name", "reason", "link", "imports", "examples"];
+const COMMON_FIELDS: [&str; 6] = ["name", "reason", "because", "link", "imports", "examples"];
 
 const SHORTHANDS: [&str; 3] = ["layers", "isolate", "entry"];
 
 /// The fields of a rule that uses a plugin condition.
-const PLUGIN_FIELDS: [&str; 7] = [
-    "files", "plugin", "options", "name", "reason", "link", "examples",
+const PLUGIN_FIELDS: [&str; 8] = [
+    "files", "plugin", "options", "name", "reason", "because", "link", "examples",
 ];
 
 /// The conditions about imports, which the import options limit.
@@ -34,7 +34,15 @@ const FOLDER_CONDITIONS: [&str; 3] = ["mustBeNamed", "mustContain", "mustNotExis
 
 /// The fields of a rule written as several sentences, which belong to the rule, not to one of
 /// its sentences.
-const SENTENCES_FIELDS: [&str; 6] = ["name", "reason", "link", "imports", "examples", "sentences"];
+const SENTENCES_FIELDS: [&str; 7] = [
+    "name",
+    "reason",
+    "because",
+    "link",
+    "imports",
+    "examples",
+    "sentences",
+];
 
 /// Every condition the rule language names, so that a rule with two of them is refused as one
 /// mistake, whichever two they are.
@@ -102,7 +110,16 @@ pub(crate) fn parse_rule(
         None => input.sentence(names, problems),
     };
     let given_name = optional_string(object, "name", &input.field, problems);
-    let reason = optional_string(object, "reason", &input.field, problems);
+    if object.contains_key("$name") {
+        problems.push(invalid(
+            &input.at("name"),
+            "a config uses one spelling for each key, and this call names the rule two times; \
+             keep the name as the first argument and remove the `name` key",
+        ));
+    }
+    let reason_key = one_spelling(object, ["because", "reason"], |key| input.at(key), problems)
+        .map_or("reason", |(key, _)| key);
+    let reason = optional_string(object, reason_key, &input.field, problems);
     let link = optional_string(object, "link", &input.field, problems);
     let examples = parse_examples(object.get("examples"), &input.field, problems);
     let (kind, sentences, default_name, transitive) = parsed?;
@@ -315,7 +332,9 @@ impl Input<'_> {
                 problems.push(invalid(&field, "must be a sentence object"));
                 continue;
             };
-            for key in ["name", "reason", "link", "imports", "examples", "plugin"] {
+            for key in [
+                "name", "reason", "because", "link", "imports", "examples", "plugin",
+            ] {
                 if object.contains_key(key) {
                     problems.push(invalid(
                         &format!("{field}.{key}"),
