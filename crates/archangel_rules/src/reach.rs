@@ -308,7 +308,8 @@ fn edge_of<'e>(
 ) -> Edge<'e> {
     let (classification, to_path, package) = match resolution {
         Resolution::File(to) => (classes.place_of(to), Some(to.as_str()), None),
-        Resolution::Package(name) => (classes.package_place_of(name), None, Some(name.as_str())),
+        // The facts of a rule read only the place of a file: a package is in no part of a file.
+        Resolution::Package(name) => (None, None, Some(name.as_str())),
         Resolution::Unresolved(_) => (None, None, None),
     };
     Edge {

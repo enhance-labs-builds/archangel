@@ -638,7 +638,8 @@ fn in_own(compiled: &Compiled, class: &ClassKey) -> bool {
     in_set(compiled.own_files, class)
 }
 
-/// Whether the two ends of an import are in different instances of an entry sentence's element.
+/// Whether the two ends of an import are in different instances of an entry sentence's element. A
+/// sentence looks only at an import with one end in its files, so one end is always in it.
 fn different_instances(sentence: &Sentence, edge: &Edge<'_>) -> bool {
     let Condition::Entry { element, .. } = &sentence.condition else {
         return false;
@@ -647,7 +648,6 @@ fn different_instances(sentence: &Sentence, edge: &Edge<'_>) -> bool {
     let to = edge.to.classification.and_then(|c| c.of(*element));
     match (from, to) {
         (Some(from), Some(to)) => !from.same_root(to),
-        (None, None) => false,
         _ => true,
     }
 }
@@ -659,7 +659,6 @@ fn instances_differ(element: ElementId, edge: &Edge<'_>) -> bool {
     let to = edge.to.classification.and_then(|c| c.of(element));
     match (from, to) {
         (Some(from), Some(to)) => !from.same_instance(to),
-        (None, None) => false,
         _ => true,
     }
 }

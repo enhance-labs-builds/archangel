@@ -125,7 +125,6 @@ fn counted(count: u64, one: &str, many: &str) -> String {
 /// What no file can give a rule: the name that has no file.
 fn checks_nothing(session: &Session, rule: &Rule) -> String {
     let name = match &rule.kind {
-        RuleKind::TableRow { row: Some(row), .. } => row.as_str(),
         RuleKind::TableRow { table, row: None } => session.architecture().config().tables
             [table.index()]
         .name

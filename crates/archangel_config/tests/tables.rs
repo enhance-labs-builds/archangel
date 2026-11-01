@@ -2,7 +2,10 @@
 //! refuses.
 #![cfg(test)]
 
-use archangel_config::{ConfigProblem, ProblemCode, parse_json};
+use archangel_config::{
+    Condition, Config, ConfigProblem, ElementId, FileSet, ImportKinds, ProblemCode, Rule,
+    SelectorId, Side, TableId, Term, parse_json,
+};
 use archangel_testkit::table;
 use serde_json::{Value, json};
 
@@ -296,5 +299,252 @@ fn a_rule_and_a_table_with_one_name_are_refused() {
     assert!(
         message.contains("\"t\"") || message.contains("`t`"),
         "{message}"
+    );
+}
+
+fn table_config(rows: &Value, options: &Value) -> Config {
+    parse_json(&with_rules(&[table("t", rows, options)]).to_string())
+        .unwrap_or_else(|problems| panic!("the config is valid: {problems:?}"))
+}
+
+fn row_rule<'c>(config: &'c Config, row: &str) -> &'c Rule {
+    let name = format!("t.{row}");
+    config
+        .rules
+        .iter()
+        .find(|rule| rule.name == name)
+        .expect("the row's rule")
+}
+
+fn permitted(rule: &Rule) -> &Side {
+    match &rule.sentences[0].condition {
+        Condition::MayOnlyImport(side) => side,
+        other => panic!("a row permits a list: {other:?}"),
+    }
+}
+
+#[test]
+fn only_a_row_that_may_not_import_itself_has_the_sentence_that_refuses_it() {
+    let config = table_config(
+        &json!({ "port": ["entity"], "entity": [] }),
+        &json!({ "kinds": KINDS, "mayNotImportItself": ["port"] }),
+    );
+    assert_eq!(row_rule(&config, "port").sentences.len(), 2);
+    assert_eq!(row_rule(&config, "entity").sentences.len(), 1);
+}
+
+#[test]
+fn may_not_import_itself_refuses_only_a_name_that_is_no_row() {
+    let found = problems(&with_rules(&[table(
+        "t",
+        &json!({ "port": [] }),
+        &json!({ "kinds": KINDS, "mayNotImportItself": ["prot"] }),
+    )]));
+    assert!(
+        found.iter().any(|p| p.message.contains("\"prot\"")),
+        "{found:?}"
+    );
+    table_config(
+        &json!({ "port": [] }),
+        &json!({ "kinds": KINDS, "mayNotImportItself": ["port"] }),
+    );
+}
+
+#[test]
+fn every_row_may_import_goes_with_may_not_import_itself_unless_it_names_that_row() {
+    let config = table_config(
+        &json!({ "port": [], "entity": [] }),
+        &json!({
+            "kinds": KINDS,
+            "everyRowMayImport": ["src/shared/**", "entity"],
+            "mayNotImportItself": ["port"],
+        }),
+    );
+    let side = permitted(row_rule(&config, "port"));
+    assert_eq!(side.files.len(), 2, "the row has every cell: {side:?}");
+    assert!(side.text.contains("src/shared/**"), "{}", side.text);
+}
+
+#[test]
+fn a_because_is_what_the_rule_remembers_it_wrote() {
+    let config = table_config(
+        &json!({ "a": [] }),
+        &json!({ "kinds": KINDS, "because": "Why." }),
+    );
+    let rule = row_rule(&config, "a");
+    assert!(rule.because);
+    assert_eq!(rule.reason.as_deref(), Some("Why."));
+    let config = table_config(
+        &json!({ "a": [] }),
+        &json!({ "kinds": KINDS, "reason": "Why." }),
+    );
+    assert!(!row_rule(&config, "a").because);
+}
+
+#[test]
+fn a_table_without_files_judges_its_kinds_and_its_named_rows() {
+    let kinds_only = table_config(&json!({ "a": [], "b": [] }), &json!({ "kinds": KINDS }));
+    let of_table = &kinds_only.tables[0];
+    assert!(of_table.default_files);
+    assert_eq!(
+        of_table.files.terms,
+        [Term::AnyKind(TableId(0)), Term::Any(1)]
+    );
+
+    let with_part = table_config(&json!({ "a": [], "api": [] }), &json!({ "kinds": KINDS }));
+    assert_eq!(
+        with_part.tables[0].files.terms,
+        [
+            Term::AnyKind(TableId(0)),
+            Term::Element(ElementId(0)),
+            Term::Any(2),
+        ]
+    );
+}
+
+#[test]
+fn a_table_with_files_judges_those_files() {
+    let config = table_config(
+        &json!({ "a": [] }),
+        &json!({ "kinds": KINDS, "files": "api" }),
+    );
+    let of_table = &config.tables[0];
+    assert!(!of_table.default_files);
+    assert_eq!(of_table.files.terms, [Term::Element(ElementId(0))]);
+}
+
+#[test]
+fn a_cell_that_names_a_row_permits_the_files_of_that_row() {
+    let config = table_config(&json!({ "a": ["b"], "b": [] }), &json!({ "kinds": KINDS }));
+    let side = permitted(row_rule(&config, "a"));
+    let of_b = &config.tables[0].rows[1].1;
+    assert_eq!(side.files.as_slice(), std::slice::from_ref(of_b));
+}
+
+#[test]
+fn a_row_key_or_a_cell_that_names_a_group_means_that_group() {
+    let config: Config = parse_json(
+        &json!({
+            "parts": { "api": "apps/api/**" },
+            "groups": { "first": "a/**", "second": "b/**" },
+            "rules": [table("t", &json!({ "second": ["first"], "first": [] }), &json!({}))],
+        })
+        .to_string(),
+    )
+    .unwrap_or_else(|problems| panic!("the config is valid: {problems:?}"));
+    let rows = &config.tables[0].rows;
+    assert_eq!(rows[0].1.terms, [Term::Selector(SelectorId(1))]);
+    assert_eq!(rows[1].1.terms, [Term::Selector(SelectorId(0))]);
+}
+
+#[test]
+fn a_row_that_may_not_import_itself_refuses_the_files_of_its_name() {
+    let config = table_config(
+        &json!({ "port": [] }),
+        &json!({ "kinds": KINDS, "mayNotImportItself": ["port"] }),
+    );
+    let rule = row_rule(&config, "port");
+    let Condition::MayNotImport(side) = &rule.sentences[1].condition else {
+        panic!("a refusal: {rule:?}");
+    };
+    assert_eq!(side.text, "port");
+    assert_eq!(side.files, [config.tables[0].rows[0].1.clone()]);
+    let own = rule.sentences[0]
+        .options
+        .own
+        .as_ref()
+        .expect("its own files");
+    assert!(!own.permitted);
+    assert_eq!(own.files, config.tables[0].rows[0].1);
+}
+
+#[test]
+fn a_row_permits_its_own_name_and_looks_at_the_whole_repository_by_default() {
+    let config = table_config(&json!({ "a": [] }), &json!({ "kinds": KINDS }));
+    let options = &row_rule(&config, "a").sentences[0].options;
+    assert!(options.own.as_ref().expect("its own files").permitted);
+    let area = options.within.as_ref().expect("an area");
+    assert_eq!(area.text, "the repository");
+    assert_eq!(area.files, [FileSet::every_file()]);
+    assert_eq!(area.elements, []);
+}
+
+#[test]
+fn the_default_area_of_a_row_holds_each_externals_set_that_the_table_names_once() {
+    let config = parse_json(
+        &json!({
+            "parts": { "api": "apps/api/**" },
+            "externals": { "driver": ["pg"], "cloud": ["@aws-sdk/*"] },
+            "rules": [table(
+                "t",
+                &json!({ "a": ["driver"], "b": ["driver"] }),
+                &json!({ "kinds": KINDS, "everyRowMayImport": ["cloud"] }),
+            )],
+        })
+        .to_string(),
+    )
+    .expect("a valid config");
+    let area = row_rule(&config, "a").sentences[0]
+        .options
+        .within
+        .clone()
+        .expect("an area");
+    assert_eq!(area.elements.len(), 2, "{area:?}");
+}
+
+#[test]
+fn a_within_of_the_table_replaces_the_default_area() {
+    let config = table_config(
+        &json!({ "a": [] }),
+        &json!({ "kinds": KINDS, "within": "src/**" }),
+    );
+    let area = row_rule(&config, "a").sentences[0]
+        .options
+        .within
+        .clone()
+        .expect("an area");
+    assert_eq!(area.text, "src/**");
+}
+
+#[test]
+fn the_table_own_rule_counts_every_file_whatever_imports_the_table_counts() {
+    let config = table_config(
+        &json!({ "a": [] }),
+        &json!({ "kinds": KINDS, "imports": "runtime" }),
+    );
+    assert_eq!(row_rule(&config, "a").imports, ImportKinds::Runtime);
+    assert_eq!(
+        row_rule(&config, "every-file-has-a-kind").imports,
+        ImportKinds::All
+    );
+}
+
+#[test]
+fn the_text_of_a_row_joins_its_cells_and_those_of_every_row() {
+    let text = |rows: &Value, options: &Value| {
+        let mut options = options.clone();
+        options["kinds"] = json!(KINDS);
+        let config = table_config(rows, &options);
+        permitted(row_rule(&config, "a")).text.clone()
+    };
+    assert_eq!(text(&json!({ "a": [] }), &json!({})), "");
+    assert_eq!(text(&json!({ "a": ["api"] }), &json!({})), "api");
+    assert_eq!(
+        text(&json!({ "a": ["api", "shared"] }), &json!({})),
+        "api, shared"
+    );
+    assert_eq!(
+        text(
+            &json!({ "a": [] }),
+            &json!({ "everyRowMayImport": ["api"] })
+        ),
+        "api"
+    );
+    assert_eq!(
+        text(
+            &json!({ "a": ["shared"] }),
+            &json!({ "everyRowMayImport": ["api"] })
+        ),
+        "shared, api"
     );
 }

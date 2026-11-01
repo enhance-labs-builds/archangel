@@ -496,3 +496,23 @@ fn a_preset_whose_plugins_are_not_an_object_is_refused() {
         }
     }
 }
+
+#[test]
+fn off_with_a_table_name_removes_each_rule_of_that_table_and_no_other() {
+    let row = archangel_testkit::table(
+        "t",
+        &json!({ "a": [], "b": [] }),
+        &json!({ "kinds": "x/{kind}/**" }),
+    );
+    let other =
+        archangel_testkit::table("u", &json!({ "c": [] }), &json!({ "kinds": "y/{kind}/**" }));
+    let config = merged(&json!({
+        "parts": { "x": "z/**" },
+        "off": ["t"],
+        "rules": [row, other],
+    }));
+    let mut removed: Vec<&str> = config.off.iter().map(|rule| rule.name.as_str()).collect();
+    removed.sort_unstable();
+    assert_eq!(removed, ["t.a", "t.b", "t.every-file-has-a-kind"]);
+    assert!(config.rules.iter().all(|rule| rule.name.starts_with("u.")));
+}

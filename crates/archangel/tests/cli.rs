@@ -1022,3 +1022,72 @@ fn an_unknown_name_in_a_config_with_no_names_does_not_list_nothing() {
     assert!(!all.contains("packages: ['routes']"), "{all}");
     assert!(all.contains("only in its table"), "{all}");
 }
+
+#[test]
+fn explain_of_a_name_with_nothing_before_the_colon_keeps_the_whole_name() {
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "")
+        .json_config(&json!({ "elements": { "src": "src/**" }, "rules": [] }));
+    let found = run(&repo, &["explain", ":5"]);
+    assert_ne!(found.status, 0);
+    assert!(
+        found.stderr.contains(":5"),
+        "{}{}",
+        found.stdout,
+        found.stderr
+    );
+}
+
+#[test]
+fn explain_of_a_line_with_no_import_as_json_says_so() {
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "const a = 1;\n")
+        .json_config(&json!({ "elements": { "src": "src/**" }, "rules": [] }));
+    let found = run(&repo, &["explain", "src/a.ts:1", "--format", "json"]);
+    assert_eq!(found.status, 1, "{}{}", found.stdout, found.stderr);
+    let document: Value = serde_json::from_str(&found.stdout).expect("JSON");
+    assert_eq!(document["line"], 1);
+    assert_eq!(document["imports"], json!([]));
+    assert_eq!(document["message"], "line 1 of src/a.ts has no import");
+}
+
+#[test]
+fn explain_of_a_file_that_does_not_parse_as_json_lists_only_its_own_failure() {
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "const = ;\n")
+        .file("src/b.ts", "const = ;\n")
+        .file("src/c.ts", "import './missing';\n")
+        .json_config(&json!({ "elements": { "src": "src/**" }, "rules": [] }));
+    let found = run(&repo, &["explain", "src/a.ts:1", "--format", "json"]);
+    assert_eq!(found.status, 1, "{}{}", found.stdout, found.stderr);
+    let document: Value = serde_json::from_str(&found.stdout).expect("JSON");
+    let diagnostics = document["diagnostics"].as_array().expect("a list");
+    assert_eq!(diagnostics.len(), 1, "{document}");
+    assert_eq!(diagnostics[0]["code"], "parse-failed");
+    assert_eq!(diagnostics[0]["file"], "src/a.ts");
+}
+
+#[test]
+fn explain_of_one_import_puts_each_rule_under_its_verdict() {
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "import './b';\n")
+        .file("src/b.ts", "")
+        .file("lib/c.ts", "")
+        .json_config(&json!({
+            "elements": { "src": "src/**", "lib": "lib/**" },
+            "rules": [
+                { "name": "judges", "files": "src", "mayNotImport": "lib" },
+                { "name": "skips", "files": "lib", "mayNotImport": "src" },
+            ],
+        }));
+    let found = run(&repo, &["explain", "src/a.ts:1"]);
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    let out = &found.stdout;
+    let at = |text: &str| {
+        out.find(text)
+            .unwrap_or_else(|| panic!("no {text} in:\n{out}"))
+    };
+    assert!(at("judged by:") < at("    judges"), "{out}");
+    assert!(at("    judges") < at("skipped by:"), "{out}");
+    assert!(at("skipped by:") < at("    skips"), "{out}");
+}

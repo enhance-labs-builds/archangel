@@ -195,3 +195,39 @@ fn a_file_at_the_config_folder_is_a_target_with_dot_slash() {
         "`./` marks a file at the config folder"
     );
 }
+
+#[test]
+fn a_specifier_climbs_one_step_for_each_folder_left() {
+    let text = |line: &str, file: &str| rejected_of(&[line])[0][file].clone();
+    assert_eq!(
+        text("a/b/c.ts imports a/d.ts", "a/b/c.ts"),
+        "import '../d.ts';\n"
+    );
+    assert_eq!(
+        text("a/b/c/e.ts imports a/d.ts", "a/b/c/e.ts"),
+        "import '../../d.ts';\n"
+    );
+    assert_eq!(
+        text("a/e.ts imports x/y/d.ts", "a/e.ts"),
+        "import '../x/y/d.ts';\n"
+    );
+    assert_eq!(
+        text("a/e.ts imports a/d.ts", "a/e.ts"),
+        "import './d.ts';\n"
+    );
+}
+
+#[test]
+fn a_target_that_starts_with_a_dot_or_a_slash_is_refused_when_it_is_no_source_file() {
+    for line in ["a.ts imports ./b", "a.ts imports /b"] {
+        let rules = json!([{
+            "name": "r", "files": "src/**", "mustBeNamed": "kebab-case",
+            "examples": { "rejected": [line] },
+        }]);
+        let found = problems(&rules);
+        assert!(
+            found[0].message.contains("relative path"),
+            "{line}: {found:?}"
+        );
+    }
+}

@@ -410,3 +410,118 @@ fn a_table_without_files_says_what_it_covers_and_lists_the_rest() {
         found.stdout
     );
 }
+
+fn rules_of(repo: &FixtureRepo) -> String {
+    let found = run(repo, &["rules"]);
+    found.stdout
+}
+
+fn row_table() -> serde_json::Value {
+    archangel_testkit::table(
+        "t",
+        &json!({ "a": [], "b": [] }),
+        &json!({ "kinds": "**/*.{kind}.ts" }),
+    )
+}
+
+#[test]
+fn rules_says_which_name_has_no_file() {
+    let repo = FixtureRepo::new()
+        .file("src/x.a.ts", "")
+        .json_config(&json!({ "rules": [row_table()] }));
+    let out = rules_of(&repo);
+    assert!(out.contains("checks nothing: no file is in b"), "{out}");
+
+    let empty = FixtureRepo::new().file("src/x.ts", "").json_config(
+        &json!({ "rules": [archangel_testkit::table(
+            "t",
+            &json!({ "a": [] }),
+            &json!({ "kinds": "docs/{kind}/**" }),
+        )] }),
+    );
+    let out = rules_of(&empty);
+    assert!(
+        block(&out, "t.every-file-has-a-kind").contains("checks nothing: no file is in t"),
+        "{out}"
+    );
+}
+
+#[test]
+fn rules_names_the_imports_a_rule_counts_unless_that_is_its_default() {
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "")
+        .file("lib/b.ts", "")
+        .json_config(&json!({
+            "elements": { "src": "src/**", "lib": "lib/**" },
+            "rules": [
+                { "name": "types", "files": "src", "mayNotImport": "lib", "imports": "types" },
+                { "name": "runtime", "files": "src", "mayNotImport": "lib", "imports": "runtime" },
+                { "name": "cycles", "files": "src", "noCycles": true },
+                { "name": "chains", "files": "src", "mayNotImport": "lib", "transitively": true },
+            ],
+        }));
+    let out = rules_of(&repo);
+    // A rule that is no table row has its name on one line and its sentence on the next.
+    let sentence = |name: &str| {
+        let mut lines = out.lines();
+        lines
+            .find(|line| line.starts_with(&format!("{name}  ")))
+            .unwrap_or_else(|| panic!("no {name} in:\n{out}"));
+        lines.next().expect("a sentence").to_owned()
+    };
+    assert!(sentence("types").ends_with(", type imports only"), "{out}");
+    assert!(
+        sentence("runtime").ends_with(", runtime imports only"),
+        "{out}"
+    );
+    assert!(!sentence("cycles").contains("imports only"), "{out}");
+    assert!(!sentence("chains").contains("imports only"), "{out}");
+}
+
+#[test]
+fn rules_says_that_nothing_is_unjudged_only_when_nothing_is() {
+    let all_judged = FixtureRepo::new().file("src/a.ts", "").json_config(&json!({
+        "elements": { "src": "src/**" },
+        "rules": [{ "name": "r", "files": "src/**", "mustBeNamed": "kebab-case" }],
+    }));
+    let summary = "Not judged by any rule: 0 files, 0 imports";
+    assert!(
+        rules_of(&all_judged).contains(summary),
+        "{}",
+        rules_of(&all_judged)
+    );
+
+    let file_left = FixtureRepo::new()
+        .file("src/a.ts", "")
+        .file("lib/b.ts", "")
+        .json_config(&json!({
+            "elements": { "src": "src/**" },
+            "rules": [{ "name": "r", "files": "src/**", "mustBeNamed": "kebab-case" }],
+        }));
+    let out = rules_of(&file_left);
+    assert!(out.contains("Files that no rule judges: 1"), "{out}");
+    assert!(!out.contains(summary), "{out}");
+}
+
+#[test]
+fn rules_as_json_says_checks_nothing_only_for_a_rule_with_no_file() {
+    let repo = FixtureRepo::new()
+        .file("src/x.a.ts", "")
+        .json_config(&json!({
+            "elements": { "src": "src/**" },
+            "rules": [row_table(), { "name": "folders", "folders": "nothing/*", "mustBeNamed": "kebab-case" }],
+        }));
+    let found = run(&repo, &["rules", "--format", "json"]);
+    let document: serde_json::Value = serde_json::from_str(&found.stdout).expect("JSON");
+    let says = |name: &str| {
+        let rules = document["rules"].as_array().expect("a list");
+        let rule = rules
+            .iter()
+            .find(|rule| rule["name"] == name)
+            .unwrap_or_else(|| panic!("no {name}: {document}"));
+        rule.get("checksNothing").cloned()
+    };
+    assert_eq!(says("t.b"), Some(json!("checks nothing: no file is in b")));
+    assert_eq!(says("t.a"), None);
+    assert_eq!(says("folders"), None, "a folder rule counts folders");
+}

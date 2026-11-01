@@ -25,7 +25,10 @@ exclude_re = [
   "archangel_engine/src/events\\.rs:.*: replace == with != in key$",
   # Every list of choices has at least two, and for two or more `rest` is never empty, so the
   # guard is always true already.
-  "archangel_config/src/rules\\.rs:.*: replace match guard !rest\\.is_empty\\(\\) with true in or_list$",
+  "archangel_config/src/shorthand\\.rs:.*: replace match guard !rest\\.is_empty\\(\\) with true in or_list$",
+  # This only skips the search for a file in two rows when no class can hold one: a class with no
+  # file adds no diagnostic to that search, so looking at it changes nothing.
+  "archangel_rules/src/classes\\.rs:.*: replace > with >= in Classes::counted_classes$",
   # Without an export or folder rule, the passes this skips evaluate no sentence and count no work.
   "archangel_rules/src/structure\\.rs:.*: replace Evaluation<'e, '_>::any -> bool with true$",
 ]

@@ -376,10 +376,17 @@ fn rule_evaluations_do_not_grow_with_rows_that_cannot_apply() {
 #[test]
 fn rule_evaluation_count_rejects_a_test_of_every_row() {
     let scenario = fail::FailScenario::setup();
+    let (plain, _) = table_counts(5);
     fail::cfg("rules::every_row", "return").unwrap();
     let result = table_counts_match();
+    let (of_every_row, _) = table_counts(5);
     scenario.teardown();
     assert!(result.is_err(), "the count catches a test of every row");
+    assert_eq!(
+        of_every_row,
+        plain + 6,
+        "one more for each of the 5 rows and the table's own rule, on the one import"
+    );
 }
 
 #[test]

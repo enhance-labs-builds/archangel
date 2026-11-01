@@ -332,11 +332,6 @@ impl Classes {
         self.files.get(path)?.classification.as_ref()
     }
 
-    /// The element of a package with a class.
-    pub(crate) fn package_place_of(&self, name: &str) -> Option<&Classification> {
-        self.packages.get(name)?.1.as_ref()
-    }
-
     /// The place of a file with a class in a table's kind pattern.
     pub(crate) fn kind_place(&self, path: &str, table: TableId) -> Option<&KindPlace> {
         self.files.get(path)?.kinds.get(table.index())?.as_ref()

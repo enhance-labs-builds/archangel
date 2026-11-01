@@ -851,3 +851,35 @@ fn resolution_inputs_hold_the_real_path_of_a_tsconfig_in_a_linked_folder() {
         "an edit to the extended tsconfig, at its real path, changes the resolution"
     );
 }
+
+#[test]
+fn resolution_inputs_hold_each_tsconfig_that_would_decide_nearer_than_the_one_in_use() {
+    let repo = FixtureRepo::new()
+        .file("src/x/a.ts", "import './b';\n")
+        .file("src/x/b.ts", "")
+        .file("src/tsconfig.json", "{}\n");
+    let graph = build(&repo);
+    let existence = &graph.resolution_inputs().existence;
+    let root = graph.root();
+    assert!(
+        existence.contains(&root.join("src/x/tsconfig.json")),
+        "a nearer tsconfig would decide: {existence:?}"
+    );
+}
+
+#[test]
+fn resolution_inputs_hold_every_folder_up_when_no_tsconfig_is_in_use() {
+    let repo = FixtureRepo::new()
+        .file("src/x/a.ts", "import './b';\n")
+        .file("src/x/b.ts", "");
+    let graph = build(&repo);
+    let existence = &graph.resolution_inputs().existence;
+    let root = graph.root();
+    for folder in ["src/x", "src", ""] {
+        let candidate = root.join(folder).join("tsconfig.json");
+        assert!(
+            existence.contains(&candidate),
+            "{candidate:?}: {existence:?}"
+        );
+    }
+}

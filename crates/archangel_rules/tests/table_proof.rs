@@ -4,7 +4,7 @@
 
 use archangel_graph::{GraphOptions, ImportGraph, Work};
 use archangel_rules::{Architecture, Code, ExampleKind, ExampleOutcome};
-use archangel_testkit::FixtureRepo;
+use archangel_testkit::{FixtureRepo, table};
 use serde_json::{Value, json};
 
 fn graph_and_architecture(config: &Value, repo: &FixtureRepo) -> (ImportGraph, Architecture) {
@@ -110,4 +110,49 @@ fn a_plain_rule_keeps_its_accepted_example_whose_import_a_limit_skips() {
         ),
     );
     assert!(outcomes[0].passed, "as in 0.1: {outcomes:?}");
+}
+
+#[test]
+fn a_failed_rejected_example_names_only_its_own_files_with_no_row() {
+    let repo = FixtureRepo::new()
+        .file("src/other.ts", "")
+        .file("src/infra/x.ts", "");
+    let config = json!({
+        "rules": [table(
+            "t",
+            &json!({ "infra": [], "domain": [] }),
+            &json!({
+                "kinds": "src/{kind}/**",
+                "files": "src/**",
+                "examples": { "rejected": ["src/domian/a.ts imports src/infra/b.ts"] },
+            }),
+        )],
+    });
+    let outcomes = table_outcomes(&config, &repo);
+    let message = format!("{:?}", outcomes[0]);
+    assert!(
+        message.contains("`src/domian/a.ts` has no row"),
+        "{message}"
+    );
+    assert!(!message.contains("src/other.ts"), "{message}");
+    assert!(!message.contains("src/infra/b.ts` has no row"), "{message}");
+}
+
+#[test]
+fn an_example_file_counts_as_a_file_of_the_table() {
+    let repo = FixtureRepo::new().file("src/infra/x.ts", "");
+    let config = json!({
+        "rules": [table(
+            "t",
+            &json!({ "infra": [] }),
+            &json!({
+                "kinds": "src/{kind}/**",
+                "files": "src/**",
+                "examples": { "accepted": ["src/x.ts"] },
+            }),
+        )],
+    });
+    let outcomes = table_outcomes(&config, &repo);
+    let message = format!("{:?}", outcomes[0]);
+    assert!(message.contains("t.every-file-has-a-kind"), "{message}");
 }
