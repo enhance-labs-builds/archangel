@@ -286,7 +286,8 @@ questions the owner listed; items 9 to 12 came up while the change was written.
     (`'entity -> use-case'`), which needs a legend and names kinds, not files, so a typing error in
     a pattern stays hidden; and a tuple (`['a.ts', 'b.ts']`), which does not say what the two paths
     are. A sentence reads with no documentation, and it names real paths, which is what proves the
-    rule's patterns. Task 9.1 measures the real slice.
+    rule's patterns. The real slice, measured by task 9.1, is 83 lines for 2 tables of 26 rows and 2
+    rules, each with one line of proof.
 
 12. **A table that checks nothing fails the check, `table-empty`.** A table with no row, or whose
     rows together have no file, checks nothing while the check stays green, and the usual cause is

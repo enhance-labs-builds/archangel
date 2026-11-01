@@ -88,7 +88,7 @@ are listed in 1.24 and must still pass unchanged.
 
 ## 9. Local verification
 
-- [ ] 9.1 Run `archangel check --stats` on enhance3 with its 0.1 generated config and with a hand-written config of its workspace and API domain tables; verify that pattern passes stay one per file, and that rule evaluations rise by exactly the number of imports inside one instance of a captured part under `mayOnlyImport` (the own-instance default) and otherwise do not rise; record files classified, the number of compiled sets, and the times in the PR, and record the line count of the hand-written part against the estimate in design.md
+- [x] 9.1 Run `archangel check --stats` on enhance3 with its 0.1 generated config and with a hand-written config of its workspace and API domain tables; verify that pattern passes stay one per file, and that rule evaluations rise by exactly the number of imports inside one instance of a captured part under `mayOnlyImport` (the own-instance default) and otherwise do not rise; record files classified, the number of compiled sets, and the times in the PR, and record the line count of the hand-written part against the estimate in design.md
 - [ ] 9.2 Run `scripts/check`, which runs every crate's tests with and without fail points, the npm tests and the type tests, locally, and the fuzz target `pattern` for its usual time; verify everything passes before pushing
 
 ## Workflow follow-up

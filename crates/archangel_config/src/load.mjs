@@ -58,9 +58,8 @@ const caller = () => {
 };
 // @justified intent
 // A builder keeps its own parameters, which `index.d.ts` types; this wrapper only adds the place.
-const located =
-  (build) =>
-  (...args) => ({ ...build(...args), ...caller() });
+// No builder takes more than three.
+const located = (build) => (first, second, third) => ({ ...build(first, second, third), ...caller() });
 
 const list = (value) => (Array.isArray(value) ? value : [value]);
 const builders = {
