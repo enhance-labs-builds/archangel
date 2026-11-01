@@ -19,6 +19,35 @@ pub struct Classification {
     pub names: Vec<String>,
     /// The instance root.
     pub root: String,
+    /// The file's place in each other set of elements, as in each preset's parts, or each other
+    /// externals set of a package.
+    pub also: Vec<Classification>,
+}
+
+impl Classification {
+    /// The place in each set of elements, this one first.
+    pub fn all(&self) -> impl Iterator<Item = &Self> {
+        std::iter::once(self).chain(&self.also)
+    }
+
+    /// The place in one element, when the file or package is in it.
+    #[must_use]
+    pub fn of(&self, element: ElementId) -> Option<&Self> {
+        self.all().find(|class| class.element == element)
+    }
+
+    /// Whether two places are one instance of one element: their captures have the same values.
+    #[must_use]
+    pub fn same_instance(&self, other: &Self) -> bool {
+        self.element == other.element && self.captures == other.captures
+    }
+
+    /// Whether two places are in one folder of one element, which an `entry` rule's entry files
+    /// start at.
+    #[must_use]
+    pub fn same_root(&self, other: &Self) -> bool {
+        self.same_instance(other) && self.names == other.names && self.root == other.root
+    }
 }
 
 /// The memory the regex set of a config's glob patterns may use. A config generated from another
@@ -37,13 +66,19 @@ pub struct ElementMatcher {
     /// How many patterns the config's selectors and rules name; theirs follow the element patterns.
     selected: usize,
     packages: Vec<(ElementId, Pattern)>,
+    /// For each element, its set, and whether a second match in the set is an overlap.
+    sets: Vec<(u32, bool)>,
+    /// For each element, whether it is an externals set.
+    externals: Vec<bool>,
 }
 
 /// What one pass of every pattern found in a path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PathMatch {
-    /// The element instance, from the first element that matches.
+    /// The element instance, from the first element of each set that matches.
     pub classification: Option<Classification>,
+    /// The parts that the file is in, when it is in two or more of the config's own.
+    pub overlap: Vec<ElementId>,
     /// For each of the config's selector and rule patterns, whether it matches.
     pub patterns: Vec<bool>,
     /// The passes over the path: one, or one per glob when the set was too large to compile.
@@ -136,6 +171,8 @@ impl ElementMatcher {
             selected: file_patterns.len() - elements,
             file_patterns,
             packages,
+            sets: config.elements.iter().map(|e| (e.set, e.part)).collect(),
+            externals: config.elements.iter().map(|e| e.externals).collect(),
         }
     }
 
@@ -156,38 +193,111 @@ impl ElementMatcher {
             found.sort_unstable();
         }
         let elements = self.file_patterns.len() - self.selected;
-        let classification = found
-            .first()
-            .filter(|&&first| first < elements)
-            .and_then(|&first| {
-                let (element, pattern) = &self.file_patterns[first];
-                let matched = pattern.matches(&path)?;
-                Some(Classification {
-                    element: *element,
-                    names: pattern.captures().to_vec(),
-                    captures: matched.captures,
-                    root: matched.root,
-                })
-            });
+        let (classification, overlap) = self.classification(&found, elements, &path);
         let mut patterns = vec![false; self.selected];
         for index in found.into_iter().filter(|&i| i >= elements) {
             patterns[index - elements] = true;
         }
         PathMatch {
             classification,
+            overlap,
             patterns,
             passes,
         }
     }
 
-    /// The element of a package, from the first declared package element that lists it.
+    /// The first element of each set among the matching patterns, the lowest set first, and the
+    /// parts of a file that two of the config's own parts match.
+    fn classification(
+        &self,
+        found: &[usize],
+        elements: usize,
+        path: &str,
+    ) -> (Option<Classification>, Vec<ElementId>) {
+        let mut places: Vec<Classification> = Vec::new();
+        let mut overlap: Vec<ElementId> = Vec::new();
+        for &index in found.iter().take_while(|&&index| index < elements) {
+            let (element, pattern) = &self.file_patterns[index];
+            let (set, part) = self.sets[element.index()];
+            let first = places
+                .iter()
+                .find(|place| self.sets[place.element.index()].0 == set);
+            if let Some(first) = first {
+                if part && first.element != *element {
+                    if overlap.is_empty() {
+                        overlap.push(first.element);
+                    }
+                    if !overlap.contains(element) {
+                        overlap.push(*element);
+                    }
+                }
+                continue;
+            }
+            if let Some(matched) = pattern.matches(path) {
+                places.push(Classification {
+                    element: *element,
+                    names: pattern.captures().to_vec(),
+                    captures: matched.captures,
+                    root: matched.root,
+                    also: Vec::new(),
+                });
+            }
+        }
+        places.sort_by_key(|place| self.sets[place.element.index()].0);
+        (joined(places), overlap)
+    }
+
+    /// The first element of a package.
     #[must_use]
     pub fn classify_package(&self, name: &str) -> Option<ElementId> {
-        self.packages
-            .iter()
-            .find(|(_, pattern)| package_matches(pattern, name))
-            .map(|(element, _)| *element)
+        self.package_elements(name).first().copied()
     }
+
+    /// The elements of a package: the first declared package element that lists it, as in 0.1, and
+    /// every externals set that lists it.
+    #[must_use]
+    pub fn package_elements(&self, name: &str) -> Vec<ElementId> {
+        let mut found: Vec<ElementId> = Vec::new();
+        let mut element_found = false;
+        for (element, pattern) in &self.packages {
+            let externals = self.externals[element.index()];
+            if (externals || !element_found)
+                && !found.contains(element)
+                && package_matches(pattern, name)
+            {
+                element_found |= !externals;
+                found.push(*element);
+            }
+        }
+        found
+    }
+
+    /// The place of a package in its elements, with the package's name as the root.
+    #[must_use]
+    pub fn package_place(&self, name: &str) -> Option<Classification> {
+        joined(
+            self.package_elements(name)
+                .into_iter()
+                .map(|element| Classification {
+                    element,
+                    captures: Vec::new(),
+                    names: Vec::new(),
+                    root: name.to_owned(),
+                    also: Vec::new(),
+                })
+                .collect(),
+        )
+    }
+}
+
+/// The first place, holding the others.
+fn joined(mut places: Vec<Classification>) -> Option<Classification> {
+    if places.is_empty() {
+        return None;
+    }
+    let mut first = places.remove(0);
+    first.also = places;
+    Some(first)
 }
 
 /// Whether a package name pattern names a package: `*` names every package, a scope ending in

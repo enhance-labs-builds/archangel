@@ -54,6 +54,7 @@ pub(crate) fn check_document(
     counts: &Work,
     timings: Option<Timings>,
 ) -> String {
+    let rows_with_no_file = summary.rows_with_no_file.clone();
     let mut summary = json!({
         "files": summary.files,
         "imports": summary.imports,
@@ -66,6 +67,9 @@ pub(crate) fn check_document(
         "presetNamesMatchingNothing": summary.preset_names_matching_nothing,
         "work": counts.counts_json(),
     });
+    if let Some(rows) = rows_with_no_file {
+        summary["rowsWithNoFile"] = json!(rows);
+    }
     if let Some(timings) = timings {
         summary["durations"] = durations(timings);
     }
@@ -129,7 +133,7 @@ pub(crate) fn test_document(report: &ExampleReport) -> String {
         .runs
         .iter()
         .map(|run| {
-            json!({
+            let mut found = json!({
                 "rule": run.rule,
                 "kind": match run.kind { ExampleKind::Accepted => "accepted", ExampleKind::Rejected => "rejected" },
                 "number": run.number,
@@ -137,7 +141,11 @@ pub(crate) fn test_document(report: &ExampleReport) -> String {
                 "passed": run.outcome.passed,
                 "failure": run.outcome.failure.as_ref().map(diagnostic),
                 "diagnostics": run.outcome.diagnostics.iter().map(diagnostic).collect::<Vec<_>>(),
-            })
+            });
+            if let Some(row) = &run.outcome.rejected_by {
+                found["rejectedBy"] = json!(row);
+            }
+            found
         })
         .collect();
     document(&json!({

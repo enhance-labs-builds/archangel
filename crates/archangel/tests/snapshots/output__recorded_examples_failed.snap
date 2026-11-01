@@ -1,0 +1,111 @@
+---
+source: crates/archangel/tests/output.rs
+expression: all
+---
+$ archangel check
+status: 0
+checked 2 files and 0 imports: no problems
+
+$ archangel check --format json
+status: 0
+{
+  "schemaVersion": 1,
+  "diagnostics": [],
+  "summary": {
+    "files": 2,
+    "imports": 0,
+    "exceptions": {},
+    "baselined": {},
+    "permittedUnresolved": 0,
+    "unfollowed": 0,
+    "linksNotFollowed": [],
+    "nestedRepositories": [],
+    "presetNamesMatchingNothing": [],
+    "work": {
+      "filesFound": 2,
+      "filesRead": 2,
+      "bytesRead": 0,
+      "filesParsed": 2,
+      "importsFound": 0,
+      "resolutions": 0,
+      "filesClassified": 3,
+      "patternPasses": 3,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}
+
+$ archangel test
+status: 1
+fail  layers  rejected #1  src/shared/x.ts
+      no rule rejected the example, and "layers" should have; fix the rule or the example
+1 examples, 1 failed; 0 rules without a rejected example
+
+$ archangel test --format json
+status: 1
+{
+  "schemaVersion": 1,
+  "examples": [
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 1,
+      "files": [
+        "src/shared/x.ts"
+      ],
+      "passed": false,
+      "failure": {
+        "code": "example-failed",
+        "rule": "layers",
+        "file": null,
+        "line": 0,
+        "column": 0,
+        "span": null,
+        "specifier": null,
+        "message": "no rule rejected the example, and \"layers\" should have; fix the rule or the example",
+        "help": null,
+        "reason": null,
+        "link": null,
+        "id": null,
+        "cycle": [],
+        "group": [],
+        "chain": [],
+        "fix": null
+      },
+      "diagnostics": []
+    }
+  ],
+  "unproven": [],
+  "summary": {
+    "passed": false,
+    "work": {
+      "filesFound": 0,
+      "filesRead": 0,
+      "bytesRead": 0,
+      "filesParsed": 1,
+      "importsFound": 1,
+      "resolutions": 1,
+      "filesClassified": 2,
+      "patternPasses": 2,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 1,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}

@@ -1,0 +1,167 @@
+---
+source: crates/archangel/tests/output.rs
+expression: all
+---
+$ archangel check
+status: 1
+error[entry]: "../../entities/canvas/model/store" reaches inside "canvas" of "entity" past its entry files
+ --> src/features/login/a.ts:1:23
+  |
+1 | import { store } from '../../entities/canvas/model/store';
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ import it through "../../entities/canvas"
+  |
+  = note: rule: entry(entity)
+
+checked 6 files and 2 imports: 1 problem
+For what a code means, run `archangel docs entry`.
+
+$ archangel check --format json
+status: 1
+{
+  "schemaVersion": 1,
+  "diagnostics": [
+    {
+      "code": "entry",
+      "rule": "entry(entity)",
+      "file": "src/features/login/a.ts",
+      "line": 1,
+      "column": 23,
+      "span": [
+        22,
+        57
+      ],
+      "specifier": "../../entities/canvas/model/store",
+      "message": "\"../../entities/canvas/model/store\" reaches inside \"canvas\" of \"entity\" past its entry files",
+      "help": "import it through \"../../entities/canvas\"",
+      "reason": null,
+      "link": null,
+      "id": {
+        "rule": "entry(entity)",
+        "file": "src/features/login/a.ts",
+        "specifier": "../../entities/canvas/model/store",
+        "occurrence": 0
+      },
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": {
+        "span": [
+          23,
+          56
+        ],
+        "specifier": "../../entities/canvas"
+      }
+    }
+  ],
+  "summary": {
+    "files": 6,
+    "imports": 2,
+    "exceptions": {},
+    "baselined": {},
+    "permittedUnresolved": 0,
+    "unfollowed": 0,
+    "linksNotFollowed": [],
+    "nestedRepositories": [],
+    "presetNamesMatchingNothing": [],
+    "work": {
+      "filesFound": 6,
+      "filesRead": 6,
+      "bytesRead": 114,
+      "filesParsed": 6,
+      "importsFound": 2,
+      "resolutions": 2,
+      "filesClassified": 7,
+      "patternPasses": 7,
+      "ruleEvaluations": 2,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}
+
+$ archangel test
+status: 1
+error[rule-unproven]: the rule "layers" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: layers
+
+error[rule-unproven]: the rule "entry(entity)" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: entry(entity)
+
+0 examples, none failed; 2 rules without a rejected example
+
+$ archangel test --format json
+status: 1
+{
+  "schemaVersion": 1,
+  "examples": [],
+  "unproven": [
+    {
+      "code": "rule-unproven",
+      "rule": "layers",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"layers\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "rule-unproven",
+      "rule": "entry(entity)",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"entry(entity)\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
+  "summary": {
+    "passed": false,
+    "work": {
+      "filesFound": 0,
+      "filesRead": 0,
+      "bytesRead": 0,
+      "filesParsed": 0,
+      "importsFound": 0,
+      "resolutions": 0,
+      "filesClassified": 0,
+      "patternPasses": 0,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}

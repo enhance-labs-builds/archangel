@@ -1,0 +1,18 @@
+error[plugin]: This slice has no references. Consider removing it.
+--> apps/admin/src/features/users
+ = note: rule: fsd-admin/insignificant-slice
+ = note: reason: A slice that at most one other slice uses belongs in that slice.
+ = note: see: https://feature-sliced.github.io/steiger/rules/insignificant-slice
+
+checked 7 files and 3 imports: 1 problem
+  fsd/entities matches nothing in this repository
+  fsd/widgets matches nothing in this repository
+  fsd/pages matches nothing in this repository
+  fsd/app matches nothing in this repository
+  fsd/processes matches nothing in this repository
+  fsd-admin/entities matches nothing in this repository
+  fsd-admin/widgets matches nothing in this repository
+  fsd-admin/pages matches nothing in this repository
+  fsd-admin/app matches nothing in this repository
+  fsd-admin/processes matches nothing in this repository
+For what a code means, run `archangel docs plugin`.

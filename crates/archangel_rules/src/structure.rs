@@ -5,7 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use archangel_config::{Classification, Condition, NameRule, Rule};
+use archangel_config::{Classification, Condition, ElementId, NameRule, Rule, RuleKind, TableId};
 use archangel_graph::{ImportGraph, OverlayFiles, Work};
 
 use crate::architecture::{Architecture, Compiled};
@@ -45,12 +45,12 @@ pub struct Kept<'a> {
     pub structure: &'a mut Structure,
 }
 
-/// An example's files over the repository, and the rule whose example they are.
+/// An example's files over the repository, and the rules whose example they are.
 #[derive(Clone, Copy)]
 pub(crate) struct Example<'a> {
     pub(crate) graph: &'a ImportGraph,
     pub(crate) overlay: &'a OverlayFiles,
-    pub(crate) rule: usize,
+    pub(crate) rules: &'a [usize],
 }
 
 /// What changed since the structure was last evaluated.
@@ -155,7 +155,7 @@ impl Architecture {
         let Example {
             graph,
             overlay,
-            rule,
+            rules,
         } = example;
         let own: Vec<String> = overlay
             .files
@@ -176,7 +176,7 @@ impl Architecture {
             classes,
             structure: &mut structure,
             work,
-            watched: Some((rule, false)),
+            watched: Some((rules.to_vec(), false)),
         };
         evaluation.files(&refs);
         let sources: Vec<&str> = overlay.files.iter().map(|f| f.path.as_str()).collect();
@@ -347,8 +347,8 @@ struct Evaluation<'e, 'w> {
     classes: &'e mut Classes,
     structure: &'e mut Structure,
     work: &'w mut Work,
-    /// The rule whose example this evaluation checks, and whether it looked at anything.
-    watched: Option<(usize, bool)>,
+    /// The rules whose example this evaluation checks, and whether one looked at anything.
+    watched: Option<(Vec<usize>, bool)>,
 }
 
 impl<'e> Evaluation<'e, '_> {
@@ -411,7 +411,7 @@ impl<'e> Evaluation<'e, '_> {
     /// Notes that a rule looked at a file, folder or instance.
     fn looked(&mut self, rule: usize) {
         if let Some((watched, considered)) = &mut self.watched
-            && *watched == rule
+            && watched.contains(&rule)
         {
             *considered = true;
         }
@@ -422,6 +422,27 @@ impl<'e> Evaluation<'e, '_> {
             graph: self.graph,
             overlay: self.overlay,
         }
+    }
+
+    /// The violation of a file in a table's files that has no row.
+    fn no_row(&self, rule: &Rule, table: TableId, path: &str) -> Diagnostic {
+        let kind = self.classes.kind_place(path, table);
+        let (message, help) = crate::messages::no_row(
+            self.architecture,
+            table,
+            kind.map(|place| place.kind.as_str()),
+            path,
+        );
+        About { rule, path }.violation(Code::EveryFileHasAKind, message, &help)
+    }
+
+    /// Whether a table can hold a path: a source file that is not the config file.
+    fn a_table_holds(&self, path: &str) -> bool {
+        let source = self
+            .overlay
+            .is_some_and(|overlay| overlay.files.iter().any(|file| file.path == path))
+            || self.graph.file(path).is_some();
+        source && !self.architecture.is_config_file(path)
     }
 
     /// The naming and existence rules of each file.
@@ -456,10 +477,16 @@ impl<'e> Evaluation<'e, '_> {
                     continue;
                 }
                 let (rule, sentence) = architecture.sentence_of(compiled);
+                if compiled.of_table && !self.a_table_holds(path) {
+                    continue;
+                }
                 self.work.structure_evaluations += 1;
                 self.looked(compiled.rule);
-                match &sentence.condition {
-                    Condition::MustBeNamed(name) => found.extend(file_name(rule, name, path)),
+                match (&sentence.condition, &rule.kind) {
+                    (Condition::MustBeNamed(name), _) => found.extend(file_name(rule, name, path)),
+                    (_, RuleKind::TableRow { table, .. }) => {
+                        found.push(self.no_row(rule, *table, path));
+                    }
                     _ => found.push(self.must_not_exist(rule, &sentence.files_text, path)),
                 }
             }
@@ -475,8 +502,9 @@ impl<'e> Evaluation<'e, '_> {
         let elements = &self.architecture.config.elements;
         let unplaced = if self.classes.classification(path).is_none() && !elements.is_empty() {
             let names: Vec<String> = elements.iter().map(|e| format!("\"{}\"", e.name)).collect();
+            let word = self.architecture.config.part_word();
             format!(
-                ", and it is in no element; the elements are {}",
+                ", and it is in no {word}; the {word}s are {}",
                 names.join(", ")
             )
         } else {
@@ -583,11 +611,9 @@ impl<'e> Evaluation<'e, '_> {
         let lookup = Lookup::new(self.architecture, self.graph);
         paths
             .iter()
-            .filter_map(|path| {
+            .flat_map(|path| {
                 let (_, classification) = self.classes.file(lookup, path, self.work);
-                classification
-                    .filter(|c| elements.contains(&c.element.0))
-                    .map(|c| (c.element.0, c.root))
+                classification.map_or_else(Vec::new, |c| instances_in(&c, &elements))
             })
             .collect()
     }
@@ -602,8 +628,7 @@ impl<'e> Evaluation<'e, '_> {
         paths
             .iter()
             .filter_map(|path| self.architecture.matcher.classify_file(path))
-            .filter(|c| elements.contains(&c.element.0))
-            .map(|c| (c.element.0, c.root))
+            .flat_map(|c| instances_in(&c, &elements))
             .collect()
     }
 
@@ -651,6 +676,7 @@ impl<'e> Evaluation<'e, '_> {
                     let instance = self
                         .classes
                         .classification(&members[0])
+                        .and_then(|c| c.of(ElementId(*element)))
                         .map(|c| self.instance_name(c))
                         .unwrap_or_default();
                     let wanted = crate::words::either(patterns);
@@ -684,7 +710,10 @@ impl<'e> Evaluation<'e, '_> {
                 self.classes
                     .file(lookup, path, self.work)
                     .1
-                    .is_some_and(|c| c.element.0 == element && c.root == root)
+                    .is_some_and(|c| {
+                        c.of(ElementId(element))
+                            .is_some_and(|place| place.root == root)
+                    })
             })
             .collect()
     }
@@ -693,6 +722,15 @@ impl<'e> Evaluation<'e, '_> {
         let element = &self.architecture.config.elements[class.element.index()].name;
         format!("\"{}\" of \"{element}\"", class.captures.join("/"))
     }
+}
+
+/// The places of a file in these elements, each as its element and instance root.
+fn instances_in(class: &Classification, elements: &BTreeSet<u32>) -> Vec<(u32, String)> {
+    class
+        .all()
+        .filter(|place| elements.contains(&place.element.0))
+        .map(|place| (place.element.0, place.root.clone()))
+        .collect()
 }
 
 /// The violation of a naming rule by a file, if it breaks it.

@@ -1,0 +1,76 @@
+workspace  16 rows  archangel.config.ts:31
+  because: Apps share code only through packages, and a package never reaches into an app.
+
+  workspace.web: web may import only contract, ui, canvas-document, artwork-paint, capture-browser, figma-import, api, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.extension: extension may import only contract, ui, capture-browser, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.storybook: storybook may import only ui, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.cli: cli may import only contract, canvas-document, sdk, api, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.desktop: desktop may import only contract, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.api: api may import only contract, artwork-paint, canvas-format, and itself
+    7 files · 5 imports judged · 0 problems · 0 exceptions
+  workspace.docs: docs may import only cli, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.contract: contract may import only artwork-paint, canvas-format, ui, and itself
+    1 file · 1 import judged · 1 problem · 0 exceptions
+  workspace.canvas-document: canvas-document may import only contract, ui, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.figma-import: figma-import may import only canvas-document, contract, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.sdk: sdk may import only capture-browser, contract, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.capture-browser: capture-browser may import only contract, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.agent-plugins: agent-plugins may import only cli, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.ui: ui may import only itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.artwork-paint: artwork-paint may import only itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.canvas-format: canvas-format may import only itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
+    22 files · 0 problems
+
+web-uses-api-types-only  archangel.config.ts:52
+  because: The web app types its requests from the API router. No API code ships to the browser.
+  files in web may not import api, runtime imports only
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+
+core-not-to-driver  archangel.config.ts:58
+  because: The domain and application layers never touch an I/O driver. A use case that needs one declares a port.
+  files in domain, application may not import driver
+    5 files · 5 imports judged · 0 problems · 0 exceptions
+
+domain  10 rows  archangel.config.ts:64
+  because: Each kind of domain file depends only on the kinds below it.
+
+  domain.entity: entity may import only value-object, domain-event, specification, policy, error, types, consts, apps/api/src/shared/result.ts, and itself
+    1 file · 3 imports judged · 1 problem · 0 exceptions
+  domain.aggregate-root: aggregate-root may import only entity, value-object, domain-event, specification, policy, error, types, consts, apps/api/src/shared/result.ts; aggregate-root may not import itself
+    checks nothing: no file is in aggregate-root
+  domain.value-object: value-object may import only error, types, consts, apps/api/src/shared/result.ts, and itself
+    1 file · 1 import judged · 0 problems · 0 exceptions
+  domain.domain-event: domain-event may import only value-object, types, consts, apps/api/src/shared/result.ts; domain-event may not import itself
+    1 file · 1 import judged · 0 problems · 0 exceptions
+  domain.specification: specification may import only entity, value-object, aggregate-root, types, consts, apps/api/src/shared/result.ts, and itself
+    checks nothing: no file is in specification
+  domain.policy: policy may import only entity, value-object, aggregate-root, specification, error, types, consts, apps/api/src/shared/result.ts; policy may not import itself
+    checks nothing: no file is in policy
+  domain.port: port may import only entity, value-object, error, types, consts, apps/api/src/shared/result.ts; port may not import itself
+    checks nothing: no file is in port
+  domain.error: error may import only value-object, entity, types, consts, apps/api/src/shared/result.ts, and itself
+    checks nothing: no file is in error
+  domain.types: types may import only consts, apps/api/src/shared/result.ts, and itself
+    checks nothing: no file is in types
+  domain.consts: consts may import only apps/api/src/shared/result.ts, and itself
+    checks nothing: no file is in consts
+  domain.every-file-has-a-kind: every file of domain has a row
+    3 files · 0 problems
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: none.

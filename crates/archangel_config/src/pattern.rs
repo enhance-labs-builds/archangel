@@ -9,6 +9,9 @@ use std::fmt::{self, Write as _};
 
 use regex::Regex;
 
+/// The capture that gives a file its kind in a kind pattern.
+pub(crate) const KIND: &str = "kind";
+
 /// A compiled pattern.
 #[derive(Debug, Clone)]
 pub struct Pattern {
@@ -16,6 +19,8 @@ pub struct Pattern {
     regex: Regex,
     captures: Vec<String>,
     root_parts: usize,
+    /// The groups of the other places of `{kind}`, in a kind pattern, which must hold its value.
+    repeats: Vec<String>,
 }
 
 /// What a pattern found in a path.
@@ -73,6 +78,46 @@ enum Token {
     Alternatives(Vec<String>),
 }
 
+/// The regular expression of a pattern so far, and the groups it has.
+struct Written {
+    expression: String,
+    captures: Vec<String>,
+    repeats: Vec<String>,
+}
+
+impl Written {
+    fn tokens(&mut self, tokens: Vec<Token>, repeat_kind: bool) -> Result<(), PatternError> {
+        for token in tokens {
+            match token {
+                Token::Literal(text) => self.expression.push_str(&regex::escape(&text)),
+                Token::Star => self.expression.push_str("[^/]*"),
+                Token::Capture(name) => self.capture(name, repeat_kind)?,
+                Token::Alternatives(options) => {
+                    let options: Vec<String> =
+                        options.iter().map(|option| glob_text(option)).collect();
+                    let _ = write!(self.expression, "(?:{})", options.join("|"));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn capture(&mut self, name: String, repeat_kind: bool) -> Result<(), PatternError> {
+        if !self.captures.contains(&name) {
+            let _ = write!(self.expression, "(?P<{name}>[^/]+)");
+            self.captures.push(name);
+            return Ok(());
+        }
+        if !repeat_kind || name != KIND {
+            return Err(PatternError::RepeatedCapture(name));
+        }
+        let group = format!("{KIND}__{}", self.repeats.len());
+        let _ = write!(self.expression, "(?P<{group}>[^/]+)");
+        self.repeats.push(group);
+        Ok(())
+    }
+}
+
 impl Pattern {
     /// Compiles a pattern, or says why it cannot mean what it says.
     ///
@@ -80,18 +125,36 @@ impl Pattern {
     ///
     /// Returns the first problem in the pattern.
     pub fn parse(source: &str) -> Result<Self, PatternError> {
+        Self::compile(source, false)
+    }
+
+    /// Compiles a kind pattern, where the capture `{kind}` may appear more than once and each place
+    /// must hold one name. The `regex` crate has no back-references, so each place has a group of
+    /// its own, compared after the match.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first problem in the pattern.
+    pub fn parse_kinds(source: &str) -> Result<Self, PatternError> {
+        Self::compile(source, true)
+    }
+
+    fn compile(source: &str, repeat_kind: bool) -> Result<Self, PatternError> {
         let parts: Vec<&str> = source.split('/').collect();
         if parts.iter().any(|part| part.is_empty()) {
             return Err(PatternError::EmptyName);
         }
-        let mut captures = Vec::new();
-        let mut expression = String::from("^");
+        let mut written = Written {
+            expression: String::from("^"),
+            captures: Vec::new(),
+            repeats: Vec::new(),
+        };
         let mut root_parts = None;
         for (index, part) in parts.iter().enumerate() {
             let last = index + 1 == parts.len();
             if *part == "**" {
                 root_parts.get_or_insert(index);
-                expression.push_str(if last {
+                written.expression.push_str(if last {
                     "(?:[^/]+/)*[^/]+"
                 } else {
                     "(?:[^/]+/)*"
@@ -102,35 +165,24 @@ impl Pattern {
             if tokens.iter().any(|token| matches!(token, Token::Star)) {
                 root_parts.get_or_insert(index);
             }
-            for token in tokens {
-                match token {
-                    Token::Literal(text) => expression.push_str(&regex::escape(&text)),
-                    Token::Star => expression.push_str("[^/]*"),
-                    Token::Capture(name) => {
-                        if captures.contains(&name) {
-                            return Err(PatternError::RepeatedCapture(name));
-                        }
-                        let _ = write!(expression, "(?P<{name}>[^/]+)");
-                        captures.push(name);
-                    }
-                    Token::Alternatives(options) => {
-                        let options: Vec<String> =
-                            options.iter().map(|option| glob_text(option)).collect();
-                        let _ = write!(expression, "(?:{})", options.join("|"));
-                    }
-                }
-            }
+            written.tokens(tokens, repeat_kind)?;
             if !last {
-                expression.push('/');
+                written.expression.push('/');
             }
         }
-        expression.push('$');
+        written.expression.push('$');
+        let Written {
+            expression,
+            captures,
+            repeats,
+        } = written;
         let regex = Regex::new(&expression).map_err(|_| PatternError::UnbalancedBraces)?;
         Ok(Self {
             source: source.to_owned(),
             regex,
             captures,
             root_parts: root_parts.unwrap_or(parts.len()),
+            repeats,
         })
     }
 
@@ -163,6 +215,14 @@ impl Pattern {
     pub fn matches(&self, path: &str) -> Option<PatternMatch> {
         let path = normalize_path(path);
         let found = self.regex.captures(&path)?;
+        let kind = found.name(KIND).map(|m| m.as_str());
+        if self
+            .repeats
+            .iter()
+            .any(|group| found.name(group).map(|m| m.as_str()) != kind)
+        {
+            return None;
+        }
         let captures = self
             .captures
             .iter()

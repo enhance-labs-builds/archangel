@@ -1,9 +1,12 @@
 //! The words of each diagnostic: what is wrong, what to do instead, and where.
 
-use archangel_config::{Classification, Condition, ElementId, Pattern, Rule, RuleKind, Sentence};
+use archangel_config::{
+    Classification, Condition, ElementId, Pattern, Rule, RuleKind, Sentence, TableId,
+};
 use archangel_graph::{Import, ImportGraph, Manifests};
 
-use crate::architecture::Architecture;
+use crate::architecture::{Architecture, Compiled};
+use crate::classes::Classes;
 use crate::diagnostic::{Code, Diagnostic, ViolationId};
 use crate::exceptions::Exception;
 
@@ -33,6 +36,7 @@ pub(crate) fn cycle_diagnostic(
             .to_owned(),
     );
     diagnostic.reason.clone_from(&rule.reason);
+    diagnostic.because = rule.because;
     diagnostic.link.clone_from(&rule.link);
     diagnostic.id = Some(ViolationId::Group {
         rule: rule.name.clone(),
@@ -127,6 +131,7 @@ pub(crate) fn import_diagnostic(
     diagnostic.specifier = Some(site.import.specifier.clone());
     diagnostic.help = Some(help);
     diagnostic.reason.clone_from(&rule.reason);
+    diagnostic.because = rule.because;
     diagnostic.link.clone_from(&rule.link);
     diagnostic.id = Some(ViolationId::Import {
         rule: rule.name.clone(),
@@ -163,7 +168,7 @@ impl Texts<'_> {
 
     fn of(&self, class: Option<&Classification>) -> String {
         class.map_or_else(
-            || "a file in no element".to_owned(),
+            || format!("a file in no {}", self.architecture.config.part_word()),
             |c| format!("\"{}\"", self.name(c.element)),
         )
     }
@@ -178,7 +183,7 @@ impl Texts<'_> {
             RuleKind::Layers { order } => return self.layers(order, parties),
             RuleKind::Isolate { element } => return self.isolate(*element, parties),
             RuleKind::Entry { files, .. } => return self.entry(files, parties),
-            RuleKind::Sentence => {}
+            RuleKind::Sentence | RuleKind::TableRow { .. } => {}
         }
         let Parties {
             specifier, file, ..
@@ -189,27 +194,33 @@ impl Texts<'_> {
             .side()
             .map(|side| self.side(side))
             .unwrap_or_default();
+        let (area, importers) = area_words(sentence);
         let manifest = sentence
             .options
             .dependency
             .map(|kind| self.manifest(file, kind))
             .unwrap_or_default();
         match &sentence.condition {
-            Condition::MayOnlyImport(_) => (
-                Code::MayOnlyImport,
-                format!(
-                    "{file} may not import \"{specifier}\", because files in \"{files}\" may only \
-                     import {side} and each other"
-                ),
-                format!("files in \"{files}\" may import only {side} and each other"),
-            ),
+            Condition::MayOnlyImport(_) => {
+                let may = self.may_only(sentence, &side);
+                (
+                    Code::MayOnlyImport,
+                    format!(
+                        "{file} may not import \"{specifier}\", because files in \"{files}\" may \
+                         only import {may}{area}"
+                    ),
+                    format!("files in \"{files}\" may import only {may}{area}"),
+                )
+            }
             Condition::MayOnlyBeImportedBy(_) => (
                 Code::MayOnlyBeImportedBy,
                 format!(
                     "{file} may not import \"{specifier}\", because only {side} and files in \
-                     \"{files}\" may import files in \"{files}\""
+                     \"{files}\" may import files in \"{files}\"{importers}"
                 ),
-                format!("only {side} and files in \"{files}\" may import files in \"{files}\""),
+                format!(
+                    "only {side} and files in \"{files}\" may import files in \"{files}\"{importers}"
+                ),
             ),
             _ => (
                 Code::MayNotImport,
@@ -219,6 +230,23 @@ impl Texts<'_> {
                 ),
                 "remove the import, or move the code to files that may import it".to_owned(),
             ),
+        }
+    }
+
+    /// What a `mayOnlyImport` sentence permits: its side, and its own files.
+    fn may_only(&self, sentence: &Sentence, side: &str) -> String {
+        let captured = sentence.files.element().is_some_and(|element| {
+            self.architecture.config.elements[element.index()].has_capture()
+        });
+        let own = if captured {
+            "other files in the same instance"
+        } else {
+            "each other"
+        };
+        if side.is_empty() {
+            own.to_owned()
+        } else {
+            format!("{side} and {own}")
         }
     }
 
@@ -264,7 +292,7 @@ impl Texts<'_> {
         } = *parties;
         let from_name = self.of(from);
         let position = from
-            .and_then(|c| order.iter().position(|e| *e == c.element))
+            .and_then(|c| order.iter().position(|e| c.of(*e).is_some()))
             .unwrap_or(0);
         let allowed: Vec<String> = order[position..]
             .iter()
@@ -327,4 +355,222 @@ impl Texts<'_> {
             format!("import it through {through}"),
         )
     }
+}
+
+/// The words of a violation of a row of a table.
+pub(crate) struct RowViolation<'r> {
+    pub(crate) architecture: &'r Architecture,
+    pub(crate) classes: &'r Classes,
+    pub(crate) table: TableId,
+    pub(crate) row: &'r str,
+    pub(crate) compiled: &'r Compiled,
+    pub(crate) to: Option<&'r Classification>,
+    pub(crate) path: Option<&'r str>,
+    pub(crate) package: Option<&'r str>,
+}
+
+impl RowViolation<'_> {
+    pub(crate) fn describe(&self, specifier: &str) -> (Code, String, String) {
+        let rule = &self.architecture.config.rules[self.compiled.rule];
+        let row = self.row;
+        let may = format!("{row} may import only {}", row_permits(rule));
+        if self.compiled.sentence == 1 {
+            return (
+                Code::MayImport,
+                format!(
+                    "{row} may not import {row}, through \"{specifier}\": the table lists {row} \
+                     under `mayNotImportItself`, and {may}"
+                ),
+                may,
+            );
+        }
+        let message = match self.target() {
+            Target::Row(name) => {
+                format!("{row} may not import {name}, through \"{specifier}\": {may}")
+            }
+            Target::OtherInstance => format!(
+                "{row} may not import another instance of {row}, through \"{specifier}\": {may}"
+            ),
+            Target::Package(name) => {
+                format!("{row} may not import the package `{name}`, through \"{specifier}\": {may}")
+            }
+            Target::NoRow(name) => format!(
+                "{row} may not import {name}, through \"{specifier}\": no row for {name}, and {may}"
+            ),
+            Target::NoPart(path) => format!(
+                "{row} may not import {path}, through \"{specifier}\": no row for {path}, which is \
+                 in no part, and {may}"
+            ),
+        };
+        (Code::MayImport, message, may)
+    }
+
+    /// What the row calls the target of the import.
+    pub(crate) fn target_name(&self) -> String {
+        match self.target() {
+            Target::Row(row) => row.to_owned(),
+            Target::OtherInstance => format!("another instance of {}", self.row),
+            Target::Package(package) => package.to_owned(),
+            Target::NoRow(name) => name,
+            Target::NoPart(path) => path.to_owned(),
+        }
+    }
+
+    fn target(&self) -> Target<'_> {
+        let table = &self.architecture.config.tables[self.table.index()];
+        let Some(path) = self.path else {
+            return Target::Package(self.package.unwrap_or_default());
+        };
+        if self.compiled.own_instance.is_some()
+            && self.classes.file_in(path, self.compiled.own_files)
+        {
+            return Target::OtherInstance;
+        }
+        let bits = self.classes.bits(path).unwrap_or_default();
+        let row = table.rows.iter().find_map(|(key, files)| {
+            let set = self.architecture.sets.iter().position(|set| set == files)?;
+            bits.get(set)
+                .copied()
+                .unwrap_or(false)
+                .then_some(key.as_str())
+        });
+        if let Some(row) = row {
+            return Target::Row(row);
+        }
+        if let Some(place) = self.classes.kind_place(path, self.table) {
+            return Target::NoRow(place.kind.clone());
+        }
+        match self.to {
+            Some(class) => Target::NoRow(
+                self.architecture.config.elements[class.element.index()]
+                    .name
+                    .clone(),
+            ),
+            None => Target::NoPart(path),
+        }
+    }
+}
+
+/// What the row may import: its cells, and its own name unless the table refuses it.
+pub(crate) fn row_permits(rule: &Rule) -> String {
+    let cells = rule.sentences[0]
+        .condition
+        .side()
+        .map_or("", |side| side.text.as_str());
+    let own = rule.sentences[0].options.own.as_ref();
+    let itself = match own {
+        Some(own) if !own.permitted => "",
+        Some(own) if own.instance.is_some() => "itself in the same instance",
+        _ => "itself",
+    };
+    match (cells.is_empty(), itself.is_empty()) {
+        (true, true) => "nothing".to_owned(),
+        (true, false) => itself.to_owned(),
+        (false, true) => cells.to_owned(),
+        (false, false) => format!("{cells}, and {itself}"),
+    }
+}
+
+/// What a message of a row names as the target of an import.
+enum Target<'t> {
+    /// Another row of the table.
+    Row(&'t str),
+    /// Another instance of the row's own name.
+    OtherInstance,
+    /// An outside package.
+    Package(&'t str),
+    /// A kind or a part with no row.
+    NoRow(String),
+    /// A file in no part, by its path.
+    NoPart(&'t str),
+}
+
+/// The words of a violation of a table's `every-file-has-a-kind` rule.
+pub(crate) fn no_row(
+    architecture: &Architecture,
+    table: TableId,
+    kind: Option<&str>,
+    path: &str,
+) -> (String, String) {
+    let table = &architecture.config.tables[table.index()];
+    let name = &table.name;
+    let keys: Vec<&str> = table.rows.iter().map(|(key, _)| key.as_str()).collect();
+    let way = "add a row, rename the file, or leave it out of the table's files with `not`";
+    let Some(kinds) = &table.kinds else {
+        let help = "put the file in one of those parts or groups, or leave it out of the table's \
+                    files with `not`";
+        return (
+            format!(
+                "{path} is in none of the rows of the table \"{name}\", which are {}; {help}",
+                keys.join(", ")
+            ),
+            help.to_owned(),
+        );
+    };
+    let Some(kind) = kind else {
+        return (
+            format!(
+                "{path} has no kind, because it does not match the kind pattern {} of the table \
+                 \"{name}\"; {way}",
+                kinds.pattern.source()
+            ),
+            way.to_owned(),
+        );
+    };
+    if let Some((_, files)) = table.rows.iter().find(|(key, _)| key == kind) {
+        let what = match files.terms.as_slice() {
+            [archangel_config::Term::Element(_)] => "part",
+            _ => "group",
+        };
+        return (
+            format!(
+                "{path} has the kind {kind}, and the row `{kind}` of the table \"{name}\" means the \
+                 {what} {}, not the kind; {way}",
+                definition_of(architecture, files)
+            ),
+            way.to_owned(),
+        );
+    }
+    let closest = archangel_config::nearest(kind, &keys)
+        .map(|near| format!(" The closest row is `{near}`."))
+        .unwrap_or_default();
+    (
+        format!(
+            "{path} has the kind {kind}, and the table \"{name}\" has no row for it: no row for \
+             {kind}.{closest} To fix this, {way}"
+        ),
+        way.to_owned(),
+    )
+}
+
+/// What a part or a group that is a row key matches.
+fn definition_of(architecture: &Architecture, files: &archangel_config::FileSet) -> String {
+    match files.terms.as_slice() {
+        [archangel_config::Term::Selector(id)] => {
+            architecture.describe(&architecture.config.selectors[id.0 as usize].definition)
+        }
+        [archangel_config::Term::Element(id)] => {
+            match &architecture.config.elements[id.index()].kind {
+                archangel_config::ElementKind::Files(patterns) => {
+                    pattern_list(patterns.iter().map(Pattern::source))
+                }
+                archangel_config::ElementKind::Packages(_) => String::new(),
+            }
+        }
+        _ => architecture.describe(files),
+    }
+}
+
+/// The words of a sentence's area: after what files may import, and after who may import them.
+fn area_words(sentence: &Sentence) -> (String, String) {
+    sentence.options.within.as_ref().map_or_else(
+        || (String::new(), String::new()),
+        |area| {
+            let area = &area.text;
+            (
+                format!(", within \"{area}\""),
+                format!(", among the importers in \"{area}\""),
+            )
+        },
+    )
 }

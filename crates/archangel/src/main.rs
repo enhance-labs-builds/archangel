@@ -84,10 +84,16 @@ enum Command {
     },
     /// Check every example of every rule.
     Test,
-    /// Show a file's element, the rules that apply to it, its imports and its importers.
+    /// Show a file's part, the rules that apply to it, its imports and its importers; or, with
+    /// `<file>:<line>`, every rule that judged or skipped the import on that line.
     Explain {
-        /// A source file.
+        /// A source file, or a source file and a line, as `src/a.ts:2`.
         file: PathBuf,
+    },
+    /// Show every rule as a sentence with what it covers, and what no rule judges.
+    Rules {
+        /// Show only the rules and the unjudged files and imports under this folder or file.
+        path: Option<PathBuf>,
     },
     /// Show the shortest chain of imports from one file to another file or a package.
     Why {
@@ -195,6 +201,7 @@ fn formats(command: &Command) -> (&'static str, &'static [Format]) {
         Command::Check { .. } => ("check", &[Text, Json, Github, Sarif]),
         Command::Test => ("test", &[Text, Json, Github, Sarif]),
         Command::Explain { .. } => ("explain", &[Text, Json]),
+        Command::Rules { .. } => ("rules", &[Text, Json]),
         Command::Why { .. } => ("why", &[Text, Json]),
         Command::Watch => ("watch", &[Text, Json]),
         Command::Lsp => ("lsp", &[Text]),
@@ -216,6 +223,7 @@ fn run(cli: Cli) -> Answer {
         Command::Check { files } => commands::run_check(&options, &files),
         Command::Test => commands::run_test(&options),
         Command::Explain { file } => commands::run_explain(&options, &file),
+        Command::Rules { path } => commands::run_rules(&options, path.as_deref()),
         Command::Why { from, to } => commands::run_why(&options, &from, &to),
         Command::Watch => commands::run_watch(&options),
         Command::Lsp => commands::run_lsp(),

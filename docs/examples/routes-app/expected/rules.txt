@@ -1,0 +1,19 @@
+layers  3 rows  archangel.config.ts:10
+  because: A route calls a service. Only a service calls the database code.
+
+  layers.routes: routes may import only services, and itself
+    1 file · 1 import judged · 0 problems · 0 exceptions
+  layers.services: services may import only db, and itself
+    1 file · 1 import judged · 0 problems · 0 exceptions
+  layers.db: db may import only itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  layers.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
+    3 files · 0 problems
+
+no-pg-in-routes  archangel.config.ts:18
+  because: Only the db folder talks to the database.
+  files in routes may not import pg
+    1 file · 1 import judged · 0 problems · 0 exceptions
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: none.

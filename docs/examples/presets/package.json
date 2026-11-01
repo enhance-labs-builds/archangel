@@ -1,0 +1,6 @@
+{
+  "name": "presets",
+  "private": true,
+  "type": "module",
+  "dependencies": {}
+}

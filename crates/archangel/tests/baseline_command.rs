@@ -143,3 +143,79 @@ fn baseline_that_does_not_parse_is_baseline_invalid() {
         found.stderr
     );
 }
+
+/// A domain table and a rule, with one entity that breaks both.
+fn row_repo() -> FixtureRepo {
+    FixtureRepo::new()
+        .file("apps/api/src/b/application/save.use-case.ts", "")
+        .file("apps/api/src/b/domain/a.value-object.ts", "")
+        .file(
+            "apps/api/src/b/domain/board.entity.ts",
+            "import '../application/save.use-case';\n",
+        )
+        .json_config(&json!({
+            "parts": { "api": "apps/api/**" },
+            "groups": { "domain": "apps/api/src/*/domain/**", "application": "apps/api/src/*/application/**" },
+            "rules": [
+                {
+                    "kind": "mayImport",
+                    "name": "domain",
+                    "rows": { "entity": ["value-object"], "value-object": [] },
+                    "files": "domain",
+                    "kinds": "**/*.{kind}.ts",
+                },
+                { "name": "domain-not-to-application", "files": "domain", "mayNotImport": "application" },
+            ],
+        }))
+}
+
+fn entries(repo: &FixtureRepo) -> Vec<(String, u64)> {
+    let mut found: Vec<(String, u64)> = baseline(repo)["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| {
+            (
+                e["rule"].as_str().unwrap().to_owned(),
+                e["count"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    found.sort();
+    found
+}
+
+#[test]
+fn a_baseline_entry_records_the_name_of_a_table_row() {
+    let repo = row_repo();
+    assert_eq!(
+        run(&repo, &["baseline", "add"]).status,
+        0,
+        "a baseline entry records the name of a table row"
+    );
+    assert!(
+        entries(&repo)
+            .iter()
+            .any(|(rule, _)| rule == "domain.entity"),
+        "{:?}",
+        entries(&repo)
+    );
+}
+
+#[test]
+fn a_baseline_records_one_entry_for_each_rule_that_an_import_breaks() {
+    let repo = row_repo();
+    assert_eq!(
+        run(&repo, &["baseline", "add"]).status,
+        0,
+        "a baseline records one entry for each rule that an import breaks"
+    );
+    assert_eq!(
+        entries(&repo),
+        [
+            ("domain-not-to-application".to_owned(), 1),
+            ("domain.entity".to_owned(), 1),
+        ],
+        "a baseline records one entry for each rule that an import breaks"
+    );
+}

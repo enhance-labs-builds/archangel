@@ -3,12 +3,14 @@
 
 mod explain;
 mod init;
+mod rules;
 mod watch;
 mod why;
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+use archangel_config::RuleKind;
 use archangel_engine::{BASELINE_NAME, ExampleReport, Session, Stop};
 use archangel_rules::{Diagnostic, ExampleKind};
 
@@ -17,6 +19,7 @@ use crate::{Answer, Format, Options, Outcome, paths};
 
 pub(crate) use explain::run_explain;
 pub(crate) use init::run_init;
+pub(crate) use rules::run_rules;
 pub(crate) use watch::run_watch;
 pub(crate) use why::run_why;
 
@@ -184,6 +187,25 @@ pub(crate) fn run_test(options: &Options) -> Answer {
     }
 }
 
+/// How many rows the config's tables have, which need no written example.
+fn rows_line(session: &Session) -> String {
+    let rows = session
+        .architecture()
+        .config()
+        .rules
+        .iter()
+        .filter(|rule| matches!(rule.kind, RuleKind::TableRow { row: Some(_), .. }))
+        .count();
+    match rows {
+        0 => String::new(),
+        1 => "1 table row needs no written example; `archangel rules` shows what it covers\n"
+            .to_owned(),
+        n => format!(
+            "{n} table rows need no written example; `archangel rules` shows what each covers\n"
+        ),
+    }
+}
+
 fn examples_text(session: &Session, report: &ExampleReport, options: &Options) -> String {
     let mut out = String::new();
     for run in &report.runs {
@@ -192,9 +214,14 @@ fn examples_text(session: &Session, report: &ExampleReport, options: &Options) -
             ExampleKind::Accepted => "accepted",
             ExampleKind::Rejected => "rejected",
         };
+        let rejected_by = run
+            .outcome
+            .rejected_by
+            .as_ref()
+            .map_or_else(String::new, |row| format!("  rejected by {row}"));
         let _ = writeln!(
             out,
-            "{verdict}  {}  {kind} #{}  {}",
+            "{verdict}  {}  {kind} #{}  {}{rejected_by}",
             run.rule,
             run.number,
             run.files.join(", ")
@@ -220,6 +247,7 @@ fn examples_text(session: &Session, report: &ExampleReport, options: &Options) -
         ));
     }
     out.push_str(&examples_count(report));
+    out.push_str(&rows_line(session));
     out
 }
 

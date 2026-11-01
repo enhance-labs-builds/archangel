@@ -1,0 +1,233 @@
+---
+source: crates/archangel/tests/output.rs
+expression: all
+---
+$ archangel check
+status: 0
+checked 2 files and 0 imports: no problems
+
+$ archangel check --format json
+status: 0
+{
+  "schemaVersion": 1,
+  "diagnostics": [],
+  "summary": {
+    "files": 2,
+    "imports": 0,
+    "exceptions": {},
+    "baselined": {},
+    "permittedUnresolved": 0,
+    "unfollowed": 0,
+    "linksNotFollowed": [],
+    "nestedRepositories": [],
+    "presetNamesMatchingNothing": [],
+    "work": {
+      "filesFound": 2,
+      "filesRead": 2,
+      "bytesRead": 0,
+      "filesParsed": 2,
+      "importsFound": 0,
+      "resolutions": 0,
+      "filesClassified": 3,
+      "patternPasses": 3,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}
+
+$ archangel test
+status: 1
+pass  layers  accepted #1  src/app/x.ts
+pass  layers  rejected #1  src/shared/x.ts
+fail  layers  rejected #2  src/shared/y.ts
+      no rule rejected the example, and "layers" should have; fix the rule or the example
+error[rule-unproven]: the rule "forbid" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: forbid
+
+error[rule-unproven]: the rule "forbid2" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: forbid2
+
+3 examples, 1 failed; 2 rules without a rejected example
+
+$ archangel test --format json
+status: 1
+{
+  "schemaVersion": 1,
+  "examples": [
+    {
+      "rule": "layers",
+      "kind": "accepted",
+      "number": 1,
+      "files": [
+        "src/app/x.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": []
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 1,
+      "files": [
+        "src/shared/x.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "may-not-import",
+          "rule": "forbid2",
+          "file": "src/shared/x.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "src/shared/x.ts may not import \"../app/main\", because files in \"shared\" may not import \"app\"",
+          "help": "remove the import, or move the code to files that may import it",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "forbid2",
+            "file": "src/shared/x.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        },
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/x.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/x.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 2,
+      "files": [
+        "src/shared/y.ts"
+      ],
+      "passed": false,
+      "failure": {
+        "code": "example-failed",
+        "rule": "layers",
+        "file": null,
+        "line": 0,
+        "column": 0,
+        "span": null,
+        "specifier": null,
+        "message": "no rule rejected the example, and \"layers\" should have; fix the rule or the example",
+        "help": null,
+        "reason": null,
+        "link": null,
+        "id": null,
+        "cycle": [],
+        "group": [],
+        "chain": [],
+        "fix": null
+      },
+      "diagnostics": []
+    }
+  ],
+  "unproven": [
+    {
+      "code": "rule-unproven",
+      "rule": "forbid",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"forbid\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "rule-unproven",
+      "rule": "forbid2",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"forbid2\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
+  "summary": {
+    "passed": false,
+    "work": {
+      "filesFound": 0,
+      "filesRead": 0,
+      "bytesRead": 0,
+      "filesParsed": 3,
+      "importsFound": 3,
+      "resolutions": 3,
+      "filesClassified": 6,
+      "patternPasses": 6,
+      "ruleEvaluations": 2,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 3,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}

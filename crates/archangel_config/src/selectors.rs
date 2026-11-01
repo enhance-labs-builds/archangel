@@ -22,6 +22,8 @@ pub(crate) struct Names<'a> {
     pub(crate) plugins: LoadedPlugins<'a>,
     /// Where the names being read were written: in a preset or in the config itself.
     pub(crate) scope: Placement,
+    /// Whether the config says parts and groups, so that messages say so too.
+    pub(crate) says_parts: bool,
 }
 
 /// Where a part of the config was written. A preset's names are its prefix, a slash and the name
@@ -90,10 +92,25 @@ impl<'a> Names<'a> {
             index: HashMap::new(),
             plugins: LoadedPlugins::default(),
             scope: Placement::default(),
+            says_parts: false,
         }
     }
 
-    fn intern(&mut self, pattern: Pattern) -> PatternId {
+    /// What the config calls a part, with its article.
+    pub(crate) fn a_part(&self) -> &'static str {
+        if self.says_parts {
+            "a part"
+        } else {
+            "an element"
+        }
+    }
+
+    /// What the config calls a part.
+    pub(crate) fn part_word(&self) -> &'static str {
+        if self.says_parts { "part" } else { "element" }
+    }
+
+    pub(crate) fn intern(&mut self, pattern: Pattern) -> PatternId {
         if let Some(&id) = self.index.get(pattern.source()) {
             return id;
         }
@@ -101,6 +118,20 @@ impl<'a> Names<'a> {
         self.index.insert(pattern.source().to_owned(), id);
         self.patterns.push(pattern);
         id
+    }
+
+    /// The declared selector with this name in the merged config.
+    pub(crate) fn selector_id(&self, name: &str) -> Option<SelectorId> {
+        self.selectors
+            .iter()
+            .position(|selector| selector == name)
+            .map(|index| SelectorId(u32::try_from(index).unwrap_or(u32::MAX)))
+    }
+
+    /// Whether a name, as the scope writes it, is a declared part, group or externals set.
+    pub(crate) fn declares(&self, written: &str) -> bool {
+        let name = self.scope.name(written);
+        self.elements.iter().any(|e| e.name == name) || self.selector_id(&name).is_some()
     }
 
     /// A string as a declared name first, and then as a path pattern when it has `/` or `*`.
@@ -148,13 +179,25 @@ impl<'a> Names<'a> {
         ConfigProblem::new(
             ProblemCode::RuleUnknownElement,
             format!(
-                "the config declares no element or selector \"{text}\"; {}the declared names are \
-                 {}; a package is written {{ packages: ['{text}'] }}, and a path pattern has a `/` \
-                 or a `*`",
+                "the config declares no {} \"{text}\"; {}{}; {}a path pattern has a `/` or a `*`",
+                if self.says_parts {
+                    "part or group"
+                } else {
+                    "element or selector"
+                },
                 crate::parse::nearest(text, &declared)
                     .map(|near| format!("did you mean \"{near}\"? "))
                     .unwrap_or_default(),
-                declared.join(", "),
+                if declared.is_empty() {
+                    "the config declares no names".to_owned()
+                } else {
+                    format!("the declared names are {}", declared.join(", "))
+                },
+                if self.says_parts && field.rsplit('.').next() == Some("files") {
+                    "a kind has a meaning only in its table, and ".to_owned()
+                } else {
+                    format!("a package is written {{ packages: ['{text}'] }}, and ")
+                },
             ),
         )
         .at(field)
@@ -222,8 +265,9 @@ impl<'a> Names<'a> {
                 problems.push(invalid(
                     field,
                     &format!(
-                        "\"{text}\" is a package element, and this place selects files; name \
-                         packages on the other side of an import rule"
+                        "\"{text}\" is a package {}, and this place selects files; name \
+                         packages on the other side of an import rule",
+                        self.part_word()
                     ),
                 ));
                 None
@@ -336,8 +380,9 @@ impl<'a> Names<'a> {
         ConfigProblem::new(
             ProblemCode::RuleUnknownElement,
             format!(
-                "the config declares no file element \"{name}\"; the file elements are {}",
-                declared.join(", ")
+                "the config declares no file {word} \"{name}\"; the file {word}s are {}",
+                declared.join(", "),
+                word = self.part_word()
             ),
         )
         .at(format!("{field}.element"))
@@ -378,7 +423,8 @@ impl<'a> Names<'a> {
                     ConfigProblem::new(
                         ProblemCode::RuleNeedsCapture,
                         format!(
-                            "the element \"{name}\" has no capture `{{{key}}}`; its captures are {}",
+                            "the {} \"{name}\" has no capture `{{{key}}}`; its captures are {}",
+                            self.part_word(),
                             if known.is_empty() {
                                 "none".to_owned()
                             } else {

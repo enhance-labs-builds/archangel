@@ -5,7 +5,7 @@ A plugin lets you write your own rules in TypeScript. Use a plugin when the buil
 
 ## How it works
 
-1. **Archangel makes a map of your code.** For each file, the map has its path, its element, what
+1. **Archangel makes a map of your code.** For each file, the map has its path, its part, what
    it imports, what imports it, and what it exports.
 2. **A rule asks a question about part of the map.** For example: "Do files in `shared` import a
    feature?" The built-in conditions, such as `mayNotImport`, are questions that archangel already
@@ -94,9 +94,9 @@ values:
 | Field | Type | What it is |
 | --- | --- | --- |
 | `path` | `string` | The path from the config folder. |
-| `element` | `string` or `null` | The element of the file. `null` if the file is in no element. |
-| `captures` | object | The values of the element's captures. For `src/features/{feature}/**`, this is `{ "feature": "cart" }`. |
-| `selectors` | `string[]` | The selectors that contain the file. |
+| `element` | `string` or `null` | The part of the file. `null` if the file is in no part. |
+| `captures` | object | The values of the part's captures. For `src/features/{feature}/**`, this is `{ "feature": "cart" }`. |
+| `selectors` | `string[]` | The groups that contain the file. |
 | `imports` | list of imports | Only if the condition reads `'imports'`. |
 | `importers` | `string[]` | Only if the condition reads `'importers'`. The paths of the files that import this file. |
 | `exports` | object | Only if the condition reads `'exports'`. |
@@ -172,11 +172,10 @@ import { defineConfig } from '@enhance-eng/archangel';
 import team from './plugins/team.ts';
 
 export default defineConfig({
-  elements: { feature: 'src/features/{feature}/**' },
+  parts: { feature: 'src/features/{feature}/**' },
   plugins: { team },
   rules: ({ rule }) => [
-    rule({
-      name: 'small-files',
+    rule('small-files', {
       files: 'feature',
       plugin: 'team/max-imports',
       options: { max: 2 },

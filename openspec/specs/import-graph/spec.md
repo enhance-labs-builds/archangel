@@ -174,15 +174,22 @@ Archangel MUST parse `.js`, `.mjs` and `.cjs` files with JSX syntax permitted, b
 
 ### Requirement: Archangel marks type imports
 
-An import MUST be a type import when its statement has the `type` modifier, or when every name that it imports has the `type` modifier. Import types, triple-slash references and every import in a declaration file MUST be type imports. Every other import MUST be a runtime import.
+An import or export-from statement MUST be a type import when it has the `type` modifier before its names. Export-all statements with the `type` modifier, import types, triple-slash references and every import in a declaration file MUST be type imports. Every other import or export-from statement MUST be a runtime import, except as the next requirement says.
 
 #### Scenario: Three kinds of import statement
 
-- **GIVEN** a source file with `import type { A } from './a'`, `import { type B } from './b'` and `import { type C, d } from './c'`
+- **GIVEN** a source file with `import type { A } from './a'`, `import { type B } from './b'` and `import { type C, d } from './c'`, and a tsconfig without `verbatimModuleSyntax`
 - **WHEN** archangel reads the file
 - **THEN** the imports of `./a` and `./b` are type imports
 - **AND** the import of `./c` is a runtime import
 - **TEST** `crates/archangel_graph/tests/imports.rs` › "marks_type_imports_by_their_modifiers"
+
+#### Scenario: A type export of all names
+
+- **GIVEN** a source file with `export type * from './a'` and `export type * as b from './b'`
+- **WHEN** archangel reads the file
+- **THEN** both imports are type imports
+- **TEST** `crates/archangel_graph/tests/imports.rs` › "export_type_star_is_a_type_import"
 
 #### Scenario: An import in a declaration file
 
@@ -190,6 +197,48 @@ An import MUST be a type import when its statement has the `type` modifier, or w
 - **WHEN** archangel reads the file
 - **THEN** the import of `./config` is a type import
 - **TEST** `crates/archangel_graph/tests/imports.rs` › "imports_in_declaration_files_are_type_imports"
+
+### Requirement: The type mark follows verbatimModuleSyntax
+
+The mark of an import MUST follow what TypeScript emits for the file's options, not the syntax alone. A statement in which every name has the `type` modifier MUST be a type import when the file's tsconfig does not set `verbatimModuleSyntax`, and a runtime import when it does, because TypeScript then keeps the statement. The mark MUST be decided when the import is resolved, so a change to that tsconfig MUST change the mark on the next check with no new parse of the file.
+
+#### Scenario: Type names under verbatimModuleSyntax
+
+- **GIVEN** a source file with `import type { A } from './a'` and `import { type B } from './b'`, and a tsconfig that sets `verbatimModuleSyntax: true`
+- **WHEN** archangel reads the file
+- **THEN** the import of `./a` is a type import, and the import of `./b` is a runtime import
+- **TEST** `crates/archangel_graph/tests/imports.rs` › "inline_type_names_are_a_runtime_import_under_verbatim_module_syntax"
+
+#### Scenario: A re-export of type names
+
+- **GIVEN** a source file with `export { type A } from './a'` and `export { type B, c } from './c'`
+- **AND** the same file read once with a tsconfig without `verbatimModuleSyntax` and once with `verbatimModuleSyntax: true`
+- **WHEN** archangel reads the file each time
+- **THEN** without the option, the re-export of `./a` is a type import and the re-export of `./c` is a runtime import
+- **AND** with the option, both are runtime imports
+- **TEST** `crates/archangel_graph/tests/imports.rs` › "a_re_export_of_type_names_follows_verbatim_module_syntax"
+
+#### Scenario: A cycle through an inline type import
+
+- **GIVEN** a tsconfig that sets `verbatimModuleSyntax: true`, a rule `{ files: 'src/**', noCycles: true }`, and the files `src/a.ts` with `import { type B } from './b'` and `src/b.ts` with `import { a } from './a'`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation of the rule for the group `src/a.ts` and `src/b.ts`
+- **TEST** `crates/archangel_rules/tests/cycles.rs` › "a_cycle_through_an_inline_type_import_runs_under_verbatim_module_syntax"
+
+#### Scenario: A cycle through a barrel's type re-export
+
+- **GIVEN** a tsconfig that sets `verbatimModuleSyntax: true`, a rule `{ files: 'src/**', noCycles: true }`, and the files `src/index.ts` with `export { type B } from './b'` and `src/b.ts` with `import { a } from './index'`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation of the rule for the group `src/index.ts` and `src/b.ts`
+- **AND** the same files with a tsconfig without the option give no violation
+- **TEST** `crates/archangel_rules/tests/cycles.rs` › "a_cycle_through_a_type_re_export_runs_under_verbatim_module_syntax"
+
+#### Scenario: A tsconfig gains verbatimModuleSyntax in a watched repository
+
+- **GIVEN** a watched repository with a rule `{ files: 'src/**', noCycles: true }`, the files `src/a.ts` with `import { type B } from './b'` and `src/b.ts` with `import { a } from './a'`, and a tsconfig without `verbatimModuleSyntax`, whose first check gives no violation
+- **WHEN** the tsconfig gains `verbatimModuleSyntax: true` and neither file is edited
+- **THEN** the next check gives one violation of the rule for the group `src/a.ts` and `src/b.ts`, with zero files parsed
+- **TEST** `crates/archangel_engine/tests/work.rs` › "a_tsconfig_that_gains_verbatim_module_syntax_re_marks_every_import_without_a_parse"
 
 ### Requirement: A file that archangel cannot parse is a diagnostic
 
@@ -394,3 +443,28 @@ In one check, archangel MUST read each source file one time, parse it one time, 
 - **WHEN** the full check work test runs against that build
 - **THEN** the test fails on the count of files parsed
 - **TEST** `crates/archangel_graph/tests/work.rs` › "work_count_rejects_a_second_parse"
+
+### Requirement: A new tsconfig takes effect in watch and the editor
+
+A tsconfig that appears at a path that the lookup of a file passed MUST make archangel resolve and mark that file's imports again, so that a session gives the answer of a full check.
+
+#### Scenario: A first tsconfig that sets verbatimModuleSyntax
+
+- **GIVEN** a session on a repository with no tsconfig, whose cycle exists only as an inline type import
+- **WHEN** `tsconfig.json` appears with `verbatimModuleSyntax: true`
+- **THEN** the session reports the cycle
+- **TEST** `crates/archangel_engine/tests/work.rs` › "a_new_tsconfig_with_verbatim_module_syntax_re_marks_imports_in_the_editor"
+
+#### Scenario: A nearer tsconfig
+
+- **GIVEN** a session on a repository whose root tsconfig sets `verbatimModuleSyntax: true`, with that cycle reported
+- **WHEN** `src/tsconfig.json` appears with `verbatimModuleSyntax: false`
+- **THEN** the session reports no cycle
+- **TEST** `crates/archangel_engine/tests/work.rs` › "a_nearer_new_tsconfig_takes_over_from_the_one_above_in_the_editor"
+
+#### Scenario: A tsconfig that gives an alias its target
+
+- **GIVEN** a session in which `@/a` does not resolve
+- **WHEN** `tsconfig.json` appears with a `paths` entry for `@/*`
+- **THEN** the import resolves to its file
+- **TEST** `crates/archangel_engine/tests/work.rs` › "a_new_tsconfig_with_paths_resolves_an_alias_in_the_editor"

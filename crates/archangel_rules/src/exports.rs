@@ -170,6 +170,7 @@ impl About<'_> {
         diagnostic.rule = Some(self.rule.name.clone());
         diagnostic.help = Some(help.to_owned());
         diagnostic.reason.clone_from(&self.rule.reason);
+        diagnostic.because = self.rule.because;
         diagnostic.link.clone_from(&self.rule.link);
         diagnostic.id = Some(ViolationId::Path {
             rule: self.rule.name.clone(),

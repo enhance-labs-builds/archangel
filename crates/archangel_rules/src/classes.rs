@@ -2,24 +2,26 @@
 //! class are alike to every rule, so the rule table has one cell per pair of classes that an import
 //! connects, and a session keeps each file's class so that an edit classifies one file.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
-use archangel_config::{Classification, ElementId, FileSet, Term};
+use archangel_config::{Classification, ElementId, FileSet, KindPlace, TableId, Term};
 use archangel_graph::{ImportGraph, SourceFile, Work};
 
-use crate::architecture::{Architecture, Check};
+use crate::architecture::{Architecture, Check, Edge};
 
 /// What makes two files, or two packages, alike to every rule.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ClassKey {
-    /// A file: its element and, for each set of files the rules name, whether it is in it.
+    /// A file: its elements and, for each set of files the rules name, whether it is in it.
     File {
-        element: Option<ElementId>,
+        elements: Vec<ElementId>,
         bits: Vec<bool>,
+        /// Whether the file is the config file, which is in no table.
+        config_file: bool,
     },
-    /// A package: its element and, for each inline package name, whether it names the package.
+    /// A package: its elements and, for each inline package name, whether it names the package.
     Package {
-        element: Option<ElementId>,
+        elements: Vec<ElementId>,
         names: Vec<bool>,
     },
 }
@@ -28,10 +30,14 @@ pub(crate) enum ClassKey {
 #[derive(Debug, Clone)]
 struct FileClass {
     classification: Option<Classification>,
+    /// The file's place in each table's kind pattern, by the table's index.
+    kinds: Vec<Option<KindPlace>>,
     class: u32,
     /// Whether the walk visited the file, as a source file or another, which the counts of each
     /// class hold.
     counted: bool,
+    /// Whether a table can hold the file: a source file that the walk visited, not the config file.
+    of_tables: bool,
 }
 
 /// The compiled config and the graph whose files are classified.
@@ -65,6 +71,7 @@ struct Placed<'p> {
     path: &'p str,
     directive: Option<&'p str>,
     counted: bool,
+    source: bool,
 }
 
 /// The classes of a check or a session, and the rule table cells of the pairs met so far.
@@ -77,7 +84,11 @@ pub struct Classes {
     /// The files the walk visited in each class. A file that only an import points to, such as
     /// one the ignore list leaves out, is in no count, because the walk never visits it.
     counts: Vec<u64>,
+    /// The files in each class that a table can hold.
+    table_counts: Vec<u64>,
     cells: HashMap<(u32, u32), Vec<Check>>,
+    /// The files that the walk visited in two or more of the config's own parts, with the parts.
+    overlaps: BTreeMap<String, Vec<ElementId>>,
 }
 
 impl Classes {
@@ -99,8 +110,10 @@ impl Classes {
             .map(|(path, _)| path.clone())
             .collect();
         for path in gone {
+            self.overlaps.remove(&path);
             if let Some(file) = self.files.remove(&path) {
                 self.counts[file.class as usize] -= 1;
+                self.table_counts[file.class as usize] -= u64::from(file.of_tables);
             }
         }
         let lookup = Lookup::new(architecture, graph);
@@ -178,6 +191,7 @@ impl Classes {
             path: &file.path,
             directive: file.facts.as_ref().and_then(|f| f.directive.as_deref()),
             counted: false,
+            source: true,
         };
         self.place(architecture, &placed, work);
         self.known(&file.path)
@@ -192,17 +206,12 @@ impl Classes {
         if let Some((class, classification)) = self.packages.get(name) {
             return (*class, classification.clone());
         }
-        let element = architecture.matcher.classify_package(name);
+        let elements = architecture.matcher.package_elements(name);
         let names = (0..architecture.package_names.len())
             .map(|index| architecture.package_named(index, name))
             .collect();
-        let class = self.intern(ClassKey::Package { element, names });
-        let classification = element.map(|element| Classification {
-            element,
-            captures: Vec::new(),
-            names: Vec::new(),
-            root: name.to_owned(),
-        });
+        let class = self.intern(ClassKey::Package { elements, names });
+        let classification = architecture.matcher.package_place(name);
         self.packages
             .insert(name.to_owned(), (class, classification.clone()));
         (class, classification)
@@ -216,6 +225,7 @@ impl Classes {
                 .and_then(|file| file.facts.as_ref())
                 .and_then(|facts| facts.directive.as_deref()),
             counted: source.is_some() || lookup.graph.is_some_and(|g| g.is_other(path)),
+            source: source.is_some(),
         };
         self.place(lookup.architecture, &placed, work);
     }
@@ -235,41 +245,56 @@ impl Classes {
             work.pattern_passes += found.passes;
             found.patterns
         };
-        let mut place = Place {
+        let kinds = kinds_of(architecture, placed.path, &patterns);
+        let place = Place {
             patterns: &patterns,
+            kinds: &kinds,
             classification: found.classification.as_ref(),
             directive: placed.directive,
             selectors: vec![false; architecture.config.selectors.len()],
         };
-        let mut answers = Vec::new();
-        for id in &architecture.config.selector_order {
-            let index = id.0 as usize;
-            place.selectors[index] = place.contains(
-                &architecture.config.selectors[index].definition,
-                &mut answers,
-            );
-        }
-        let bits = architecture
-            .sets
-            .iter()
-            .map(|set| place.contains(set, &mut answers))
-            .collect();
+        let bits = set_bits(architecture, place);
+        let config_file = architecture.is_config_file(placed.path);
+        let of_tables = placed.counted && placed.source && !config_file;
         let class = self.intern(ClassKey::File {
-            element: found.classification.as_ref().map(|c| c.element),
+            elements: found
+                .classification
+                .iter()
+                .flat_map(Classification::all)
+                .map(|c| c.element)
+                .collect(),
             bits,
+            config_file,
         });
+        if placed.counted {
+            if found.overlap.is_empty() {
+                self.overlaps.remove(placed.path);
+            } else {
+                self.overlaps.insert(placed.path.to_owned(), found.overlap);
+            }
+        }
         let file = FileClass {
             classification: found.classification,
+            kinds,
             class,
             counted: placed.counted,
+            of_tables,
         };
-        if let Some(old) = self.files.insert(placed.path.to_owned(), file)
+        self.count(placed.path, file);
+    }
+
+    /// Keeps a file's place, and moves it in the counts of each class.
+    fn count(&mut self, path: &str, file: FileClass) {
+        let (class, counted, of_tables) = (file.class as usize, file.counted, file.of_tables);
+        if let Some(old) = self.files.insert(path.to_owned(), file)
             && old.counted
         {
             self.counts[old.class as usize] -= 1;
+            self.table_counts[old.class as usize] -= u64::from(old.of_tables);
         }
-        if placed.counted {
-            self.counts[class as usize] += 1;
+        if counted {
+            self.counts[class] += 1;
+            self.table_counts[class] += u64::from(of_tables);
         }
     }
 
@@ -281,6 +306,7 @@ impl Classes {
         self.index.insert(key.clone(), class);
         self.keys.push(key);
         self.counts.push(0);
+        self.table_counts.push(0);
         class
     }
 
@@ -288,19 +314,77 @@ impl Classes {
         &self.keys[class as usize]
     }
 
-    /// The checks of the cell for a pair of classes, filled the first time the pair is met.
-    pub(crate) fn cell(&mut self, architecture: &Architecture, from: u32, to: u32) -> &[Check] {
+    /// Fills the cell for a pair of classes, the first time the pair is met.
+    pub(crate) fn fill_cell(&mut self, architecture: &Architecture, from: u32, to: u32) {
         let keys = &self.keys;
         self.cells
             .entry((from, to))
-            .or_insert_with(|| architecture.fill(&keys[from as usize], &keys[to as usize]))
+            .or_insert_with(|| architecture.fill(&keys[from as usize], &keys[to as usize]));
     }
 
-    /// The number of files the walk visited in a set of files, from the counts of each class.
-    pub(crate) fn files_in(&self, set: usize) -> u64 {
+    /// The checks of a filled cell.
+    pub(crate) fn cell(&self, from: u32, to: u32) -> &[Check] {
+        self.cells.get(&(from, to)).map_or(&[], Vec::as_slice)
+    }
+
+    /// The element of a file with a class.
+    pub(crate) fn place_of(&self, path: &str) -> Option<&Classification> {
+        self.files.get(path)?.classification.as_ref()
+    }
+
+    /// The element of a package with a class.
+    pub(crate) fn package_place_of(&self, name: &str) -> Option<&Classification> {
+        self.packages.get(name)?.1.as_ref()
+    }
+
+    /// The place of a file with a class in a table's kind pattern.
+    pub(crate) fn kind_place(&self, path: &str, table: TableId) -> Option<&KindPlace> {
+        self.files.get(path)?.kinds.get(table.index())?.as_ref()
+    }
+
+    /// Whether the two ends of an import are in one instance of a table's kind, from the values
+    /// that classification stored; `None` when an end has no kind in the table.
+    pub(crate) fn kind_instances(&self, edge: &Edge<'_>, table: TableId) -> Option<bool> {
+        let from = self.kind_place(edge.from.path?, table)?;
+        let to = self.kind_place(edge.to.path?, table)?;
+        Some(from.instance == to.instance)
+    }
+
+    /// The paths the walk visited in each class for which `keep` holds, in path order.
+    pub(crate) fn counted_files_in(&self, keep: impl Fn(&ClassKey) -> bool) -> Vec<&str> {
+        let mut paths: Vec<&str> = self
+            .files
+            .iter()
+            .filter(|(_, file)| file.counted && keep(&self.keys[file.class as usize]))
+            .map(|(path, _)| path.as_str())
+            .collect();
+        paths.sort_unstable();
+        paths
+    }
+
+    /// Each class that holds a file the walk visited.
+    pub(crate) fn counted_classes(&self) -> impl Iterator<Item = &ClassKey> {
         self.keys
             .iter()
             .zip(&self.counts)
+            .filter(|(_, count)| **count > 0)
+            .map(|(key, _)| key)
+    }
+
+    /// The number of files the walk visited in a set of files, from the counts of each class.
+    pub(crate) fn files_of_set(&self, set: usize) -> u64 {
+        self.sum_of_set(&self.counts, set)
+    }
+
+    /// The number of files in a set of files that a table can hold.
+    pub(crate) fn table_files_of_set(&self, set: usize) -> u64 {
+        self.sum_of_set(&self.table_counts, set)
+    }
+
+    fn sum_of_set(&self, counts: &[u64], set: usize) -> u64 {
+        self.keys
+            .iter()
+            .zip(counts)
             .filter(|(key, _)| matches!(key, ClassKey::File { bits, .. } if bits[set]))
             .map(|(_, count)| count)
             .sum()
@@ -312,10 +396,15 @@ impl Classes {
             .iter()
             .zip(&self.counts)
             .filter(
-                |(key, _)| matches!(key, ClassKey::File { element: Some(e), .. } if *e == element),
+                |(key, _)| matches!(key, ClassKey::File { elements, .. } if elements.contains(&element)),
             )
             .map(|(_, count)| count)
             .sum()
+    }
+
+    /// The files in two or more of the config's own parts, in path order, with the parts.
+    pub(crate) fn overlaps(&self) -> &BTreeMap<String, Vec<ElementId>> {
+        &self.overlaps
     }
 
     /// The element instance of a file that has a class.
@@ -342,9 +431,24 @@ impl Classes {
     }
 }
 
+/// The place of a path in each table's kind pattern, by the table's index.
+fn kinds_of(architecture: &Architecture, path: &str, patterns: &[bool]) -> Vec<Option<KindPlace>> {
+    architecture
+        .config
+        .tables
+        .iter()
+        .map(|table| {
+            let kinds = table.kinds.as_ref()?;
+            kinds.place(path, patterns[kinds.id.0 as usize])
+        })
+        .collect()
+}
+
 /// What one pass over a path found, from which every set's membership follows.
 struct Place<'a> {
     patterns: &'a [bool],
+    /// The file's place in each table's kind pattern.
+    kinds: &'a [Option<KindPlace>],
     classification: Option<&'a Classification>,
     directive: Option<&'a str>,
     /// Whether the file is in each declared selector, filled in the order that puts each selector
@@ -378,16 +482,24 @@ impl Place<'_> {
     fn leaf(&self, term: &Term) -> bool {
         match term {
             Term::Pattern(id) => self.patterns[id.0 as usize],
-            Term::Element(element) => self.classification.is_some_and(|c| c.element == *element),
-            Term::Instance { element, captures } => self.classification.is_some_and(|c| {
-                c.element == *element
-                    && captures
+            Term::Element(element) => self
+                .classification
+                .is_some_and(|c| c.of(*element).is_some()),
+            Term::Instance { element, captures } => self
+                .classification
+                .and_then(|c| c.of(*element))
+                .is_some_and(|c| {
+                    captures
                         .iter()
                         .all(|(name, value)| capture(c, name).is_some_and(|found| found == value))
-            }),
+                }),
             Term::AnyElement => self.classification.is_some(),
             Term::Directive(text) => self.directive == Some(text.as_str()),
             Term::Selector(id) => self.selectors[id.0 as usize],
+            Term::Kind { table, kind } => self.kinds[table.index()]
+                .as_ref()
+                .is_some_and(|place| place.kind == *kind),
+            Term::AnyKind(table) => self.kinds[table.index()].is_some(),
             Term::All(_) | Term::Any(_) | Term::Not => false,
         }
     }
@@ -408,4 +520,21 @@ fn capture<'c>(class: &'c Classification, name: &str) -> Option<&'c str> {
 fn match_per_selector() -> bool {
     fail::fail_point!("rules::match_per_selector", |_| true);
     false
+}
+
+/// Whether a file is in each compiled set: each group in its order, then each set.
+fn set_bits(architecture: &Architecture, mut place: Place<'_>) -> Vec<bool> {
+    let mut answers = Vec::new();
+    for id in &architecture.config.selector_order {
+        let index = id.0 as usize;
+        place.selectors[index] = place.contains(
+            &architecture.config.selectors[index].definition,
+            &mut answers,
+        );
+    }
+    architecture
+        .sets
+        .iter()
+        .map(|set| place.contains(set, &mut answers))
+        .collect()
 }

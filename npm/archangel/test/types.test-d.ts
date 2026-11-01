@@ -269,3 +269,176 @@ defineConfig({
     rule({ name: 'no-legacy', files: 'src/**', mayNotImport: 'src/legacy/**' }),
   ],
 });
+
+// "a table cell that names no row, no declared name and no pattern is a type error"
+expectError(
+  defineConfig({
+    parts: { api: 'apps/api/**' },
+    rules: ({ mayImport }) => [
+      mayImport('domain', { entity: ['value-objects'], 'value-object': [] }, { kinds: '**/*.{kind}.ts' }),
+    ],
+  }),
+);
+defineConfig({
+  parts: { api: 'apps/api/**' },
+  externals: { driver: ['pg'] },
+  rules: ({ mayImport }) => [
+    mayImport(
+      'domain',
+      { entity: ['value-object', 'api', 'driver', 'apps/api/src/shared/result.ts'], 'value-object': [] },
+      { kinds: '**/*.{kind}.ts' },
+    ),
+  ],
+});
+
+// "a row of a table without kinds must be a declared part or group"
+expectError(
+  defineConfig({
+    parts: { 'canvas-document': 'packages/canvas-document/**' },
+    rules: ({ mayImport }) => [mayImport('workspace', { 'canvas-documents': [] })],
+  }),
+);
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    externals: { driver: ['pg'] },
+    rules: ({ mayImport }) => [mayImport('workspace', { driver: [] })],
+  }),
+);
+defineConfig({
+  parts: { 'canvas-document': 'packages/canvas-document/**' },
+  groups: { tests: '**/*.test.ts' },
+  rules: ({ mayImport }) => [mayImport('workspace', { 'canvas-document': [], tests: ['canvas-document'] })],
+});
+
+// "a table or row name with a colon or slash is a type error"
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    rules: ({ mayImport }) => [mayImport('api:domain', { app: [] })],
+  }),
+);
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    rules: ({ mayImport }) => [mayImport('domain', { 'aggregate/root': [] }, { kinds: '**/*.{kind}.ts' })],
+  }),
+);
+defineConfig({
+  parts: { app: 'src/**' },
+  rules: ({ mayImport }) => [mayImport('api.domain', { 'my views': [] }, { kinds: '**/*.{kind}.ts' })],
+});
+
+// The other options of a table are typed too.
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    rules: ({ mayImport }) => [
+      mayImport('domain', { entity: [] }, { kinds: '**/*.{kind}.ts', mayNotImportItself: ['entities'] }),
+    ],
+  }),
+);
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    rules: ({ mayImport }) => [mayImport('domain', { app: [] }, { files: 'apps' })],
+  }),
+);
+
+// "within is typed as a rule side and only on mayOnlyImport and mayOnlyBeImportedBy"
+expectError(
+  defineConfig({
+    parts: { entity: 'src/entity/**' },
+    rules: ({ rule }) => [rule('names', { files: 'entity', mustBeNamed: 'kebab-case', within: 'src/**' })],
+  }),
+);
+expectError(
+  defineConfig({
+    parts: { entity: 'src/entity/**', shared: 'src/shared/**' },
+    rules: ({ rule }) => [rule('names', { files: 'entity', mayNotImport: 'shared', within: 'src/**' })],
+  }),
+);
+expectError(
+  defineConfig({
+    parts: { entity: 'src/entity/**', shared: 'src/shared/**' },
+    rules: ({ rule }) => [rule('names', { files: 'entity', mayOnlyImport: 'shared', within: 'domains' })],
+  }),
+);
+defineConfig({
+  parts: { entity: 'src/entity/**', shared: 'src/shared/**' },
+  groups: { domain: 'src/domain/**' },
+  rules: ({ rule }) => [
+    rule('only', { files: 'entity', mayOnlyImport: 'shared', within: 'src/**' }),
+    rule('by', { files: 'entity', mayOnlyBeImportedBy: 'shared', within: 'domain' }),
+  ],
+});
+
+// "a config with two spellings of one key is a type error"
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    elements: { app: 'src/**' },
+    rules: [],
+  }),
+);
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    groups: { test: '**/*.test.ts' },
+    selectors: { test: '**/*.test.ts' },
+    rules: [],
+  }),
+);
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    rules: ({ rule }) => [rule({ files: 'app', noCycles: true, because: 'a', reason: 'a' })],
+  }),
+);
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    rules: ({ rule }) => [rule('a', { name: 'b', files: 'app', noCycles: true })],
+  }),
+);
+
+// A part holds files, so `parts` has no packages; `externals` holds them.
+expectError(
+  defineConfig({
+    parts: { react: { packages: ['react'] } },
+    rules: [],
+  }),
+);
+
+// "an example item is a string or a file set"
+defineConfig({
+  parts: { app: 'src/**' },
+  rules: ({ rule }) => [
+    rule('a', {
+      files: 'app',
+      noCycles: true,
+      examples: {
+        accepted: ['src/a.ts imports src/b.ts'],
+        rejected: ['src/a.ts imports src/b.ts imports src/a.ts', { 'src/a.ts': "import './a';" }],
+      },
+    }),
+  ],
+});
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    rules: ({ rule }) => [rule('a', { files: 'app', noCycles: true, examples: { rejected: [1] } })],
+  }),
+);
+
+// "a bare string is not an example list"
+expectError(
+  defineConfig({
+    parts: { app: 'src/**' },
+    rules: ({ rule }) => [rule('a', { files: 'app', noCycles: true, examples: { rejected: 'src/a.ts' } })],
+  }),
+);
+
+// "the configs of the checked fixtures type-check with literal names"
+import '../../../docs/examples/small-app/archangel.config.js';
+import '../../../docs/examples/enhance3-slice/archangel.config.js';

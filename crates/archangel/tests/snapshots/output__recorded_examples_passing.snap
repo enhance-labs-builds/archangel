@@ -1,0 +1,183 @@
+---
+source: crates/archangel/tests/output.rs
+expression: all
+---
+$ archangel check
+status: 0
+checked 2 files and 0 imports: no problems
+
+$ archangel check --format json
+status: 0
+{
+  "schemaVersion": 1,
+  "diagnostics": [],
+  "summary": {
+    "files": 2,
+    "imports": 0,
+    "exceptions": {},
+    "baselined": {},
+    "permittedUnresolved": 0,
+    "unfollowed": 0,
+    "linksNotFollowed": [],
+    "nestedRepositories": [],
+    "presetNamesMatchingNothing": [],
+    "work": {
+      "filesFound": 2,
+      "filesRead": 2,
+      "bytesRead": 0,
+      "filesParsed": 2,
+      "importsFound": 0,
+      "resolutions": 0,
+      "filesClassified": 3,
+      "patternPasses": 3,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}
+
+$ archangel test
+status: 0
+pass  layers  accepted #1  src/app/x.ts
+pass  layers  rejected #1  src/shared/x.ts
+pass  forbid  accepted #1  src/app/y.ts
+pass  forbid  rejected #1  src/app/y.ts
+4 examples, none failed; 0 rules without a rejected example
+
+$ archangel test --format json
+status: 0
+{
+  "schemaVersion": 1,
+  "examples": [
+    {
+      "rule": "layers",
+      "kind": "accepted",
+      "number": 1,
+      "files": [
+        "src/app/x.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": []
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 1,
+      "files": [
+        "src/shared/x.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/x.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/x.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "forbid",
+      "kind": "accepted",
+      "number": 1,
+      "files": [
+        "src/app/y.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": []
+    },
+    {
+      "rule": "forbid",
+      "kind": "rejected",
+      "number": 1,
+      "files": [
+        "src/app/y.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "may-not-import",
+          "rule": "forbid",
+          "file": "src/app/y.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            15
+          ],
+          "specifier": "./main",
+          "message": "src/app/y.ts may not import \"./main\", because files in \"app\" may not import \"app\"",
+          "help": "remove the import, or move the code to files that may import it",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "forbid",
+            "file": "src/app/y.ts",
+            "specifier": "./main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    }
+  ],
+  "unproven": [],
+  "summary": {
+    "passed": true,
+    "work": {
+      "filesFound": 0,
+      "filesRead": 0,
+      "bytesRead": 0,
+      "filesParsed": 4,
+      "importsFound": 4,
+      "resolutions": 4,
+      "filesClassified": 8,
+      "patternPasses": 8,
+      "ruleEvaluations": 2,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 4,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}

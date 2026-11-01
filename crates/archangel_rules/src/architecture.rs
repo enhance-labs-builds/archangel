@@ -3,8 +3,8 @@
 //! by the pair of classes at its ends, so it costs the same for five rules or five hundred.
 
 use archangel_config::{
-    Classification, Condition, Config, ElementId, ElementMatcher, FileSet, ImportKinds, Pattern,
-    RuleKind, Sentence, Term, package_matches,
+    Classification, Condition, Config, ElementId, ElementMatcher, FileSet, ImportKinds,
+    OwnInstance, Pattern, RuleKind, Sentence, Side, TableId, Term, package_matches,
 };
 use archangel_graph::{Import, ImportGraph, ImportKind, Manifests, Resolution, Work};
 
@@ -13,6 +13,8 @@ use crate::classes::{ClassKey, Classes, Lookup};
 /// The config, compiled.
 #[derive(Debug, Clone)]
 pub struct Architecture {
+    /// The config file, relative to the config folder, when the config has one on disk.
+    config_file: Option<String>,
     pub(crate) config: Config,
     pub(crate) matcher: ElementMatcher,
     /// Every set of files whose membership is part of a file's class.
@@ -31,10 +33,39 @@ pub(crate) struct Compiled {
     pub(crate) rule: usize,
     pub(crate) sentence: usize,
     pub(crate) files: usize,
-    pub(crate) side_files: Vec<usize>,
-    pub(crate) side_elements: Vec<ElementId>,
-    pub(crate) side_packages: Vec<usize>,
+    pub(crate) side: CompiledSide,
+    /// The area of the sentence, which holds the other end of each import that it judges.
+    pub(crate) area: Option<CompiledSide>,
+    /// The set of the sentence's own files: its files, or for a row of a table the files of the
+    /// row's name.
+    pub(crate) own_files: usize,
+    /// What makes an instance of the sentence's own files, for a `mayOnlyImport` sentence that
+    /// permits only the same instance of them.
+    pub(crate) own_instance: Option<OwnInstance>,
     pub(crate) stop_at: Option<usize>,
+    /// Whether the sentence belongs to a table, which never holds the config file.
+    pub(crate) of_table: bool,
+}
+
+/// A rule side or an area, with the indices of its sets.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct CompiledSide {
+    pub(crate) files: Vec<usize>,
+    pub(crate) elements: Vec<ElementId>,
+    pub(crate) packages: Vec<usize>,
+}
+
+impl CompiledSide {
+    /// Whether a file or a package of this class is in the side.
+    pub(crate) fn holds(&self, class: &ClassKey) -> bool {
+        match class {
+            ClassKey::File { bits, .. } => self.files.iter().any(|&s| bits[s]),
+            ClassKey::Package { elements, names } => {
+                elements.iter().any(|e| self.elements.contains(e))
+                    || self.packages.iter().any(|&n| names[n])
+            }
+        }
+    }
 }
 
 /// What declared a set that must match a file.
@@ -70,6 +101,9 @@ enum Test {
     Facts,
     /// The files are in different instances and the target is not an entry file.
     Entry,
+    /// The target is among the sentence's own files: it breaks the sentence only from another
+    /// instance, and when the import's own facts hold.
+    OtherInstance,
 }
 
 /// One end of an import, classified.
@@ -102,6 +136,7 @@ impl Architecture {
             config,
             matcher,
             sets: Vec::new(),
+            config_file: None,
             package_names: Vec::new(),
             sentences: Vec::new(),
             reported: Vec::new(),
@@ -117,7 +152,13 @@ impl Architecture {
             for (sentence_index, sentence) in rule.sentences.iter().enumerate() {
                 let compiled = architecture.sentence(rule_index, sentence_index, sentence);
                 architecture.sentences.push(compiled);
-                architecture.report_inline(&rule.name, sentence);
+                let origin = match &rule.kind {
+                    RuleKind::TableRow { table, .. } => {
+                        architecture.config.tables[table.index()].name.clone()
+                    }
+                    _ => rule.name.clone(),
+                };
+                architecture.report_inline(&origin, sentence);
             }
         }
         architecture
@@ -125,14 +166,41 @@ impl Architecture {
 
     fn sentence(&mut self, rule: usize, index: usize, sentence: &Sentence) -> Compiled {
         let side = sentence.condition.side().cloned().unwrap_or_default();
+        let may_only_import = matches!(sentence.condition, Condition::MayOnlyImport(_));
+        let own_instance = match &sentence.options.own {
+            Some(own) => own.instance.filter(|_| may_only_import && own.permitted),
+            None => sentence
+                .files
+                .element()
+                .filter(|element| {
+                    may_only_import && self.config.elements[element.index()].has_capture()
+                })
+                .map(OwnInstance::Element),
+        };
+        let files = self.set(&sentence.files);
+        let own_files = sentence
+            .options
+            .own
+            .as_ref()
+            .map_or(files, |own| self.set(&own.files));
         Compiled {
             rule,
             sentence: index,
-            files: self.set(&sentence.files),
-            side_files: side.files.iter().map(|s| self.set(s)).collect(),
-            side_elements: side.elements.clone(),
-            side_packages: side.packages.iter().map(|p| self.package_name(p)).collect(),
+            files,
+            own_files,
+            side: self.side(&side),
+            area: sentence.options.within.as_ref().map(|area| self.side(area)),
+            own_instance,
+            of_table: matches!(self.config.rules[rule].kind, RuleKind::TableRow { .. }),
             stop_at: sentence.options.stop_at.as_ref().map(|s| self.set(s)),
+        }
+    }
+
+    fn side(&mut self, side: &Side) -> CompiledSide {
+        CompiledSide {
+            files: side.files.iter().map(|s| self.set(s)).collect(),
+            elements: side.elements.clone(),
+            packages: side.packages.iter().map(|p| self.package_name(p)).collect(),
         }
     }
 
@@ -146,6 +214,7 @@ impl Architecture {
         let sets = own
             .into_iter()
             .chain(&side.files)
+            .chain(sentence.options.within.iter().flat_map(|area| &area.files))
             .chain(sentence.options.stop_at.as_ref());
         let patterns: Vec<_> = sets.flat_map(FileSet::included_patterns).collect();
         for pattern in patterns {
@@ -232,8 +301,30 @@ impl Architecture {
         let set = |index: usize| bits.get(index) == Some(&true);
         self.sentences
             .iter()
-            .filter(|c| set(c.files) || c.side_files.iter().any(|&s| set(s)))
+            .filter(|c| set(c.files) || c.side.files.iter().any(|&s| set(s)))
             .map(|c| (c.rule, c.sentence))
+            .collect()
+    }
+
+    /// The kinds of a repository file: each table that gives it one, with the kind.
+    #[must_use]
+    pub fn kinds_of(&self, graph: &ImportGraph, path: &str) -> Vec<(String, String)> {
+        let mut classes = Classes::new();
+        classes.file(Lookup::new(self, graph), path, &mut Work::default());
+        self.kinds_in(&classes, path)
+    }
+
+    /// The kinds of a file that `classes` has classified.
+    pub(crate) fn kinds_in(&self, classes: &Classes, path: &str) -> Vec<(String, String)> {
+        self.config
+            .tables
+            .iter()
+            .enumerate()
+            .filter_map(|(index, table)| {
+                let id = TableId(u32::try_from(index).unwrap_or(u32::MAX));
+                let place = classes.kind_place(path, id)?;
+                Some((table.name.clone(), place.kind.clone()))
+            })
             .collect()
     }
 
@@ -301,19 +392,31 @@ impl Architecture {
 
     /// The sentences an import breaks, and how many sentence checks that took.
     pub(crate) fn evaluate(&self, classes: &mut Classes, edge: &Edge<'_>) -> (Vec<usize>, u64) {
-        let cell = classes.cell(self, edge.from.class, edge.to.class);
-        let evaluations = if search_every_rule() {
+        classes.fill_cell(self, edge.from.class, edge.to.class);
+        let classes = &*classes;
+        let cell = classes.cell(edge.from.class, edge.to.class);
+        let mut evaluations = if search_every_rule() {
             self.sentences.len()
         } else {
             cell.len()
         } as u64;
+        if area_per_import() {
+            evaluations += self.sentences.iter().filter(|c| c.area.is_some()).count() as u64;
+        }
+        if every_row() {
+            evaluations += self
+                .sentences
+                .iter()
+                .filter(|c| matches!(self.config.rules[c.rule].kind, RuleKind::TableRow { .. }))
+                .count() as u64;
+        }
         let broken = cell
             .iter()
             .filter(|check| {
                 let rule = &self.config.rules[self.sentences[check.sentence].rule];
                 covers(rule.imports, edge.import.kind)
             })
-            .filter(|check| self.test(check, edge))
+            .filter(|check| self.test(check, edge, classes))
             .map(|check| check.sentence)
             .collect();
         (broken, evaluations)
@@ -321,20 +424,22 @@ impl Architecture {
 
     /// The checks of the sentences that can apply to an import between two classes.
     pub(crate) fn fill(&self, from: &ClassKey, to: &ClassKey) -> Vec<Check> {
-        let ClassKey::File { bits, .. } = from else {
+        if !matches!(from, ClassKey::File { .. }) {
             return Vec::new();
-        };
+        }
         self.sentences
             .iter()
             .enumerate()
             .filter_map(|(index, compiled)| {
                 let sentence = &self.config.rules[compiled.rule].sentences[compiled.sentence];
                 let applies = !sentence.options.transitively
-                    && Self::applies(compiled, &sentence.condition, bits, to);
+                    && Self::applies(compiled, &sentence.condition, from, to);
                 applies.then(|| Check {
                     sentence: index,
                     test: if matches!(sentence.condition, Condition::Entry { .. }) {
                         Test::Entry
+                    } else if compiled.own_instance.is_some() && in_own(compiled, to) {
+                        Test::OtherInstance
                     } else if sentence.options.needs_import() {
                         Test::Facts
                     } else {
@@ -345,22 +450,24 @@ impl Architecture {
             .collect()
     }
 
-    /// Whether a sentence's condition can refuse an import from a file with these bits into `to`,
-    /// before the import's own facts.
-    fn applies(compiled: &Compiled, condition: &Condition, from: &[bool], to: &ClassKey) -> bool {
-        let from_in = from[compiled.files];
-        let to_in_files = matches!(to, ClassKey::File { bits, .. } if bits[compiled.files]);
+    /// Whether a sentence's condition can refuse an import from a file of the class `from` into
+    /// `to`, before the import's own facts.
+    fn applies(compiled: &Compiled, condition: &Condition, from: &ClassKey, to: &ClassKey) -> bool {
+        let in_area = |end: &ClassKey| compiled.area.as_ref().is_none_or(|area| area.holds(end));
+        let from_in = in_files(compiled, from);
         match condition {
-            Condition::MayNotImport(_) => from_in && Self::in_side_class(compiled, to),
+            Condition::MayNotImport(_) => from_in && in_area(to) && compiled.side.holds(to),
             Condition::MayOnlyImport(_) => {
-                from_in && !Self::in_side_class(compiled, to) && !to_in_files
+                from_in
+                    && in_area(to)
+                    && !compiled.side.holds(to)
+                    && (!in_own(compiled, to) || compiled.own_instance.is_some())
             }
             Condition::MayOnlyBeImportedBy(_) => {
-                let from_in_side = compiled.side_files.iter().any(|&s| from[s]);
-                to_in_files && !from_in_side && !from_in
+                in_files(compiled, to) && in_area(from) && !compiled.side.holds(from) && !from_in
             }
             Condition::Entry { element, .. } => {
-                matches!(to, ClassKey::File { element: Some(e), .. } if e == element)
+                matches!(to, ClassKey::File { elements, .. } if elements.contains(element))
             }
             Condition::MustNotExist
             | Condition::NoCycles
@@ -375,13 +482,20 @@ impl Architecture {
 
     /// Whether the other end of an import is on a sentence's side.
     pub(crate) fn in_side_class(compiled: &Compiled, to: &ClassKey) -> bool {
-        match to {
-            ClassKey::File { bits, .. } => compiled.side_files.iter().any(|&s| bits[s]),
-            ClassKey::Package { element, names } => {
-                element.is_some_and(|e| compiled.side_elements.contains(&e))
-                    || compiled.side_packages.iter().any(|&n| names[n])
-            }
-        }
+        compiled.side.holds(to)
+    }
+
+    /// The architecture of a config at this path, relative to the config folder. The config file
+    /// is in no table.
+    #[must_use]
+    pub fn with_config_file(mut self, path: impl Into<String>) -> Self {
+        self.config_file = Some(path.into());
+        self
+    }
+
+    /// Whether a path is the config file.
+    pub(crate) fn is_config_file(&self, path: &str) -> bool {
+        self.config_file.as_deref() == Some(path)
     }
 
     /// Whether a package's name is named by an inline package name.
@@ -394,30 +508,36 @@ impl Architecture {
     /// rule looked at one of its imports. No-cycles looks at the graph, not at single imports, so
     /// it answers false here.
     pub(crate) fn considers(&self, rule: usize, from: &ClassKey, to: &ClassKey) -> bool {
-        let element = |key: &ClassKey| match key {
-            ClassKey::File { element, .. } | ClassKey::Package { element, .. } => *element,
-        };
+        fn elements(key: &ClassKey) -> &[ElementId] {
+            match key {
+                ClassKey::File { elements, .. } | ClassKey::Package { elements, .. } => elements,
+            }
+        }
         match &self.config.rules[rule].kind {
             RuleKind::Layers { order } => {
-                element(from).is_some_and(|f| order.contains(&f))
-                    && element(to).is_some_and(|t| order.contains(&t))
+                elements(from).iter().any(|f| order.contains(f))
+                    && elements(to).iter().any(|t| order.contains(t))
             }
             RuleKind::Isolate { element: e } => {
-                element(from) == Some(*e) && element(to) == Some(*e)
+                elements(from).contains(e) && elements(to).contains(e)
             }
-            RuleKind::Entry { element: e, .. } => element(to) == Some(*e),
-            RuleKind::Sentence => self
+            RuleKind::Entry { element: e, .. } => elements(to).contains(e),
+            RuleKind::Sentence | RuleKind::TableRow { .. } => self
                 .sentences
                 .iter()
                 .filter(|compiled| compiled.rule == rule)
                 .any(|compiled| {
                     let sentence = &self.config.rules[rule].sentences[compiled.sentence];
-                    let in_files = |key: &ClassKey| {
-                        matches!(key, ClassKey::File { bits, .. } if bits[compiled.files])
-                    };
+                    let in_area =
+                        |end: &ClassKey| compiled.area.as_ref().is_none_or(|area| area.holds(end));
                     match sentence.condition {
-                        Condition::MayNotImport(_) | Condition::MayOnlyImport(_) => in_files(from),
-                        Condition::MayOnlyBeImportedBy(_) | Condition::Entry { .. } => in_files(to),
+                        Condition::MayNotImport(_) | Condition::MayOnlyImport(_) => {
+                            in_files(compiled, from) && in_area(to)
+                        }
+                        Condition::MayOnlyBeImportedBy(_) => {
+                            in_files(compiled, to) && in_area(from)
+                        }
+                        Condition::Entry { .. } => in_files(compiled, to),
                         Condition::MustNotExist
                         | Condition::NoCycles
                         | Condition::MustBeNamed(_)
@@ -431,23 +551,125 @@ impl Architecture {
         }
     }
 
-    fn test(&self, check: &Check, edge: &Edge<'_>) -> bool {
+    /// Whether a rule judged one import: it looks at the two classes, and the import's own facts
+    /// are those the rule names. A rule about cycles follows each import between its files.
+    pub(crate) fn judges(&self, rule: usize, edge: &Edge<'_>, classes: &Classes) -> bool {
+        let (from, to) = (classes.key(edge.from.class), classes.key(edge.to.class));
+        self.sentences
+            .iter()
+            .filter(|compiled| compiled.rule == rule)
+            .any(|compiled| {
+                let sentence = &self.config.rules[rule].sentences[compiled.sentence];
+                match sentence.condition {
+                    Condition::NoCycles => in_files(compiled, from) && in_files(compiled, to),
+                    _ => {
+                        self.considers(rule, from, to)
+                            && crate::facts::hold(sentence, edge, classes)
+                    }
+                }
+            })
+    }
+
+    /// Whether a rule can judge an import between two classes, before the import's own facts.
+    pub(crate) fn may_judge(&self, rule: usize, from: &ClassKey, to: &ClassKey) -> bool {
+        self.considers(rule, from, to)
+            || self
+                .sentences
+                .iter()
+                .filter(|compiled| compiled.rule == rule)
+                .any(|compiled| {
+                    let sentence = &self.config.rules[rule].sentences[compiled.sentence];
+                    matches!(sentence.condition, Condition::NoCycles)
+                        && in_files(compiled, from)
+                        && in_files(compiled, to)
+                })
+    }
+
+    /// Whether an example's rule looked at an import. A table row counts only an import that its
+    /// limits apply to; another rule looks as it did in 0.1, before the import's own facts.
+    pub(crate) fn looks_at(&self, rule: usize, edge: &Edge<'_>, classes: &Classes) -> bool {
+        if matches!(self.config.rules[rule].kind, RuleKind::TableRow { .. }) {
+            self.judges(rule, edge, classes)
+        } else {
+            self.considers(
+                rule,
+                classes.key(edge.from.class),
+                classes.key(edge.to.class),
+            )
+        }
+    }
+
+    pub(crate) fn test(&self, check: &Check, edge: &Edge<'_>, classes: &Classes) -> bool {
         let compiled = &self.sentences[check.sentence];
         let sentence = &self.config.rules[compiled.rule].sentences[compiled.sentence];
         match check.test {
             Test::Always => true,
-            Test::Entry => {
-                edge.from.classification != edge.to.classification && !is_entry(sentence, &edge.to)
+            Test::Entry => different_instances(sentence, edge) && !is_entry(sentence, &edge.to),
+            Test::Facts => crate::facts::hold(sentence, edge, classes),
+            Test::OtherInstance => {
+                compiled.own_instance.is_some_and(|own| match own {
+                    OwnInstance::Element(element) => instances_differ(element, edge),
+                    OwnInstance::Kind(table) => classes.kind_instances(edge, table) != Some(true),
+                }) && crate::facts::hold(sentence, edge, classes)
             }
-            Test::Facts => crate::facts::hold(sentence, edge),
         }
+    }
+}
+
+/// Whether a file of this class is in a set of files.
+fn in_set(set: usize, class: &ClassKey) -> bool {
+    matches!(class, ClassKey::File { bits, .. } if bits[set])
+}
+
+/// Whether a file of this class is among a sentence's files.
+pub(crate) fn in_files(compiled: &Compiled, class: &ClassKey) -> bool {
+    let config_file = matches!(
+        class,
+        ClassKey::File {
+            config_file: true,
+            ..
+        }
+    );
+    !(compiled.of_table && config_file) && in_set(compiled.files, class)
+}
+
+/// Whether a file of this class is among a sentence's own files.
+fn in_own(compiled: &Compiled, class: &ClassKey) -> bool {
+    in_set(compiled.own_files, class)
+}
+
+/// Whether the two ends of an import are in different instances of an entry sentence's element.
+fn different_instances(sentence: &Sentence, edge: &Edge<'_>) -> bool {
+    let Condition::Entry { element, .. } = &sentence.condition else {
+        return false;
+    };
+    let from = edge.from.classification.and_then(|c| c.of(*element));
+    let to = edge.to.classification.and_then(|c| c.of(*element));
+    match (from, to) {
+        (Some(from), Some(to)) => !from.same_root(to),
+        (None, None) => false,
+        _ => true,
+    }
+}
+
+/// Whether the two ends of an import are in different instances of an element, or only one of them
+/// is in it.
+fn instances_differ(element: ElementId, edge: &Edge<'_>) -> bool {
+    let from = edge.from.classification.and_then(|c| c.of(element));
+    let to = edge.to.classification.and_then(|c| c.of(element));
+    match (from, to) {
+        (Some(from), Some(to)) => !from.same_instance(to),
+        (None, None) => false,
+        _ => true,
     }
 }
 
 /// Whether the target of an import is one of an entry sentence's entry files.
 fn is_entry(sentence: &Sentence, to: &End<'_>) -> bool {
-    let (Condition::Entry { files, .. }, Some(class), Some(path)) =
-        (&sentence.condition, to.classification, to.path)
+    let Condition::Entry { files, element } = &sentence.condition else {
+        return false;
+    };
+    let (Some(class), Some(path)) = (to.classification.and_then(|c| c.of(*element)), to.path)
     else {
         return false;
     };
@@ -472,5 +694,19 @@ pub(crate) fn covers(imports: ImportKinds, kind: ImportKind) -> bool {
 /// for the fault control.
 fn search_every_rule() -> bool {
     fail::fail_point!("rules::search_every_rule", |_| true);
+    false
+}
+
+/// The `rules::area_per_import` fail point: counts each import as a test of the area of every
+/// sentence that has one, for the fault control.
+fn area_per_import() -> bool {
+    fail::fail_point!("rules::area_per_import", |_| true);
+    false
+}
+
+/// The `rules::every_row` fail point: counts each import as a test of every row of every table, for
+/// the fault control.
+fn every_row() -> bool {
+    fail::fail_point!("rules::every_row", |_| true);
     false
 }

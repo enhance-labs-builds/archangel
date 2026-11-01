@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "archangel"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "annotate-snippets",
  "archangel_config",
@@ -118,10 +118,11 @@ dependencies = [
 
 [[package]]
 name = "archangel_config"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "archangel_testkit",
  "jsonschema",
+ "nodejs-built-in-modules",
  "proptest",
  "regex",
  "serde_json",
@@ -130,7 +131,7 @@ dependencies = [
 
 [[package]]
 name = "archangel_engine"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "archangel_config",
  "archangel_graph",
@@ -149,7 +150,7 @@ dependencies = [
 
 [[package]]
 name = "archangel_graph"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "archangel_testkit",
  "dunce",
@@ -171,7 +172,7 @@ dependencies = [
 
 [[package]]
 name = "archangel_lsp"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "archangel_engine",
  "archangel_graph",
@@ -188,7 +189,7 @@ dependencies = [
 
 [[package]]
 name = "archangel_rules"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "archangel_config",
  "archangel_graph",
@@ -203,7 +204,7 @@ dependencies = [
 
 [[package]]
 name = "archangel_testkit"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "serde_json",
  "tempfile",

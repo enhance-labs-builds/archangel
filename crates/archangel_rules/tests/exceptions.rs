@@ -246,3 +246,48 @@ fn an_unused_exception_is_about_a_file_only_when_its_own_file_breaks_the_rule() 
         "userProfile.ts breaks the rule, but a.ts, where the comment is, does not"
     );
 }
+
+fn domain_table() -> serde_json::Value {
+    json!({
+        "parts": { "api": "apps/api/**" },
+        "rules": [{
+            "kind": "mayImport",
+            "name": "domain",
+            "rows": { "entity": ["use-case"], "use-case": [] },
+            "kinds": "**/*.{kind}.ts",
+        }],
+    })
+}
+
+#[test]
+fn an_exception_and_a_baseline_entry_for_a_removed_row_are_stale() {
+    let repo = FixtureRepo::new()
+        .file("apps/api/save.use-case.ts", "")
+        .file(
+            "apps/api/a.entity.ts",
+            "// archangel-allow domain.port: reads the raw store\nimport './save.use-case';\n",
+        );
+    let baseline = archangel_rules::Baseline::parse(
+        r#"{ "schemaVersion": 1, "entries": [{ "rule": "domain.port", "file": "apps/api/a.entity.ts", "specifier": "./x", "count": 1 }] }"#,
+    )
+    .expect("a valid baseline");
+    let (report, _) = support::check(&domain_table(), &repo, Some(&baseline));
+    let codes: Vec<&str> = report.diagnostics.iter().map(|d| d.code.as_str()).collect();
+    assert!(
+        codes.contains(&"exception-unknown-rule") && codes.contains(&"baseline-stale"),
+        "{codes:?}"
+    );
+}
+
+#[test]
+fn an_exception_for_a_row_that_permits_the_import_is_unused() {
+    let repo = FixtureRepo::new()
+        .file("apps/api/save.use-case.ts", "")
+        .file(
+            "apps/api/a.entity.ts",
+            "// archangel-allow domain.entity: needs the use case for now\nimport './save.use-case';\n",
+        );
+    let (report, _) = support::check(&domain_table(), &repo, None);
+    let codes: Vec<&str> = report.diagnostics.iter().map(|d| d.code.as_str()).collect();
+    assert_eq!(codes, ["exception-unused"], "{:?}", report.diagnostics);
+}

@@ -1,0 +1,72 @@
+pass  fsd/forbidden-imports  accepted #1  apps/web/src/entities/example-user/index.ts, apps/web/src/features/example-login/model/a.ts
+pass  fsd/forbidden-imports  accepted #2  apps/web/src/entities/example-a/model/a.ts, apps/web/src/entities/example-b/@x/example-a.ts
+pass  fsd/forbidden-imports  rejected #1  apps/web/src/features/example-login/index.ts, apps/web/src/shared/example-lib/index.ts
+pass  fsd/forbidden-imports  rejected #2  apps/web/src/features/example-a/model/a.ts, apps/web/src/features/example-b/index.ts
+pass  fsd/no-public-api-sidestep  accepted #1  apps/web/src/features/example-login/index.ts, apps/web/src/pages/example-home/ui/a.ts
+pass  fsd/no-public-api-sidestep  rejected #1  apps/web/src/features/example-login/model/x.ts, apps/web/src/pages/example-home/ui/a.ts
+pass  fsd/no-public-api-sidestep  rejected #2  apps/web/src/features/example-login/model/a.ts, apps/web/src/shared/example-api/client.ts, apps/web/src/shared/example-api/index.ts
+pass  fsd/public-api  rejected #1  apps/web/src/features/login/form.ts
+pass  fsd/no-layer-public-api  rejected #1  apps/web/src/entities/index.ts
+pass  fsd/no-reserved-folder-names  rejected #1  apps/web/src/shared/example-kit/ui/button.ts
+pass  fsd/no-segmentless-slices  accepted #1  apps/web/src/features/example-login/index.ts, apps/web/src/features/example-login/model/login.ts
+pass  fsd/no-segmentless-slices  rejected #1  apps/web/src/features/example-login/index.ts, apps/web/src/features/example-login/login.ts
+pass  fsd/no-segments-on-sliced-layers  rejected #1  apps/web/src/features/ui/button.ts
+pass  fsd/no-ui-in-app  rejected #1  apps/web/src/app/ui/root.tsx
+pass  fsd/no-ui-in-app  rejected #2  apps/web/src/app/ui.tsx
+pass  fsd/segments-by-purpose  rejected #1  apps/web/src/features/example-login/utils/format.ts
+pass  fsd/segments-by-purpose  rejected #2  apps/web/src/shared/helpers.ts
+pass  fsd/no-processes  rejected #1  apps/web/src/processes/example-checkout/index.ts
+pass  fsd/typo-in-layer-name  accepted #1  apps/web/src/features/example-login/index.ts
+pass  fsd/typo-in-layer-name  rejected #1  apps/web/src/featurez/example.ts
+pass  fsd/ambiguous-slice-names  accepted #1  apps/web/src/features/example-login/model/a.ts
+pass  fsd/ambiguous-slice-names  rejected #1  apps/web/src/features/example-kit/model/a.ts, apps/web/src/shared/example-kit/index.ts
+pass  fsd/inconsistent-naming  accepted #1  apps/web/src/entities/example-group/apples/model/a.ts, apps/web/src/entities/example-group/pears/model/a.ts
+pass  fsd/inconsistent-naming  rejected #1  apps/web/src/entities/example-group/order-line/model/a.ts, apps/web/src/entities/example-group/orders/model/a.ts
+pass  fsd/repetitive-naming  accepted #1  apps/web/src/features/example-group/drop/model/a.ts, apps/web/src/features/example-group/load/model/a.ts, apps/web/src/features/example-group/save/model/a.ts
+pass  fsd/repetitive-naming  rejected #1  apps/web/src/features/example-group/item-drop/model/a.ts, apps/web/src/features/example-group/item-load/model/a.ts, apps/web/src/features/example-group/item-save/model/a.ts
+pass  fsd/excessive-slicing  accepted #1  apps/web/src/widgets/example-group/footer/ui/a.ts, apps/web/src/widgets/example-group/header/ui/a.ts
+pass  fsd/excessive-slicing  rejected #1  apps/web/src/widgets/example-group/w01/ui/a.ts, apps/web/src/widgets/example-group/w02/ui/a.ts, apps/web/src/widgets/example-group/w03/ui/a.ts, apps/web/src/widgets/example-group/w04/ui/a.ts, apps/web/src/widgets/example-group/w05/ui/a.ts, apps/web/src/widgets/example-group/w06/ui/a.ts, apps/web/src/widgets/example-group/w07/ui/a.ts, apps/web/src/widgets/example-group/w08/ui/a.ts, apps/web/src/widgets/example-group/w09/ui/a.ts, apps/web/src/widgets/example-group/w10/ui/a.ts, apps/web/src/widgets/example-group/w11/ui/a.ts, apps/web/src/widgets/example-group/w12/ui/a.ts, apps/web/src/widgets/example-group/w13/ui/a.ts, apps/web/src/widgets/example-group/w14/ui/a.ts, apps/web/src/widgets/example-group/w15/ui/a.ts, apps/web/src/widgets/example-group/w16/ui/a.ts, apps/web/src/widgets/example-group/w17/ui/a.ts, apps/web/src/widgets/example-group/w18/ui/a.ts, apps/web/src/widgets/example-group/w19/ui/a.ts, apps/web/src/widgets/example-group/w20/ui/a.ts, apps/web/src/widgets/example-group/w21/ui/a.ts
+pass  fsd/shared-lib-grouping  accepted #1  apps/web/src/shared/lib/example-dates/index.ts
+pass  fsd/shared-lib-grouping  rejected #1  apps/web/src/shared/lib/example-01.ts, apps/web/src/shared/lib/example-02.ts, apps/web/src/shared/lib/example-03.ts, apps/web/src/shared/lib/example-04.ts, apps/web/src/shared/lib/example-05.ts, apps/web/src/shared/lib/example-06.ts, apps/web/src/shared/lib/example-07.ts, apps/web/src/shared/lib/example-08.ts, apps/web/src/shared/lib/example-09.ts, apps/web/src/shared/lib/example-10.ts, apps/web/src/shared/lib/example-11.ts, apps/web/src/shared/lib/example-12.ts, apps/web/src/shared/lib/example-13.ts, apps/web/src/shared/lib/example-14.ts, apps/web/src/shared/lib/example-15.ts, apps/web/src/shared/lib/example-16.ts
+pass  fsd-admin/forbidden-imports  accepted #1  apps/admin/src/entities/example-user/index.ts, apps/admin/src/features/example-login/model/a.ts
+pass  fsd-admin/forbidden-imports  accepted #2  apps/admin/src/entities/example-a/model/a.ts, apps/admin/src/entities/example-b/@x/example-a.ts
+pass  fsd-admin/forbidden-imports  rejected #1  apps/admin/src/features/example-login/index.ts, apps/admin/src/shared/example-lib/index.ts
+pass  fsd-admin/forbidden-imports  rejected #2  apps/admin/src/features/example-a/model/a.ts, apps/admin/src/features/example-b/index.ts
+pass  fsd-admin/no-higher-level-imports  accepted #1  apps/admin/src/entities/example-user/index.ts, apps/admin/src/features/example-login/model/a.ts
+pass  fsd-admin/no-higher-level-imports  rejected #1  apps/admin/src/features/example-login/index.ts, apps/admin/src/shared/example-lib/index.ts
+pass  fsd-admin/no-cross-imports  accepted #1  apps/admin/src/entities/example-a/model/a.ts, apps/admin/src/entities/example-b/@x/example-a.ts
+pass  fsd-admin/no-cross-imports  rejected #1  apps/admin/src/features/example-a/model/a.ts, apps/admin/src/features/example-b/index.ts
+pass  fsd-admin/no-public-api-sidestep  accepted #1  apps/admin/src/features/example-login/index.ts, apps/admin/src/pages/example-home/ui/a.ts
+pass  fsd-admin/no-public-api-sidestep  rejected #1  apps/admin/src/features/example-login/model/x.ts, apps/admin/src/pages/example-home/ui/a.ts
+pass  fsd-admin/no-public-api-sidestep  rejected #2  apps/admin/src/features/example-login/model/a.ts, apps/admin/src/shared/example-api/client.ts, apps/admin/src/shared/example-api/index.ts
+pass  fsd-admin/public-api  accepted #1  apps/admin/src/features/example-login/index.ts, apps/admin/src/features/example-login/model/x.ts
+pass  fsd-admin/public-api  rejected #1  apps/admin/src/features/example-login/model/x.ts
+pass  fsd-admin/no-layer-public-api  rejected #1  apps/admin/src/entities/index.ts
+pass  fsd-admin/no-reserved-folder-names  rejected #1  apps/admin/src/shared/example-kit/ui/button.ts
+pass  fsd-admin/no-segmentless-slices  accepted #1  apps/admin/src/features/example-login/index.ts, apps/admin/src/features/example-login/model/login.ts
+pass  fsd-admin/no-segmentless-slices  rejected #1  apps/admin/src/features/example-login/index.ts, apps/admin/src/features/example-login/login.ts
+pass  fsd-admin/no-segments-on-sliced-layers  rejected #1  apps/admin/src/features/ui/button.ts
+pass  fsd-admin/no-ui-in-app  rejected #1  apps/admin/src/app/ui/root.tsx
+pass  fsd-admin/no-ui-in-app  rejected #2  apps/admin/src/app/ui.tsx
+pass  fsd-admin/segments-by-purpose  rejected #1  apps/admin/src/features/example-login/utils/format.ts
+pass  fsd-admin/segments-by-purpose  rejected #2  apps/admin/src/shared/helpers.ts
+pass  fsd-admin/no-processes  rejected #1  apps/admin/src/processes/example-checkout/index.ts
+pass  fsd-admin/import-locality  accepted #1  apps/admin/src/features/example-a/lib/c.ts, apps/admin/src/features/example-a/model/a.ts
+pass  fsd-admin/import-locality  rejected #1  apps/admin/src/entities/example-b/index.ts, apps/admin/src/features/example-a/model/a.ts
+pass  fsd-admin/no-wildcard-exports  accepted #1  apps/admin/src/features/example-a/index.ts, apps/admin/src/features/example-a/model/a.ts
+pass  fsd-admin/no-wildcard-exports  rejected #1  apps/admin/src/features/example-a/index.ts, apps/admin/src/features/example-a/model/a.ts
+pass  fsd-admin/typo-in-layer-name  accepted #1  apps/admin/src/features/example-login/index.ts
+pass  fsd-admin/typo-in-layer-name  rejected #1  apps/admin/src/featurez/example.ts
+pass  fsd-admin/ambiguous-slice-names  accepted #1  apps/admin/src/features/example-login/model/a.ts
+pass  fsd-admin/ambiguous-slice-names  rejected #1  apps/admin/src/features/example-kit/model/a.ts, apps/admin/src/shared/example-kit/index.ts
+pass  fsd-admin/inconsistent-naming  accepted #1  apps/admin/src/entities/example-group/apples/model/a.ts, apps/admin/src/entities/example-group/pears/model/a.ts
+pass  fsd-admin/inconsistent-naming  rejected #1  apps/admin/src/entities/example-group/order-line/model/a.ts, apps/admin/src/entities/example-group/orders/model/a.ts
+pass  fsd-admin/insignificant-slice  accepted #1  apps/admin/src/entities/example-used/index.ts, apps/admin/src/entities/example-used/model/a.ts, apps/admin/src/pages/example-one/ui/a.ts, apps/admin/src/pages/example-two/ui/b.ts
+pass  fsd-admin/insignificant-slice  rejected #1  apps/admin/src/entities/example-lonely/index.ts, apps/admin/src/entities/example-lonely/model/a.ts
+pass  fsd-admin/repetitive-naming  accepted #1  apps/admin/src/features/example-group/drop/model/a.ts, apps/admin/src/features/example-group/load/model/a.ts, apps/admin/src/features/example-group/save/model/a.ts
+pass  fsd-admin/repetitive-naming  rejected #1  apps/admin/src/features/example-group/item-drop/model/a.ts, apps/admin/src/features/example-group/item-load/model/a.ts, apps/admin/src/features/example-group/item-save/model/a.ts
+pass  fsd-admin/excessive-slicing  accepted #1  apps/admin/src/widgets/example-group/footer/ui/a.ts, apps/admin/src/widgets/example-group/header/ui/a.ts
+pass  fsd-admin/excessive-slicing  rejected #1  apps/admin/src/widgets/example-group/w01/ui/a.ts, apps/admin/src/widgets/example-group/w02/ui/a.ts, apps/admin/src/widgets/example-group/w03/ui/a.ts, apps/admin/src/widgets/example-group/w04/ui/a.ts, apps/admin/src/widgets/example-group/w05/ui/a.ts, apps/admin/src/widgets/example-group/w06/ui/a.ts, apps/admin/src/widgets/example-group/w07/ui/a.ts, apps/admin/src/widgets/example-group/w08/ui/a.ts, apps/admin/src/widgets/example-group/w09/ui/a.ts, apps/admin/src/widgets/example-group/w10/ui/a.ts, apps/admin/src/widgets/example-group/w11/ui/a.ts, apps/admin/src/widgets/example-group/w12/ui/a.ts, apps/admin/src/widgets/example-group/w13/ui/a.ts, apps/admin/src/widgets/example-group/w14/ui/a.ts, apps/admin/src/widgets/example-group/w15/ui/a.ts, apps/admin/src/widgets/example-group/w16/ui/a.ts, apps/admin/src/widgets/example-group/w17/ui/a.ts, apps/admin/src/widgets/example-group/w18/ui/a.ts, apps/admin/src/widgets/example-group/w19/ui/a.ts, apps/admin/src/widgets/example-group/w20/ui/a.ts, apps/admin/src/widgets/example-group/w21/ui/a.ts
+pass  fsd-admin/shared-lib-grouping  accepted #1  apps/admin/src/shared/lib/example-dates/index.ts
+pass  fsd-admin/shared-lib-grouping  rejected #1  apps/admin/src/shared/lib/example-01.ts, apps/admin/src/shared/lib/example-02.ts, apps/admin/src/shared/lib/example-03.ts, apps/admin/src/shared/lib/example-04.ts, apps/admin/src/shared/lib/example-05.ts, apps/admin/src/shared/lib/example-06.ts, apps/admin/src/shared/lib/example-07.ts, apps/admin/src/shared/lib/example-08.ts, apps/admin/src/shared/lib/example-09.ts, apps/admin/src/shared/lib/example-10.ts, apps/admin/src/shared/lib/example-11.ts, apps/admin/src/shared/lib/example-12.ts, apps/admin/src/shared/lib/example-13.ts, apps/admin/src/shared/lib/example-14.ts, apps/admin/src/shared/lib/example-15.ts, apps/admin/src/shared/lib/example-16.ts
+71 examples, none failed; 0 rules without a rejected example

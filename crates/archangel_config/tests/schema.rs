@@ -73,6 +73,7 @@ fn refuses_option(condition: &str, option: &str) -> bool {
         "instance" => json!("different"),
         "dependency" => json!("dev"),
         "transitively" => json!(true),
+        "within" => json!("app"),
         // A chain's end means nothing without a chain.
         "stopAt" => {
             rule["transitively"] = json!(true);
@@ -133,7 +134,7 @@ fn sentence_fields(condition: &str, scope: &str) -> Vec<String> {
     let fields = known_fields(Some(
         json!({ "files": "app", "noCycles": true, "unknownField": 1 }),
     ));
-    let common = ["name", "reason", "link", "examples"];
+    let common = ["name", "reason", "because", "link", "examples"];
     fields
         .into_iter()
         .filter(|field| {
@@ -189,7 +190,7 @@ fn the_published_schema_has_exactly_the_fields_the_parser_knows() {
         .collect();
     assert_eq!(
         kinds,
-        ["layers", "isolate", "entry"],
+        ["layers", "isolate", "entry", "mayImport"],
         "one schema per shorthand"
     );
     for (rule, kind) in shorthands.iter().zip(kinds) {

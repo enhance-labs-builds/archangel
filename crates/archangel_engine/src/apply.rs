@@ -2,16 +2,17 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use archangel_graph::{GraphOptions, ImportGraph, Resolution, Work};
-use archangel_rules::{
-    Architecture, Classes, Diagnostic, Kept, Lookup, Report, StructureChange, Summary,
-};
+use archangel_graph::{GraphOptions, ImportGraph, ImportKind, Resolution, SourceFile, Work};
+use archangel_rules::{Classes, Diagnostic, Kept, Lookup, Report, StructureChange, Summary};
 
 use crate::baseline_file;
 use crate::events::{self, Known, PathEvent, Plan, Step};
 use crate::plugins::{Files, PluginAnswer};
 use crate::session::{Session, config_problems};
 use crate::view::FileRecord;
+
+/// Where the imports of a file resolve, and their marks.
+type Ends = (Vec<Resolution>, Vec<ImportKind>);
 
 /// A change to the session.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -254,26 +255,28 @@ impl Session {
     }
 
     /// Where every file's imports resolve now.
-    fn resolutions(&self) -> BTreeMap<String, Vec<Resolution>> {
+    fn resolutions(&self) -> BTreeMap<String, Ends> {
         self.graph
             .files()
             .iter()
-            .map(|file| {
-                let resolutions = self.graph.resolutions(&file.path).unwrap_or(&[]).to_vec();
-                (file.path.clone(), resolutions)
-            })
+            .map(|file| (file.path.clone(), self.ends(file)))
             .collect()
     }
 
-    /// The files whose imports resolve elsewhere than `before`, new files included, which are the
-    /// only files whose checks a new resolution can change.
-    fn moved_since(&self, before: &BTreeMap<String, Vec<Resolution>>) -> Vec<String> {
+    /// Where the imports of a file resolve, and their marks.
+    fn ends(&self, file: &SourceFile) -> Ends {
+        let resolutions = self.graph.resolutions(&file.path).unwrap_or(&[]).to_vec();
+        let marks = file.facts.iter().flat_map(|facts| &facts.imports);
+        (resolutions, marks.map(|import| import.kind).collect())
+    }
+
+    /// The files whose imports resolve elsewhere than `before` or changed their marks, new files
+    /// included, which are the only files whose checks a new resolution can change.
+    fn moved_since(&self, before: &BTreeMap<String, Ends>) -> Vec<String> {
         self.graph
             .files()
             .iter()
-            .filter(|file| {
-                before.get(&file.path).map(Vec::as_slice) != self.graph.resolutions(&file.path)
-            })
+            .filter(|file| before.get(&file.path) != Some(&self.ends(file)))
             .map(|file| file.path.clone())
             .collect()
     }
@@ -404,7 +407,7 @@ impl Session {
         if plan.needs(Step::Config) {
             match crate::plugins::load(&self.config_path) {
                 Ok(loaded) => {
-                    self.architecture = Architecture::compile(loaded.config);
+                    self.architecture = crate::session::compiled(loaded.config, &self.config_path);
                     self.classes = Classes::new();
                     self.plugins.replace(loaded.process, &self.architecture);
                     self.config_inputs = loaded.inputs;

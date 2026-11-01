@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use crate::names::{NamePattern, Style};
 use crate::pattern::Pattern;
+use crate::problem::{ConfigProblem, ProblemCode};
 
 /// The index of an element in [`Config::elements`], in declaration order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -40,6 +41,146 @@ pub struct Config {
     pub plugins: Vec<Plugin>,
     /// The presets the config extends, in order.
     pub presets: Vec<Preset>,
+    /// The rules that `off` removes, which only `archangel rules` and `explain` read.
+    pub off: Vec<Rule>,
+    /// The tables, in declaration order.
+    pub tables: Vec<Table>,
+    /// Whether the config says parts and groups, so that messages say so too.
+    pub says_parts: bool,
+}
+
+impl Config {
+    /// What the config calls a part.
+    #[must_use]
+    pub fn part_word(&self) -> &'static str {
+        if self.says_parts { "part" } else { "element" }
+    }
+
+    /// What the config calls a group.
+    #[must_use]
+    pub fn group_word(&self) -> &'static str {
+        if self.says_parts { "group" } else { "selector" }
+    }
+
+    /// A problem for each name of an externals set that is a package of the workspace, which only
+    /// a check can know, because an import of it resolves to a repository file.
+    #[must_use]
+    pub fn externals_in_workspace(
+        &self,
+        is_workspace_package: impl Fn(&str) -> bool,
+    ) -> Vec<ConfigProblem> {
+        let mut problems = Vec::new();
+        for element in self.elements.iter().filter(|element| element.externals) {
+            let ElementKind::Packages(patterns) = &element.kind else {
+                continue;
+            };
+            for name in patterns.iter().map(Pattern::source) {
+                if is_workspace_package(name) {
+                    problems.push(
+                        ConfigProblem::new(
+                            ProblemCode::ConfigInvalid,
+                            format!(
+                                "`{name}` is a package of the workspace, so an import of it \
+                                 resolves to a repository file and its part judges it; name that \
+                                 part in the rule"
+                            ),
+                        )
+                        .at(format!("externals.{}", element.name)),
+                    );
+                }
+            }
+        }
+        problems
+    }
+}
+
+/// The index of a table in [`Config::tables`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TableId(pub u32);
+
+impl TableId {
+    /// The position of the table in the config.
+    #[must_use]
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+/// An import table: what no sentence of its rows holds. Each row is a rule.
+#[derive(Debug, Clone)]
+pub struct Table {
+    /// The name, with a preset's prefix.
+    pub name: String,
+    /// The pattern that gives each file its kind.
+    pub kinds: Option<KindPattern>,
+    /// The files whose imports the table judges.
+    pub files: FileSet,
+    /// Whether the config wrote no `files`, so the table judges the files of its rows.
+    pub default_files: bool,
+    /// Each row key with the files of its name, in the order of the config.
+    pub rows: Vec<(String, FileSet)>,
+    /// Written examples, run against all the rows.
+    pub examples: Examples,
+    /// Whether a preset declares the table.
+    pub from_preset: bool,
+}
+
+/// A table's pattern for the kinds of files.
+#[derive(Debug, Clone)]
+pub struct KindPattern {
+    /// The pattern.
+    pub pattern: Pattern,
+    /// Its place among the patterns that one pass over a path tests.
+    pub id: PatternId,
+}
+
+/// What a kind pattern finds in a path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KindPlace {
+    /// The kind.
+    pub kind: String,
+    /// The values of the pattern's other captures, which name one instance of the kind.
+    pub instance: Vec<String>,
+}
+
+/// The extensions of a declaration file, which count as one extension for a kind.
+const DECLARATIONS: [(&str, &str); 3] = [(".d.ts", ".ts"), (".d.mts", ".mts"), (".d.cts", ".cts")];
+
+impl KindPattern {
+    /// The place of a path, read when one pass of the patterns found that the pattern matches it.
+    /// A declaration file is read in any case, because its `.d` is not part of a kind.
+    #[must_use]
+    pub fn place(&self, path: &str, matched: bool) -> Option<KindPlace> {
+        let declaration = DECLARATIONS
+            .iter()
+            .find_map(|(long, short)| Some(format!("{}{short}", path.strip_suffix(long)?)));
+        if let Some(plain) = declaration {
+            return self
+                .read(&plain)
+                .or_else(|| self.read(path).filter(|place| matched && place.kind != "d"));
+        }
+        if matched { self.read(path) } else { None }
+    }
+
+    fn read(&self, path: &str) -> Option<KindPlace> {
+        let found = self.pattern.matches(path)?;
+        let mut kind = String::new();
+        let mut instance = Vec::new();
+        for (name, value) in self.pattern.captures().iter().zip(found.captures) {
+            if name == crate::pattern::KIND {
+                kind = value;
+            } else {
+                instance.push(value);
+            }
+        }
+        Some(KindPlace { kind, instance })
+    }
+
+    /// Whether the pattern has a capture other than the kind, which makes an instance.
+    #[must_use]
+    pub fn has_instance(&self) -> bool {
+        self.pattern.captures().len() > 1
+    }
 }
 
 /// A preset the config extends, after the merge: its name, its root, and what it declared.
@@ -171,6 +312,15 @@ pub enum Term {
     Directive(String),
     /// The files of a declared selector.
     Selector(SelectorId),
+    /// The files that a table's kind pattern gives this kind.
+    Kind {
+        /// The table.
+        table: TableId,
+        /// The kind.
+        kind: String,
+    },
+    /// The files that a table's kind pattern gives any kind.
+    AnyKind(TableId),
     /// The files in every one of the last this many sets.
     All(usize),
     /// The files in any one of the last this many sets.
@@ -184,6 +334,39 @@ impl FileSet {
     #[must_use]
     pub fn of(term: Term) -> Self {
         Self { terms: vec![term] }
+    }
+
+    /// The set of every file: the files not in the set of nothing.
+    #[must_use]
+    pub fn every_file() -> Self {
+        Self {
+            terms: vec![Term::Any(0), Term::Not],
+        }
+    }
+
+    /// The files in one or more of these sets.
+    #[must_use]
+    pub fn any(sets: &[Self]) -> Self {
+        let mut terms: Vec<Term> = sets.iter().flat_map(|set| set.terms.clone()).collect();
+        terms.push(Term::Any(sets.len()));
+        Self { terms }
+    }
+
+    /// The files in this set and in the other.
+    #[must_use]
+    pub fn and(&self, other: &Self) -> Self {
+        let mut terms = self.terms.clone();
+        terms.extend(other.terms.iter().cloned());
+        terms.push(Term::All(2));
+        Self { terms }
+    }
+
+    /// The files not in this set.
+    #[must_use]
+    pub fn not(&self) -> Self {
+        let mut terms = self.terms.clone();
+        terms.push(Term::Not);
+        Self { terms }
     }
 
     /// The element, when the set is exactly one element's files.
@@ -231,7 +414,9 @@ impl FileSet {
                 | Term::Instance { .. }
                 | Term::AnyElement
                 | Term::Directive(_)
-                | Term::Selector(_) => index,
+                | Term::Selector(_)
+                | Term::Kind { .. }
+                | Term::AnyKind(_) => index,
             };
             starts.push(start);
         }
@@ -314,6 +499,32 @@ pub struct ImportOptions {
     pub transitively: bool,
     /// The files where a chain ends without following their imports.
     pub stop_at: Option<FileSet>,
+    /// The area: only imports whose other end is in it, for `mayOnlyImport` the target and for
+    /// `mayOnlyBeImportedBy` the importer.
+    pub within: Option<Side>,
+    /// The row a sentence of a table stands for, whose name its files are part of.
+    pub own: Option<OwnFiles>,
+}
+
+/// The files of a row's own name, which may be more than the files that the row judges.
+#[derive(Debug, Clone)]
+pub struct OwnFiles {
+    /// The files of the name, in the whole repository.
+    pub files: FileSet,
+    /// What makes an instance of the name, when something does.
+    pub instance: Option<OwnInstance>,
+    /// Whether a `mayOnlyImport` sentence permits its own name, in the same instance when the name
+    /// has one.
+    pub permitted: bool,
+}
+
+/// What makes an instance of a row's name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OwnInstance {
+    /// The captures of a part.
+    Element(ElementId),
+    /// The captures other than the kind in a table's kind pattern.
+    Kind(TableId),
 }
 
 impl ImportOptions {
@@ -506,6 +717,14 @@ pub struct Element {
     pub name: String,
     /// What the element matches.
     pub kind: ElementKind,
+    /// The set of elements it belongs to: a file is in one element of each set. Set 0 is the
+    /// config's own; with `parts`, each preset has a set of its own.
+    pub set: u32,
+    /// Whether the config declares it under `parts`, so that a second match is `part-overlap`.
+    pub part: bool,
+    /// Whether the config declares it under `externals`, so that a package is in every such set
+    /// that lists it.
+    pub externals: bool,
 }
 
 /// What an element matches.
@@ -571,12 +790,27 @@ pub struct Rule {
     pub sentences: Vec<Sentence>,
     /// Why the team has the rule.
     pub reason: Option<String>,
+    /// Whether the config wrote the reason with `because`.
+    pub because: bool,
     /// Where to read more.
     pub link: Option<String>,
     /// Which imports the rule checks.
     pub imports: ImportKinds,
     /// Files the rule must accept and must reject.
     pub examples: Examples,
+    /// Where a builder made the rule, or `None` for a rule that the config writes as data.
+    pub source: Option<RuleSource>,
+    /// Whether the config wrote the rule to replace the preset rule of its name.
+    pub replaces_preset_rule: bool,
+}
+
+/// Where a rule builder was called.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuleSource {
+    /// The full path of the file.
+    pub file: String,
+    /// The line, from 1.
+    pub line: u32,
 }
 
 impl Rule {
@@ -612,6 +846,13 @@ pub enum RuleKind {
         /// Entry file patterns, relative to the instance root.
         files: Vec<Pattern>,
     },
+    /// A row of a table, or with no row the table's `every-file-has-a-kind` rule.
+    TableRow {
+        /// The table.
+        table: TableId,
+        /// The row key, or `None` for the `every-file-has-a-kind` rule.
+        row: Option<String>,
+    },
     /// One selector and one condition, written with `rule()`.
     Sentence,
 }
@@ -626,6 +867,8 @@ pub struct Examples {
     pub accepted: Vec<ExampleFiles>,
     /// File sets that the rule must reject.
     pub rejected: Vec<ExampleFiles>,
+    /// Whether the config writes one of them as one line, whose files hold nothing but imports.
+    pub one_line: bool,
 }
 
 impl Config {

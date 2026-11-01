@@ -10,6 +10,7 @@
 //! `archangel` command can be installed with Cargo. Its API follows the command's needs and may
 //! change in any release; depend on the command, its JSON output or its language server instead.
 
+mod examples;
 mod load;
 mod locate;
 mod matcher;
@@ -22,6 +23,8 @@ mod plugins;
 mod problem;
 mod rules;
 mod selectors;
+mod shorthand;
+mod tables;
 
 pub use load::{
     CONFIG_NAMES, LOADER, discover, from_loader, is_json, load_json, load_stopped, missing,
@@ -31,11 +34,13 @@ pub use matcher::{Classification, ElementMatcher, PathMatch, package_matches};
 pub use model::{
     AllowUnresolved, Condition, Config, DependencyKind, Element, ElementId, ElementKind,
     ExampleFiles, Examples, ExportKind, FileSet, Folders, ImportKinds, ImportOptions,
-    InstanceMatch, NameRule, PatternId, Plugin, PluginCondition, PluginUse, Preset, Reads, Rule,
-    RuleKind, Selector, SelectorId, Sentence, Side, SpecifierForm, Term,
+    InstanceMatch, KindPattern, KindPlace, NameRule, OwnFiles, OwnInstance, PatternId, Plugin,
+    PluginCondition, PluginUse, Preset, Reads, Rule, RuleKind, RuleSource, Selector, SelectorId,
+    Sentence, Side, SpecifierForm, Table, TableId, Term,
 };
 pub use names::{NamePart, NamePattern, Owner, Style, placeholders};
-pub use parse::{from_value, parse_json};
+pub use parse::{from_value, nearest, parse_json};
 pub use pattern::{Pattern, PatternError, PatternMatch, normalize_path};
 pub use plugins::VIEW_SCHEMA_VERSION;
 pub use problem::{ConfigProblem, ProblemCode};
+pub use tables::EVERY_FILE_HAS_A_KIND;

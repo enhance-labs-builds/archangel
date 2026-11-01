@@ -8,12 +8,13 @@ use serde_json::{Map, Value};
 use crate::merge::{self, ConfigPart};
 use crate::model::{
     AllowUnresolved, Config, Element, ElementId, ElementKind, ExampleFiles, Examples, Preset, Rule,
-    SelectorId,
+    RuleSource, SelectorId, Table,
 };
 use crate::pattern::Pattern;
 use crate::plugins::{LoadedPlugins, parse_plugins};
 use crate::problem::{ConfigProblem, ProblemCode};
 use crate::selectors::{Declared, Names, Placement, parse_selectors};
+use crate::tables::TableReader;
 
 /// Parses config text in JSON.
 ///
@@ -97,37 +98,25 @@ pub fn from_value(value: &Value) -> Result<Config, Vec<ConfigProblem>> {
     schema_field(root, &mut problems);
 
     let parts = merge::config_parts(root, &mut problems);
-    let (elements, element_ranges) = collect(&parts, &mut problems, |part, problems| {
-        elements_field(part, parts.len() > 1, problems)
-    });
+    let (elements, element_ranges) = read_elements(root, &parts, &mut problems);
     let (declared, selector_ranges) = collect(&parts, &mut problems, declared_selectors);
     let described = merged_plugins(&parts, &mut problems);
     let plugins = parse_plugins(described.as_ref(), &mut problems);
     let mut names = Names::new(&elements, declared.iter().map(|d| d.name.clone()).collect());
+    names.says_parts = says_parts(root);
     names.plugins = LoadedPlugins {
         plugins: &plugins,
         described: described.as_ref(),
     };
     let (selectors, selector_order) = parse_selectors(&declared, &mut names, &mut problems);
     let presets = presets_of(&parts, &element_ranges, &selector_ranges);
-    let mut found = Found::default();
-    for part in &parts {
-        names.scope = part.scope.clone();
-        rules_field(part, &mut names, &mut found, &mut problems);
-    }
-    names.scope = Placement::default();
     let Found {
         preset: preset_rules,
         config: config_rules,
-    } = found;
-    check_unique_names(&preset_rules, &mut problems);
-    let own: Vec<Rule> = config_rules
-        .iter()
-        .map(|(rule, _, _)| rule.clone())
-        .collect();
-    check_unique_names(&own, &mut problems);
+        tables,
+    } = read_rules(&parts, &mut names, &mut problems);
     let rules = merge::replace(preset_rules, config_rules, &presets, &mut problems);
-    let rules = merge::off(root, rules, &mut problems);
+    let (rules, off) = merge::off(root, rules, &tables, &mut problems);
     let patterns = names.patterns;
     let config = Config {
         selectors,
@@ -139,8 +128,53 @@ pub fn from_value(value: &Value) -> Result<Config, Vec<ConfigProblem>> {
         rules,
         plugins,
         presets,
+        off,
+        tables,
+        says_parts: says_parts(root),
     };
+    crate::examples::one_liners_belong(&config, &mut problems);
     finish(config, problems)
+}
+
+/// The parts or elements of the config and its presets. Under `parts`, each preset has its own set.
+fn read_elements(
+    root: &Map<String, Value>,
+    parts: &[ConfigPart<'_>],
+    problems: &mut Vec<ConfigProblem>,
+) -> (Vec<Element>, Vec<std::ops::Range<usize>>) {
+    let own_parts = root.contains_key("parts");
+    let mut presets_read = 0;
+    collect(parts, problems, |part, problems| {
+        let set = if part.scope.prefix.is_some() && own_parts {
+            presets_read += 1;
+            presets_read
+        } else {
+            0
+        };
+        elements_field(part, parts.len() > 1, set, problems)
+    })
+}
+
+/// The rules of the config and its presets, each list with unique names.
+fn read_rules(
+    parts: &[ConfigPart<'_>],
+    names: &mut Names<'_>,
+    problems: &mut Vec<ConfigProblem>,
+) -> Found {
+    let mut found = Found::default();
+    for part in parts {
+        names.scope = part.scope.clone();
+        rules_field(part, names, &mut found, problems);
+    }
+    names.scope = Placement::default();
+    check_unique_names(&found.preset, &found.tables, problems);
+    let own: Vec<Rule> = found
+        .config
+        .iter()
+        .map(|(rule, _, _)| rule.clone())
+        .collect();
+    check_unique_names(&own, &found.tables, problems);
+    found
 }
 
 fn schema_field(root: &Map<String, Value>, problems: &mut Vec<ConfigProblem>) {
@@ -198,57 +232,234 @@ fn presets_of(
 struct Found {
     preset: Vec<Rule>,
     config: Vec<(Rule, String, bool)>,
+    tables: Vec<Table>,
 }
 
 fn id(index: usize) -> u32 {
     u32::try_from(index).unwrap_or(u32::MAX)
 }
 
+/// The key of one of two spellings that the part uses, and its value. A part with both is refused
+/// at the second, and the first is read.
+pub(crate) fn one_spelling<'v>(
+    object: &'v Map<String, Value>,
+    spellings: [&'static str; 2],
+    at: impl Fn(&str) -> String,
+    problems: &mut Vec<ConfigProblem>,
+) -> Option<(&'static str, &'v Value)> {
+    let mut found = None;
+    for key in object.keys() {
+        let Some(&spelling) = spellings.iter().find(|spelling| **spelling == key.as_str()) else {
+            continue;
+        };
+        match found {
+            None => found = Some((spelling, &object[key])),
+            Some((first, _)) => problems.push(invalid(
+                &at(key),
+                &format!(
+                    "a config uses one spelling for each key, and `{first}` and `{key}` mean the \
+                     same; keep one of them"
+                ),
+            )),
+        }
+    }
+    found
+}
+
 fn elements_field(
     source: &ConfigPart<'_>,
     has_presets: bool,
+    set: u32,
     problems: &mut Vec<ConfigProblem>,
 ) -> Vec<Element> {
-    match source.object.get("elements") {
-        Some(Value::Object(map)) => parse_elements(map, source, problems),
-        Some(_) => {
+    let spelled = one_spelling(
+        source.object,
+        ["parts", "elements"],
+        |k| source.at(k),
+        problems,
+    );
+    let mut elements = match spelled {
+        Some((key, Value::Object(map))) => parse_elements(map, source, (key, set), problems),
+        Some((key, _)) => {
             problems.push(invalid(
-                &source.at("elements"),
-                "must be an object of element names to patterns",
+                &source.at(key),
+                &format!("must be an object of {} names to patterns", part_word(key)),
             ));
             Vec::new()
         }
-        None if source.scope.prefix.is_none() && !has_presets => {
+        None if source.scope.prefix.is_none() && !has_presets && !has_rules(source.object) => {
             problems.push(invalid(
-                "elements",
-                "is missing; declare at least one element",
+                "parts",
+                "is missing, and the config has no rule; declare a part, such as \
+                 `parts: { app: 'src/**' }`, or write a rule",
             ));
             Vec::new()
         }
         None => Vec::new(),
+    };
+    elements.extend(externals_field(source, set, problems));
+    elements
+}
+
+/// Whether the config's own words for its parts are the new ones: it writes them, or it writes
+/// neither spelling and no preset.
+fn says_parts(root: &Map<String, Value>) -> bool {
+    let has = |key: &str| root.contains_key(key);
+    has("parts") || has("groups") || !(has("elements") || has("selectors") || has("extends"))
+}
+
+/// What a key of the config calls the things it declares.
+fn part_word(key: &str) -> &'static str {
+    if key == "parts" { "part" } else { "element" }
+}
+
+/// Whether the config writes a rule.
+fn has_rules(root: &Map<String, Value>) -> bool {
+    match root.get("rules") {
+        None => false,
+        Some(Value::Array(rules)) => !rules.is_empty(),
+        // Not a list: `rules_field` refuses it, and this problem would only add noise.
+        Some(_) => true,
     }
+}
+
+/// The externals sets of a part, as package elements.
+fn externals_field(
+    source: &ConfigPart<'_>,
+    set: u32,
+    problems: &mut Vec<ConfigProblem>,
+) -> Vec<Element> {
+    let Some(value) = source.object.get("externals") else {
+        return Vec::new();
+    };
+    let Some(map) = value.as_object() else {
+        problems.push(invalid(
+            &source.at("externals"),
+            "must be an object of set names to lists of package names",
+        ));
+        return Vec::new();
+    };
+    let mut elements = Vec::new();
+    for (written, names) in map {
+        if !own_name(source, written, "externals", problems) {
+            continue;
+        }
+        let field = source.at(&format!("externals.{written}"));
+        if let Some(other) = declared_as(source, written) {
+            problems.push(invalid(
+                &field,
+                &format!(
+                    "\"{written}\" is also a {other}; a rule side looks a name up as either, so \
+                     give the externals set its own name"
+                ),
+            ));
+            continue;
+        }
+        let Value::Array(items) = names else {
+            problems.push(invalid(&field, "must be a list of package names"));
+            continue;
+        };
+        let names = strings(items, &field, problems);
+        if names.is_empty() {
+            problems.push(invalid(&field, "lists no packages"));
+        }
+        for name in &names {
+            if let Some(reason) = never_matches(name) {
+                problems.push(invalid(&field, &reason));
+            }
+        }
+        let texts: Vec<&str> = names.iter().map(String::as_str).collect();
+        let name = source.scope.name(written);
+        elements.push(Element {
+            kind: ElementKind::Packages(patterns(&name, &field, &texts, problems)),
+            name,
+            set,
+            part: false,
+            externals: true,
+        });
+    }
+    elements
+}
+
+/// What else the part declares under a name, for an externals set of that name.
+fn declared_as(source: &ConfigPart<'_>, name: &str) -> Option<&'static str> {
+    let has = |key: &str| {
+        source
+            .object
+            .get(key)
+            .and_then(Value::as_object)
+            .is_some_and(|map| map.contains_key(name))
+    };
+    if has("parts") || has("elements") {
+        Some("part")
+    } else if has("groups") || has("selectors") {
+        Some("group")
+    } else {
+        None
+    }
+}
+
+/// Why no import can ever count as this name of an externals set: archangel records the package
+/// that an import resolves to, under the `node:` name for a built-in module.
+fn never_matches(name: &str) -> Option<String> {
+    if let Some(built_in) = name.strip_prefix("node:") {
+        let known = name.contains('*')
+            || nodejs_built_in_modules::BUILTINS.contains(&built_in)
+            || nodejs_built_in_modules::BUILTINS_WITH_MANDATORY_NODE_PREFIX.contains(&built_in);
+        return (!known).then(|| {
+            format!("`{name}` is not a Node built-in module, so no import can be this name")
+        });
+    }
+    if nodejs_built_in_modules::BUILTINS.contains(&name) {
+        return Some(format!(
+            "`{name}` is a built-in module, which archangel records with its prefix; write \
+             `node:{name}`"
+        ));
+    }
+    if let Some(types) = name.strip_prefix("@types/") {
+        return Some(format!(
+            "archangel judges the package that an import names, such as `{types}`, and no import \
+             names `{name}`"
+        ));
+    }
+    let folders = if name.starts_with('@') { 2 } else { 1 };
+    let package = name.split('/').take(folders).collect::<Vec<_>>().join("/");
+    (package.len() < name.len()).then(|| {
+        format!(
+            "archangel records the package that an import resolves to, not its subpath, so write \
+             `{package}`, which also counts every subpath"
+        )
+    })
 }
 
 fn declared_selectors<'v>(
     source: &ConfigPart<'v>,
     problems: &mut Vec<ConfigProblem>,
 ) -> Vec<Declared<'v>> {
-    match source.object.get("selectors") {
+    match one_spelling(
+        source.object,
+        ["groups", "selectors"],
+        |k| source.at(k),
+        problems,
+    ) {
         None => Vec::new(),
-        Some(Value::Object(map)) => map
+        Some((key, Value::Object(map))) => map
             .iter()
-            .filter(|(name, _)| own_name(source, name, "selectors", problems))
+            .filter(|(name, _)| own_name(source, name, key, problems))
             .map(|(name, definition)| Declared {
                 name: source.scope.name(name),
                 definition,
-                field: source.at(&format!("selectors.{name}")),
+                field: source.at(&format!("{key}.{name}")),
                 scope: source.scope.clone(),
             })
             .collect(),
-        Some(_) => {
+        Some((key, _)) => {
             problems.push(invalid(
-                &source.at("selectors"),
-                "must be an object of selector names to definitions",
+                &source.at(key),
+                &format!(
+                    "must be an object of {} names to definitions",
+                    if key == "groups" { "group" } else { "selector" }
+                ),
             ));
             Vec::new()
         }
@@ -325,7 +536,22 @@ fn rules_field(
     };
     for (index, item) in items.iter().enumerate() {
         let field = source.at(&format!("rules[{index}]"));
-        if source.scope.prefix.is_some() {
+        if item.get("kind").and_then(Value::as_str) == Some("mayImport") {
+            let rules = TableReader {
+                source,
+                names: &mut *names,
+                tables: &mut found.tables,
+                problems: &mut *problems,
+            }
+            .read(item, &field);
+            if source.scope.prefix.is_some() {
+                found.preset.extend(rules);
+            } else {
+                found
+                    .config
+                    .extend(rules.into_iter().map(|rule| (rule, field.clone(), true)));
+            }
+        } else if source.scope.prefix.is_some() {
             let Some(name) = merge::preset_rule_name(source, item, &field, problems) else {
                 continue;
             };
@@ -340,8 +566,17 @@ fn rules_field(
     }
 }
 
+/// Where the loader says that a builder made this rule.
+pub(crate) fn rule_source(object: &Map<String, Value>) -> Option<RuleSource> {
+    let at = object.get("$at")?;
+    Some(RuleSource {
+        file: at.get("file")?.as_str()?.to_owned(),
+        line: u32::try_from(at.get("line")?.as_u64()?).ok()?,
+    })
+}
+
 /// A preset's examples, with their paths moved from its root to the config folder.
-fn rooted(examples: Examples, scope: &Placement) -> Examples {
+pub(crate) fn rooted(examples: Examples, scope: &Placement) -> Examples {
     let move_set = |files: ExampleFiles| -> ExampleFiles {
         files
             .into_iter()
@@ -351,6 +586,7 @@ fn rooted(examples: Examples, scope: &Placement) -> Examples {
     Examples {
         accepted: examples.accepted.into_iter().map(move_set).collect(),
         rejected: examples.rejected.into_iter().map(move_set).collect(),
+        one_line: examples.one_line,
     }
 }
 
@@ -363,58 +599,84 @@ fn finish(config: Config, problems: Vec<ConfigProblem>) -> Result<Config, Vec<Co
     }
 }
 
+/// What one entry of `parts` or `elements` finds, or `None` with a problem.
+fn element_kind(
+    (source, key): (&ConfigPart<'_>, &str),
+    (name, field): (&str, &str),
+    spec: &Value,
+    problems: &mut Vec<ConfigProblem>,
+) -> Option<ElementKind> {
+    match spec {
+        Value::String(pattern) => Some(ElementKind::Files(patterns(
+            name,
+            field,
+            &[source.scope.path(pattern).as_str()],
+            problems,
+        ))),
+        Value::Array(items) => {
+            let texts = strings(items, field, problems);
+            if texts.is_empty() {
+                problems.push(invalid(field, "lists no patterns"));
+            }
+            let texts: Vec<String> = texts.iter().map(|t| source.scope.path(t)).collect();
+            let texts: Vec<&str> = texts.iter().map(String::as_str).collect();
+            Some(ElementKind::Files(patterns(name, field, &texts, problems)))
+        }
+        Value::Object(_) if key == "parts" => {
+            problems.push(invalid(
+                field,
+                "a part is a set of files, so move these packages to `externals`, a list of \
+                 named sets of packages",
+            ));
+            None
+        }
+        Value::Object(object) => {
+            unknown_fields(object, &["packages"], field, problems);
+            let packages = string_list(
+                object.get("packages"),
+                &format!("{field}.packages"),
+                problems,
+            );
+            if packages.is_empty() {
+                problems.push(invalid(&format!("{field}.packages"), "lists no packages"));
+            }
+            let texts: Vec<&str> = packages.iter().map(String::as_str).collect();
+            Some(ElementKind::Packages(patterns(
+                name, field, &texts, problems,
+            )))
+        }
+        _ => {
+            problems.push(invalid(
+                field,
+                "must be a pattern, a list of patterns, or `{ packages: [...] }`",
+            ));
+            None
+        }
+    }
+}
+
 fn parse_elements(
     map: &Map<String, Value>,
     source: &ConfigPart<'_>,
+    (key, set): (&str, u32),
     problems: &mut Vec<ConfigProblem>,
 ) -> Vec<Element> {
     let mut elements = Vec::new();
     for (written, spec) in map {
-        if !own_name(source, written, "elements", problems) {
+        if !own_name(source, written, key, problems) {
             continue;
         }
         let name = &source.scope.name(written);
-        let field = source.at(&format!("elements.{written}"));
-        let kind = match spec {
-            Value::String(pattern) => ElementKind::Files(patterns(
-                name,
-                &field,
-                &[source.scope.path(pattern).as_str()],
-                problems,
-            )),
-            Value::Array(items) => {
-                let texts = strings(items, &field, problems);
-                if texts.is_empty() {
-                    problems.push(invalid(&field, "lists no patterns"));
-                }
-                let texts: Vec<String> = texts.iter().map(|t| source.scope.path(t)).collect();
-                let texts: Vec<&str> = texts.iter().map(String::as_str).collect();
-                ElementKind::Files(patterns(name, &field, &texts, problems))
-            }
-            Value::Object(object) => {
-                unknown_fields(object, &["packages"], &field, problems);
-                let packages = string_list(
-                    object.get("packages"),
-                    &format!("{field}.packages"),
-                    problems,
-                );
-                if packages.is_empty() {
-                    problems.push(invalid(&format!("{field}.packages"), "lists no packages"));
-                }
-                let texts: Vec<&str> = packages.iter().map(String::as_str).collect();
-                ElementKind::Packages(patterns(name, &field, &texts, problems))
-            }
-            _ => {
-                problems.push(invalid(
-                    &field,
-                    "must be a pattern, a list of patterns, or `{ packages: [...] }`",
-                ));
-                continue;
-            }
+        let field = source.at(&format!("{key}.{written}"));
+        let Some(kind) = element_kind((source, key), (name, &field), spec, problems) else {
+            continue;
         };
         elements.push(Element {
             name: name.clone(),
             kind,
+            set,
+            part: key == "parts" && source.scope.prefix.is_none(),
+            externals: false,
         });
     }
     elements
@@ -434,9 +696,7 @@ pub(crate) fn patterns(
                 problems.push(
                     ConfigProblem::new(
                         ProblemCode::PatternInvalid,
-                        format!(
-                            "the pattern `{text}` of element \"{element}\" is invalid: {error}"
-                        ),
+                        format!("the pattern `{text}` of \"{element}\" is invalid: {error}"),
                     )
                     .at(field),
                 );
@@ -475,10 +735,13 @@ fn parse_allow_unresolved(
     }
 }
 
-const ROOT_FIELDS: [&str; 9] = [
+const ROOT_FIELDS: [&str; 12] = [
     "$schema",
+    "parts",
     "elements",
+    "groups",
     "selectors",
+    "externals",
     "rules",
     "ignore",
     "allowUnresolved",
@@ -488,7 +751,8 @@ const ROOT_FIELDS: [&str; 9] = [
 ];
 
 /// The known name nearest to a misspelt one, when one is near enough to be the likely intent.
-pub(crate) fn nearest<'n>(name: &str, known: &[&'n str]) -> Option<&'n str> {
+#[must_use]
+pub fn nearest<'n>(name: &str, known: &[&'n str]) -> Option<&'n str> {
     known
         .iter()
         .map(|candidate| (strsim::damerau_levenshtein(name, candidate), *candidate))
@@ -497,9 +761,19 @@ pub(crate) fn nearest<'n>(name: &str, known: &[&'n str]) -> Option<&'n str> {
         .map(|(_, candidate)| candidate)
 }
 
-fn check_unique_names(rules: &[Rule], problems: &mut Vec<ConfigProblem>) {
+fn check_unique_names(rules: &[Rule], tables: &[Table], problems: &mut Vec<ConfigProblem>) {
     let mut seen: Vec<&str> = Vec::new();
     for rule in rules {
+        if tables.iter().any(|table| table.name == rule.name) {
+            problems.push(ConfigProblem::new(
+                ProblemCode::RuleNameDuplicate,
+                format!(
+                    "a rule and a table are named `{}`; give each its own name, because `off` \
+                     refers to both by name",
+                    rule.name
+                ),
+            ));
+        }
         if seen.contains(&rule.name.as_str()) {
             problems.push(ConfigProblem::new(
                 ProblemCode::RuleNameDuplicate,
@@ -532,6 +806,12 @@ pub(crate) fn parse_examples(
         return Examples::default();
     };
     unknown_fields(object, &["accepted", "rejected"], &field, problems);
+    let one_line = ["accepted", "rejected"].iter().any(|key| {
+        object
+            .get(*key)
+            .and_then(Value::as_array)
+            .is_some_and(|items| items.iter().any(Value::is_string))
+    });
     let sets = |key: &str, problems: &mut Vec<ConfigProblem>| -> Vec<ExampleFiles> {
         let field = format!("{field}.{key}");
         match object.get(key) {
@@ -552,6 +832,7 @@ pub(crate) fn parse_examples(
     Examples {
         accepted: sets("accepted", problems),
         rejected: sets("rejected", problems),
+        one_line,
     }
 }
 
@@ -560,17 +841,22 @@ fn example_files(
     field: &str,
     problems: &mut Vec<ConfigProblem>,
 ) -> Option<ExampleFiles> {
+    if let Value::String(line) = value {
+        return match crate::examples::one_line(line) {
+            Ok(files) => Some(files),
+            Err(reason) => {
+                problems.push(invalid(field, &reason));
+                None
+            }
+        };
+    }
     let Some(object) = value.as_object() else {
         problems.push(invalid(field, "must map file paths to their text"));
         return None;
     };
     let mut files = ExampleFiles::new();
     for (path, text) in object {
-        let path_ok = !path.is_empty()
-            && !path.starts_with('/')
-            && !path.contains('\\')
-            && !path.split('/').any(|part| part == ".." || part.is_empty());
-        if !path_ok {
+        if !crate::examples::path_is_inside(path) {
             problems.push(invalid(
                 field,
                 &format!(
@@ -598,7 +884,9 @@ pub(crate) fn unknown_fields(
     problems: &mut Vec<ConfigProblem>,
 ) {
     for key in object.keys() {
-        if !allowed.contains(&key.as_str()) {
+        // The loader writes `$name` for a name given two times, which `parse_rule` refuses, and
+        // `$at` for where a builder was called.
+        if !allowed.contains(&key.as_str()) && key != "$name" && key != "$at" {
             let location = if field.is_empty() {
                 key.clone()
             } else {
