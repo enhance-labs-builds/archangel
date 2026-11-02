@@ -83,10 +83,19 @@ fn each_rule_counts_its_files_and_the_imports_that_it_judged() {
             line("lib-not-src", 2, 1, 1),
             line("lib-only", 2, 1, 0),
             line("named", 2, 0, 0),
-        ]
+        ],
+        "each rule counts all its files, the imports it judged and the problems it found"
     );
-    assert_eq!(found.reach.files_not_judged, Vec::<String>::new());
-    assert_eq!(found.reach.imports_not_judged, []);
+    assert_eq!(
+        found.reach.files_not_judged,
+        Vec::<String>::new(),
+        "each file is in the files of some rule"
+    );
+    assert_eq!(
+        found.reach.imports_not_judged,
+        [],
+        "between them the rules judge all three imports"
+    );
 }
 
 #[test]
@@ -96,7 +105,11 @@ fn a_rule_about_cycles_follows_only_imports_between_its_files() {
         "rules": [{ "name": "cycles", "files": "src", "noCycles": true }],
     });
     let found = reach_of(&config, &two_folders());
-    assert_eq!(found.lines, [line("cycles", 2, 1, 0)]);
+    assert_eq!(
+        found.lines,
+        [line("cycles", 2, 1, 0)],
+        "only a.ts to b.ts has both ends in src, so the cycle rule judges just that import"
+    );
     assert_eq!(
         found.reach.imports_not_judged,
         [
@@ -110,9 +123,14 @@ fn a_rule_about_cycles_follows_only_imports_between_its_files() {
                 line: 2,
                 to: "lib/c.ts".to_owned()
             },
-        ]
+        ],
+        "the two imports that cross between src and lib are ones cycles never follow"
     );
-    assert_eq!(found.reach.files_not_judged, ["lib/c.ts", "lib/d.ts"]);
+    assert_eq!(
+        found.reach.files_not_judged,
+        ["lib/c.ts", "lib/d.ts"],
+        "the cycle rule holds only src, so both files of lib are left over"
+    );
 }
 
 #[test]
@@ -127,7 +145,8 @@ fn a_rule_about_cycles_is_counted_with_a_second_condition_on_its_rule_only() {
     let found = reach_of(&config, &two_folders());
     assert_eq!(
         found.lines,
-        [line("first", 2, 0, 0), line("cycles", 2, 1, 0)]
+        [line("first", 2, 0, 0), line("cycles", 2, 1, 0)],
+        "the cycle rule's one import stays with it, and the rule before it counts none"
     );
 }
 
@@ -139,7 +158,8 @@ fn an_area_limits_the_imports_that_a_rule_judged() {
     });
     assert_eq!(
         reach_of(&into_area, &two_folders()).lines,
-        [line("r", 2, 1, 0)]
+        [line("r", 2, 1, 0)],
+        "of a.ts's two imports, only the one into src has its target in the area"
     );
 
     let from_area = json!({
@@ -148,7 +168,8 @@ fn an_area_limits_the_imports_that_a_rule_judged() {
     });
     assert_eq!(
         reach_of(&from_area, &two_folders()).lines,
-        [line("r", 2, 0, 0)]
+        [line("r", 2, 0, 0)],
+        "lib/c.ts is imported only from src, outside the area, so nothing is judged"
     );
 
     let from_inside = json!({
@@ -157,7 +178,8 @@ fn an_area_limits_the_imports_that_a_rule_judged() {
     });
     assert_eq!(
         reach_of(&from_inside, &two_folders()).lines,
-        [line("r", 2, 1, 1)]
+        [line("r", 2, 1, 1)],
+        "only lib/c.ts to src/b.ts starts in the area, and lib is not on the list"
     );
 }
 
@@ -169,7 +191,8 @@ fn a_limit_keeps_the_imports_that_it_does_not_name_out_of_the_count() {
     });
     assert_eq!(
         reach_of(&config, &two_folders()).lines,
-        [line("r", 2, 0, 0)]
+        [line("r", 2, 0, 0)],
+        "no import in these folders is written with an alias, so none is counted"
     );
 }
 
@@ -181,7 +204,8 @@ fn a_rule_that_counts_type_imports_does_not_count_a_runtime_import() {
     });
     assert_eq!(
         reach_of(&config, &two_folders()).lines,
-        [line("r", 2, 0, 0)]
+        [line("r", 2, 0, 0)],
+        "every import in these folders is a runtime import, so a rule on types counts none"
     );
 }
 
@@ -195,18 +219,27 @@ fn an_instance_limit_counts_by_the_place_of_each_end() {
         "parts": { "feature": "src/{feature}/**" },
         "rules": [{ "name": "r", "files": "feature", "mayNotImport": "feature", "instance": "different" }],
     });
-    assert_eq!(reach_of(&config, &repo).lines, [line("r", 3, 1, 1)]);
+    assert_eq!(
+        reach_of(&config, &repo).lines,
+        [line("r", 3, 1, 1)],
+        "only the import of ../login/c crosses instances, so it is judged and refused"
+    );
 }
 
-#[test]
-fn a_path_limits_the_rules_the_files_and_the_imports() {
-    let config = json!({
+/// One rule on `src` and one on `lib`, with `tools` named so that neither refuses an import.
+fn a_rule_for_each_folder() -> Value {
+    json!({
         "elements": { "src": "src/**", "lib": "lib/**", "tools": "tools/**" },
         "rules": [
             { "name": "of-src", "files": "src", "mayNotImport": "tools" },
             { "name": "of-lib", "files": "lib", "mayNotImport": "tools" },
         ],
-    });
+    })
+}
+
+#[test]
+fn a_path_limits_the_rules_the_files_and_the_imports() {
+    let config = a_rule_for_each_folder();
     let repo = two_folders()
         .file("srcs/x.ts", "import '../src/b';\n")
         .file("tools/t.ts", "");
@@ -228,18 +261,27 @@ fn a_path_limits_the_rules_the_files_and_the_imports() {
         [line("of-lib", 2, 1, 0)],
         "the whole rule, for a file of the rule"
     );
-    assert_eq!(one_file.reach.files_not_judged, Vec::<String>::new());
+    assert_eq!(
+        one_file.reach.files_not_judged,
+        Vec::<String>::new(),
+        "lib/d.ts is a file of of-lib, so nothing under that path goes unjudged"
+    );
 
     let nothing = reach_under(&config, &repo, Some("srcs"), "");
     assert_eq!(nothing.lines, [], "no rule's files hold srcs/x.ts");
-    assert_eq!(nothing.reach.files_not_judged, ["srcs/x.ts"]);
+    assert_eq!(
+        nothing.reach.files_not_judged,
+        ["srcs/x.ts"],
+        "srcs is a folder of its own, and no rule holds its file"
+    );
     assert_eq!(
         nothing.reach.imports_not_judged,
         [UnjudgedImport {
             from: "srcs/x.ts".to_owned(),
             line: 1,
             to: "src/b.ts".to_owned()
-        }]
+        }],
+        "the import in srcs/x.ts starts under srcs, and no rule judges it"
     );
 }
 
@@ -250,7 +292,11 @@ fn the_config_file_is_in_no_list_of_what_no_rule_judges() {
         .file("other.ts", "");
     let config = json!({ "elements": { "src": "src/**" }, "rules": [] });
     let found = reach_under(&config, &repo, None, "archangel.config.ts");
-    assert_eq!(found.reach.files_not_judged, ["other.ts"]);
+    assert_eq!(
+        found.reach.files_not_judged,
+        ["other.ts"],
+        "other.ts is unjudged, and the config file is left out of that list"
+    );
 }
 
 #[test]
@@ -276,7 +322,11 @@ fn a_package_that_no_rule_names_is_counted_with_each_import() {
         ],
     });
     let found = reach_under(&config, &repo, Some("src"), "");
-    assert_eq!(found.reach.packages_not_named, [("react".to_owned(), 2)]);
+    assert_eq!(
+        found.reach.packages_not_named,
+        [("react".to_owned(), 2)],
+        "no rule names react, imported twice; pg and zod are named, other is outside src"
+    );
 }
 
 #[test]
@@ -301,7 +351,11 @@ fn a_rule_about_folders_counts_folders_and_applies_under_its_folders() {
         .iter()
         .map(|line| (line.0.as_str(), line.2, line.1))
         .collect();
-    assert_eq!(covered, [("folders", Some(2), 0), ("two", Some(3), 0)]);
+    assert_eq!(
+        covered,
+        [("folders", Some(2), 0), ("two", Some(3), 0)],
+        "folders counts src/x and src/z; two adds lib/q; neither counts a file"
+    );
 
     let under = reach_under(&config, &repo, Some("lib"), "");
     let names: Vec<&str> = under.lines.iter().map(|line| line.0.as_str()).collect();
@@ -335,7 +389,8 @@ fn a_table_own_rule_counts_the_files_of_the_table() {
             line("t.every-file-has-a-kind", 3, 0, 0),
             line("u.z", 1, 0, 0),
             line("u.every-file-has-a-kind", 1, 0, 0),
-        ]
+        ],
+        "each table's own rule counts only the files of its own table"
     );
 }
 
@@ -346,7 +401,11 @@ fn a_table_own_rule_applies_with_a_row_of_its_table_under_the_path() {
         .file("other/z/w.ts", "");
     let found = reach_under(&kinds_table(&json!({})), &repo, Some("src"), "");
     let names: Vec<&str> = found.lines.iter().map(|line| line.0.as_str()).collect();
-    assert_eq!(names, ["t.a", "t.every-file-has-a-kind"]);
+    assert_eq!(
+        names,
+        ["t.a", "t.every-file-has-a-kind"],
+        "under src only row a has a file, and the table's own rule comes with it"
+    );
 }
 
 #[test]
@@ -363,10 +422,25 @@ fn problems_exceptions_and_counts_come_from_the_report_of_the_check() {
         "rules": [{ "name": "r", "files": "src", "mayNotImport": "lib" }],
     });
     let found = reach_of(&config, &repo);
-    assert_eq!(found.lines, [line("r", 1, 2, 1)]);
-    assert_eq!(found.reach.rules[0].exceptions, 1);
-    assert_eq!(found.report.diagnostics.len(), 1);
-    assert_eq!(found.reach.rules[0].rule, 0);
+    assert_eq!(
+        found.lines,
+        [line("r", 1, 2, 1)],
+        "one file, two imports judged, and one problem: the excused import is no problem"
+    );
+    assert_eq!(
+        found.reach.rules[0].exceptions, 1,
+        "the comment on line 2 excuses one import"
+    );
+    assert_eq!(
+        found.report.diagnostics.len(),
+        1,
+        "the report holds only the refusal on line 1: {:?}",
+        found.report.diagnostics
+    );
+    assert_eq!(
+        found.reach.rules[0].rule, 0,
+        "the reach of the only rule refers to rule 0 of the config"
+    );
 }
 
 #[test]

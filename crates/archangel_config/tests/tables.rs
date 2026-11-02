@@ -329,8 +329,16 @@ fn only_a_row_that_may_not_import_itself_has_the_sentence_that_refuses_it() {
         &json!({ "port": ["entity"], "entity": [] }),
         &json!({ "kinds": KINDS, "mayNotImportItself": ["port"] }),
     );
-    assert_eq!(row_rule(&config, "port").sentences.len(), 2);
-    assert_eq!(row_rule(&config, "entity").sentences.len(), 1);
+    assert_eq!(
+        row_rule(&config, "port").sentences.len(),
+        2,
+        "port is in mayNotImportItself, so it adds the sentence that refuses itself"
+    );
+    assert_eq!(
+        row_rule(&config, "entity").sentences.len(),
+        1,
+        "entity is not in mayNotImportItself, so it has only the sentence of its row"
+    );
 }
 
 #[test]
@@ -372,23 +380,39 @@ fn a_because_is_what_the_rule_remembers_it_wrote() {
         &json!({ "kinds": KINDS, "because": "Why." }),
     );
     let rule = row_rule(&config, "a");
-    assert!(rule.because);
-    assert_eq!(rule.reason.as_deref(), Some("Why."));
+    assert!(
+        rule.because,
+        "a table written with `because` passes that word on to each row: {rule:?}"
+    );
+    assert_eq!(
+        rule.reason.as_deref(),
+        Some("Why."),
+        "the text of `because` becomes the reason of the row"
+    );
     let config = table_config(
         &json!({ "a": [] }),
         &json!({ "kinds": KINDS, "reason": "Why." }),
     );
-    assert!(!row_rule(&config, "a").because);
+    assert!(
+        !row_rule(&config, "a").because,
+        "a table written with `reason` does not claim `because` for its row: {:?}",
+        row_rule(&config, "a")
+    );
 }
 
 #[test]
 fn a_table_without_files_judges_its_kinds_and_its_named_rows() {
     let kinds_only = table_config(&json!({ "a": [], "b": [] }), &json!({ "kinds": KINDS }));
     let of_table = &kinds_only.tables[0];
-    assert!(of_table.default_files);
+    assert!(
+        of_table.default_files,
+        "a table with no `files` marks them as its default: {:?}",
+        of_table.files
+    );
     assert_eq!(
         of_table.files.terms,
-        [Term::AnyKind(TableId(0)), Term::Any(1)]
+        [Term::AnyKind(TableId(0)), Term::Any(1)],
+        "with no `files`, a table holds each file with a kind, and here names no part"
     );
 
     let with_part = table_config(&json!({ "a": [], "api": [] }), &json!({ "kinds": KINDS }));
@@ -398,7 +422,8 @@ fn a_table_without_files_judges_its_kinds_and_its_named_rows() {
             Term::AnyKind(TableId(0)),
             Term::Element(ElementId(0)),
             Term::Any(2),
-        ]
+        ],
+        "row api names a part, so the default files hold that part and each kind"
     );
 }
 
@@ -409,8 +434,16 @@ fn a_table_with_files_judges_those_files() {
         &json!({ "kinds": KINDS, "files": "api" }),
     );
     let of_table = &config.tables[0];
-    assert!(!of_table.default_files);
-    assert_eq!(of_table.files.terms, [Term::Element(ElementId(0))]);
+    assert!(
+        !of_table.default_files,
+        "a table that writes `files` does not use the default: {:?}",
+        of_table.files
+    );
+    assert_eq!(
+        of_table.files.terms,
+        [Term::Element(ElementId(0))],
+        "`files` replaces the default, so the table holds api and not each kind"
+    );
 }
 
 #[test]
@@ -418,7 +451,11 @@ fn a_cell_that_names_a_row_permits_the_files_of_that_row() {
     let config = table_config(&json!({ "a": ["b"], "b": [] }), &json!({ "kinds": KINDS }));
     let side = permitted(row_rule(&config, "a"));
     let of_b = &config.tables[0].rows[1].1;
-    assert_eq!(side.files.as_slice(), std::slice::from_ref(of_b));
+    assert_eq!(
+        side.files.as_slice(),
+        std::slice::from_ref(of_b),
+        "the cell b permits exactly the files of row b, no more and no fewer"
+    );
 }
 
 #[test]
@@ -433,8 +470,16 @@ fn a_row_key_or_a_cell_that_names_a_group_means_that_group() {
     )
     .unwrap_or_else(|problems| panic!("the config is valid: {problems:?}"));
     let rows = &config.tables[0].rows;
-    assert_eq!(rows[0].1.terms, [Term::Selector(SelectorId(1))]);
-    assert_eq!(rows[1].1.terms, [Term::Selector(SelectorId(0))]);
+    assert_eq!(
+        rows[0].1.terms,
+        [Term::Selector(SelectorId(1))],
+        "row key second means the group second, at index 1, though it is written first"
+    );
+    assert_eq!(
+        rows[1].1.terms,
+        [Term::Selector(SelectorId(0))],
+        "row key first means the group first, at index 0, though it is written second"
+    );
 }
 
 #[test]
@@ -448,25 +493,46 @@ fn a_row_that_may_not_import_itself_refuses_the_files_of_its_name() {
         panic!("a refusal: {rule:?}");
     };
     assert_eq!(side.text, "port");
-    assert_eq!(side.files, [config.tables[0].rows[0].1.clone()]);
+    assert_eq!(
+        side.files,
+        [config.tables[0].rows[0].1.clone()],
+        "the refusing sentence refuses exactly the files of the row's own name"
+    );
     let own = rule.sentences[0]
         .options
         .own
         .as_ref()
         .expect("its own files");
-    assert!(!own.permitted);
-    assert_eq!(own.files, config.tables[0].rows[0].1);
+    assert!(
+        !own.permitted,
+        "a row that may not import itself does not permit its own files: {own:?}"
+    );
+    assert_eq!(
+        own.files, config.tables[0].rows[0].1,
+        "the own files of the row are the files that the table holds for its name"
+    );
 }
 
 #[test]
 fn a_row_permits_its_own_name_and_looks_at_the_whole_repository_by_default() {
     let config = table_config(&json!({ "a": [] }), &json!({ "kinds": KINDS }));
     let options = &row_rule(&config, "a").sentences[0].options;
-    assert!(options.own.as_ref().expect("its own files").permitted);
+    assert!(
+        options.own.as_ref().expect("its own files").permitted,
+        "by default a row may import its own files: {options:?}"
+    );
     let area = options.within.as_ref().expect("an area");
     assert_eq!(area.text, "the repository");
-    assert_eq!(area.files, [FileSet::every_file()]);
-    assert_eq!(area.elements, []);
+    assert_eq!(
+        area.files,
+        [FileSet::every_file()],
+        "the default area of a row holds every file in the repository"
+    );
+    assert_eq!(
+        area.elements,
+        [],
+        "a table that names no externals set has no package in its default area"
+    );
 }
 
 #[test]
@@ -512,10 +578,15 @@ fn the_table_own_rule_counts_every_file_whatever_imports_the_table_counts() {
         &json!({ "a": [] }),
         &json!({ "kinds": KINDS, "imports": "runtime" }),
     );
-    assert_eq!(row_rule(&config, "a").imports, ImportKinds::Runtime);
+    assert_eq!(
+        row_rule(&config, "a").imports,
+        ImportKinds::Runtime,
+        "a row counts the kinds of import that its table names"
+    );
     assert_eq!(
         row_rule(&config, "every-file-has-a-kind").imports,
-        ImportKinds::All
+        ImportKinds::All,
+        "the table's own rule checks files, so `imports` of the table does not narrow it"
     );
 }
 

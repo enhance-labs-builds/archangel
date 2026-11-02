@@ -354,8 +354,14 @@ fn a_rule_remembers_whether_it_wrote_because_or_reason() {
         .expect("the config is valid");
         config.rules[0].because
     };
-    assert!(because("because"));
-    assert!(!because("reason"));
+    assert!(
+        because("because"),
+        "a rule written with `because` remembers that word, so it prints it back"
+    );
+    assert!(
+        !because("reason"),
+        "a rule written with `reason` does not claim that it wrote `because`"
+    );
 }
 
 #[test]
@@ -369,7 +375,11 @@ fn a_rule_keeps_where_the_loader_says_that_it_was_made() {
     )
     .expect("the config is valid");
     let source = config.rules[0].source.as_ref().expect("a place");
-    assert_eq!((source.file.as_str(), source.line), ("c.ts", 7));
+    assert_eq!(
+        (source.file.as_str(), source.line),
+        ("c.ts", 7),
+        "`$at` from the loader is the place that a problem with this rule points to"
+    );
 }
 
 #[test]

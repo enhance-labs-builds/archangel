@@ -27,34 +27,59 @@ fn a_file_in_two_parts_gives_an_overlap_that_names_each_part_once() {
         "parts": { "a": "src/**", "b": "src/x/**", "c": "src/x/y/**", "d": "other/**" },
     }));
     let found = ElementMatcher::new(&config).path_match("src/x/y/z.ts");
-    assert_eq!(found.overlap, [ElementId(0), ElementId(1), ElementId(2)]);
-    assert_eq!(found.classification.expect("a place").element, ElementId(0));
+    assert_eq!(
+        found.overlap,
+        [ElementId(0), ElementId(1), ElementId(2)],
+        "a file in a, b and c overlaps each once, and d, which does not hold it, stays out"
+    );
+    assert_eq!(
+        found.classification.expect("a place").element,
+        ElementId(0),
+        "the file still has a place despite the overlap: the first part that matched"
+    );
 }
 
 #[test]
 fn a_file_that_two_patterns_of_one_part_match_gives_no_overlap() {
     let config = valid(&json!({ "parts": { "a": ["src/**", "src/x/**"] } }));
     let found = ElementMatcher::new(&config).path_match("src/x/z.ts");
-    assert_eq!(found.overlap, []);
+    assert_eq!(
+        found.overlap,
+        [],
+        "two patterns of one part name one part, so nothing overlaps"
+    );
 }
 
 #[test]
 fn a_file_that_two_elements_match_gives_no_overlap() {
     let config = valid(&json!({ "elements": { "a": "src/**", "b": "src/x/**" } }));
     let found = ElementMatcher::new(&config).path_match("src/x/z.ts");
-    assert_eq!(found.overlap, []);
-    assert_eq!(found.classification.expect("a place").element, ElementId(0));
+    assert_eq!(
+        found.overlap,
+        [],
+        "only parts can overlap, so a file in two elements is no overlap"
+    );
+    assert_eq!(
+        found.classification.expect("a place").element,
+        ElementId(0),
+        "of two matching elements, the first declared holds the file"
+    );
 }
 
-#[test]
-fn a_file_has_one_place_in_each_set_of_parts() {
-    let config = valid(&json!({
+/// A config with parts of its own, and two presets that between them hold three elements.
+fn own_parts_and_two_presets() -> Config {
+    valid(&json!({
         "parts": { "own": "app/**" },
         "extends": [
             preset("one", &json!({ "first": "src/**", "second": "src/**" })),
             preset("two", &json!({ "third": "src/**" })),
         ],
-    }));
+    }))
+}
+
+#[test]
+fn a_file_has_one_place_in_each_set_of_parts() {
+    let config = own_parts_and_two_presets();
     let sets: Vec<(&str, u32)> = config
         .elements
         .iter()
@@ -67,7 +92,8 @@ fn a_file_has_one_place_in_each_set_of_parts() {
             ("one/second", 1),
             ("two/third", 2),
             ("own", 0)
-        ]
+        ],
+        "each preset has a set numbered by its place in extends; the config's own is 0"
     );
     let parts: Vec<bool> = config.elements.iter().map(|element| element.part).collect();
     assert_eq!(
@@ -89,7 +115,11 @@ fn a_file_has_one_place_in_each_set_of_parts() {
         [ElementId(3), ElementId(0), ElementId(2)],
         "own set first"
     );
-    assert_eq!(place.of(ElementId(2)).expect("in it").element, ElementId(2));
+    assert_eq!(
+        place.of(ElementId(2)).expect("in it").element,
+        ElementId(2),
+        "the file is in two/third, so asking for that element gives its place there"
+    );
     assert!(
         place.of(ElementId(1)).is_none(),
         "the second match of a set is no place"
@@ -102,8 +132,16 @@ fn presets_share_the_one_set_when_the_config_writes_elements() {
         "elements": { "own": "src/**" },
         "extends": [preset("one", &json!({ "first": "src/**" }))],
     }));
-    assert!(config.elements.iter().all(|element| element.set == 0));
-    assert!(config.elements.iter().all(|element| !element.part));
+    assert!(
+        config.elements.iter().all(|element| element.set == 0),
+        "`elements` puts each preset's elements in set 0 with the config's: {:?}",
+        config.elements
+    );
+    assert!(
+        config.elements.iter().all(|element| !element.part),
+        "with `elements` written, no element is a part, so none can overlap: {:?}",
+        config.elements
+    );
 }
 
 #[test]
@@ -136,10 +174,23 @@ fn a_package_is_in_the_first_package_element_and_in_every_externals_set() {
 
     let place = matcher.package_place("react").expect("a place");
     assert_eq!(place.root, "react");
-    assert_eq!(place.all().count(), 3);
-    assert!(place.of(id("two")).is_some());
-    assert!(place.of(id("three")).is_none());
-    assert!(matcher.package_place("zod").is_none());
+    assert_eq!(
+        place.all().count(),
+        3,
+        "react has one place in each of first, one and two"
+    );
+    assert!(
+        place.of(id("two")).is_some(),
+        "react is in the externals set two, so its place answers for that set: {place:?}"
+    );
+    assert!(
+        place.of(id("three")).is_none(),
+        "the externals set three holds only pg, so react has no place in it: {place:?}"
+    );
+    assert!(
+        matcher.package_place("zod").is_none(),
+        "no element or externals set names zod, so it has no place"
+    );
 }
 
 #[test]
@@ -168,7 +219,10 @@ fn two_places_are_one_instance_when_their_element_and_captures_agree() {
         },
     }));
     let cart = place(&config, "a/cart/x.ts");
-    assert!(cart.same_instance(&place(&config, "a/cart/y.ts")));
+    assert!(
+        cart.same_instance(&place(&config, "a/cart/y.ts")),
+        "two files under one capture of one pattern are one instance: {cart:?}"
+    );
     assert!(
         cart.same_instance(&place(&config, "b/cart/y.ts")),
         "two patterns, one capture value"
@@ -193,7 +247,10 @@ fn two_places_share_a_root_only_in_one_folder_of_one_instance() {
         },
     }));
     let cart = place(&config, "a/cart/x.ts");
-    assert!(cart.same_root(&place(&config, "a/cart/y.ts")));
+    assert!(
+        cart.same_root(&place(&config, "a/cart/y.ts")),
+        "two files in the folder a/cart share that root: {cart:?}"
+    );
     assert!(
         !cart.same_root(&place(&config, "b/cart/y.ts")),
         "another folder"
@@ -209,7 +266,10 @@ fn two_places_share_a_root_only_in_one_folder_of_one_instance() {
     let mut moved = cart.clone();
     moved.root = "elsewhere".to_owned();
     assert!(!cart.same_root(&moved), "another root");
-    assert!(cart.same_root(&cart.clone()));
+    assert!(
+        cart.same_root(&cart.clone()),
+        "a copy shares its root, so the refusals above come from what changed: {cart:?}"
+    );
 }
 
 fn kinds(pattern: &str) -> archangel_config::KindPattern {
@@ -227,18 +287,26 @@ fn a_kind_pattern_reads_the_kind_and_the_other_captures() {
         .place("src/board/views/a.ts", true)
         .expect("a place");
     assert_eq!(place.kind, "views");
-    assert_eq!(place.instance, ["board"]);
+    assert_eq!(
+        place.instance,
+        ["board"],
+        "board is the capture other than the kind, so it names the instance"
+    );
     assert!(
         pattern.place("src/board/views/a.ts", false).is_none(),
         "the pass did not match"
     );
-    assert!(pattern.place("other/a.ts", true).is_none());
+    assert!(
+        pattern.place("other/a.ts", true).is_none(),
+        "a path outside src/ does not fit the pattern, so it has no place"
+    );
 
     let plain = kinds("**/*.{kind}.ts");
     assert!(!plain.has_instance(), "only the kind");
     assert_eq!(
         plain.place("a.entity.ts", true).expect("a place").instance,
-        Vec::<String>::new()
+        Vec::<String>::new(),
+        "a pattern whose only capture is the kind has an empty instance"
     );
 }
 
@@ -266,7 +334,10 @@ fn a_repeated_kind_must_be_the_same_name_at_each_place() {
         pattern.place("src/a/x.a.ts", true).expect("a place").kind,
         "a"
     );
-    assert!(pattern.place("src/a/x.b.ts", true).is_none());
+    assert!(
+        pattern.place("src/a/x.b.ts", true).is_none(),
+        "the folder says kind a and the file name says kind b, so the file has no place"
+    );
 }
 
 #[test]
@@ -288,7 +359,11 @@ fn each_row_refers_to_the_table_at_its_position() {
             _ => None,
         })
         .expect("the row");
-    assert_eq!(of_second.index(), 1);
+    assert_eq!(
+        of_second.index(),
+        1,
+        "row b is in the second table, so it refers to index 1"
+    );
     assert_eq!(config.tables[of_second.index()].name, "second");
 }
 
@@ -297,14 +372,19 @@ fn the_constructors_of_a_set_of_files_write_each_set_after_its_parts() {
     use archangel_config::FileSet;
     let a = FileSet::of(Term::AnyElement);
     let b = FileSet::of(Term::Directive("d".to_owned()));
-    assert_eq!(FileSet::every_file().terms, [Term::Any(0), Term::Not]);
+    assert_eq!(
+        FileSet::every_file().terms,
+        [Term::Any(0), Term::Not],
+        "every file is the negation of an empty union, written in postfix"
+    );
     assert_eq!(
         FileSet::any(&[a.clone(), b.clone()]).terms,
         [
             Term::AnyElement,
             Term::Directive("d".to_owned()),
             Term::Any(2),
-        ]
+        ],
+        "a union writes its members in order, then Any with their count"
     );
     assert_eq!(
         a.and(&b).terms,
@@ -312,9 +392,14 @@ fn the_constructors_of_a_set_of_files_write_each_set_after_its_parts() {
             Term::AnyElement,
             Term::Directive("d".to_owned()),
             Term::All(2),
-        ]
+        ],
+        "an intersection writes both sides in order, then All with their count"
     );
-    assert_eq!(a.not().terms, [Term::AnyElement, Term::Not]);
+    assert_eq!(
+        a.not().terms,
+        [Term::AnyElement, Term::Not],
+        "a negation writes the set it negates, then Not"
+    );
 }
 
 #[test]
@@ -326,24 +411,35 @@ fn a_config_calls_its_parts_what_it_writes() {
     };
     let new = ("part", "group");
     let old = ("element", "selector");
-    assert_eq!(words(json!({ "parts": { "a": "a/**" } })), new);
+    assert_eq!(
+        words(json!({ "parts": { "a": "a/**" } })),
+        new,
+        "a config that writes `parts` uses the words part and group"
+    );
     assert_eq!(
         words(json!({ "groups": { "a": "a/**" }, "rules": [rule] })),
-        new
+        new,
+        "a config that writes only `groups` also uses the new words"
     );
     assert_eq!(
         words(json!({ "rules": [rule] })),
         new,
         "a config that writes neither"
     );
-    assert_eq!(words(json!({ "elements": { "a": "a/**" } })), old);
+    assert_eq!(
+        words(json!({ "elements": { "a": "a/**" } })),
+        old,
+        "a config that writes `elements` keeps the words element and selector"
+    );
     assert_eq!(
         words(json!({ "selectors": { "a": "a/**" }, "rules": [rule] })),
-        old
+        old,
+        "a config that writes only `selectors` also keeps the old words"
     );
     assert_eq!(
         words(json!({ "extends": [preset("p", &json!({ "a": "a/**" }))], "rules": NO_RULE })),
-        old
+        old,
+        "a preset's `elements` count as written when the config itself writes neither word"
     );
 }
 

@@ -565,7 +565,7 @@ With `--format json`, `archangel rules` MUST print the same content as the text 
 - **WHEN** the developer runs `archangel explain src/features/cart/views/cart-page.tsx:2`
 - **THEN** the output shows that `app.feature` permits the import in the same instance, and that `feature-code.views` refuses it because `api` is not in its row
 - **AND** the output shows that `app.shared` skipped it because the file is not in `shared`, and that `feature-code.models` and `feature-code.api` skipped it because the file has the kind `views`, not theirs
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_one_import_lists_the_rules_that_judged_and_skipped_it"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_one_import_lists_the_rules_that_judged_and_skipped_it"
 
 #### Scenario: An import that does not resolve
 
@@ -573,7 +573,7 @@ With `--format json`, `archangel rules` MUST print the same content as the text 
 - **WHEN** the developer runs `archangel explain` on that line
 - **THEN** the output shows the import of `./missing`, says that it does not resolve with the reason of its `import-unresolved` diagnostic, and names no target
 - **AND** the output lists each import rule whose files include the view, `app.feature` and `feature-code.views`, as skipping it because the import does not resolve
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_an_unresolved_import_says_so_and_names_no_target"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_an_unresolved_import_says_so_and_names_no_target"
 
 #### Scenario: A rule that is off and a rule that checks no import
 
@@ -581,7 +581,7 @@ With `--format json`, `archangel rules` MUST print the same content as the text 
 - **WHEN** the developer runs `archangel explain src/features/cart/views/cart-page.tsx:2`
 - **THEN** the output lists `feature-code.views` as skipped because the rule is off
 - **AND** the output lists `kebab-case-files` as skipped because `mustBeNamed` checks no import
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_one_import_shows_a_rule_that_is_off_and_one_that_checks_no_import"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_one_import_shows_a_rule_that_is_off_and_one_that_checks_no_import"
 
 ### Requirement: Explain answers for any line of a statement and for each import on a line
 
@@ -592,21 +592,21 @@ The line MAY be any line of the import statement. A line with two or more import
 - **GIVEN** a file with `import data from './b.json'` and `with { type: 'json' }` on the next line, and `import(`, `'./c'` and `)` on three lines
 - **WHEN** the developer runs `archangel explain` on each of these lines
 - **THEN** the output explains the import of that statement
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_finds_an_import_on_each_line_of_its_statement"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_finds_an_import_on_each_line_of_its_statement"
 
 #### Scenario: An import statement over two lines
 
 - **GIVEN** a file whose lines 1 and 2 are `import {` and `  fetchCart } from '../api/fetch-cart';`
 - **WHEN** the developer runs `archangel explain` on line 2
 - **THEN** the output explains the import of `../api/fetch-cart`
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_a_line_inside_an_import_statement_explains_it"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_a_line_inside_an_import_statement_explains_it"
 
 #### Scenario: Two imports on one line
 
 - **GIVEN** a file whose line 1 is `import a from './a'; import b from './b';`
 - **WHEN** the developer runs `archangel explain` on line 1
 - **THEN** the output has one block for the import of `./a` and one for the import of `./b`
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_a_line_with_two_imports_explains_each"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_a_line_with_two_imports_explains_each"
 
 ### Requirement: Explain shows an exception or a baseline match beside its rule
 
@@ -617,14 +617,14 @@ An exception or a baseline match MUST show beside the rule that it permits.
 - **GIVEN** the small-app fixture, with the view's import of the api file under `// archangel-allow feature-code.views: migration`
 - **WHEN** the developer runs `archangel explain` on that line
 - **THEN** the output shows `feature-code.views` as refusing the import, with the exception beside it
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_one_import_shows_the_exception_beside_the_rule"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_one_import_shows_the_exception_beside_the_rule"
 
 #### Scenario: An import outside an area
 
 - **GIVEN** a rule `rule('cli-uses-only-the-api-router', { files: 'cli', mayOnlyImport: 'apps/api/src/app.router.ts', within: 'api' })`, and a CLI file that imports `zod` on line 1
 - **WHEN** the developer runs `archangel explain` on that line
 - **THEN** the output says that the rule skipped the import because `zod` is outside the area `api`
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_one_import_names_the_area_that_skipped_it"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_one_import_names_the_area_that_skipped_it"
 
 ### Requirement: The line of explain follows the last colon
 
@@ -635,7 +635,7 @@ In `archangel explain <file>:<line>`, the line MUST be what follows the last col
 - **GIVEN** a source file `src/a:b.ts` with an import on line 2
 - **WHEN** the developer runs `archangel explain src/a:b.ts:2`
 - **THEN** the output explains the import on line 2 of `src/a:b.ts`
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_reads_the_line_after_the_last_colon"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_reads_the_line_after_the_last_colon"
 
 ### Requirement: Explain shows a baseline match too
 
@@ -646,7 +646,7 @@ A refused import that the baseline matches MUST show that beside the rule.
 - **GIVEN** the small-app fixture after `archangel baseline add`
 - **WHEN** the developer runs `archangel explain src/features/cart/views/cart-page.tsx:2`
 - **THEN** the output shows `feature-code.views` as refusing the import, permitted by the baseline
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_one_import_shows_a_baseline_match_beside_the_rule"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_one_import_shows_a_baseline_match_beside_the_rule"
 
 ### Requirement: The rules command counts folders for a rule about folders
 
@@ -668,21 +668,21 @@ A rule about folders MUST show the count of its folders, and no count of files.
 - **GIVEN** a file whose line 3 has no import
 - **WHEN** the developer runs `archangel explain` on that line
 - **THEN** archangel says that line 3 has no import, and exits with status 1
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_a_line_with_no_import_says_so"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_a_line_with_no_import_says_so"
 
 #### Scenario: A file that does not parse
 
 - **GIVEN** a file with an import statement on line 1 and a syntax error on line 5
 - **WHEN** the developer runs `archangel explain` on line 1
 - **THEN** archangel gives `parse-failed` for the file, says that it cannot explain a file that does not parse, and exits with status 1
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_a_line_in_a_file_that_does_not_parse_gives_parse_failed"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_a_line_in_a_file_that_does_not_parse_gives_parse_failed"
 
 #### Scenario: A file that does not exist
 
 - **GIVEN** the small-app fixture
 - **WHEN** the developer runs `archangel explain src/missing.ts:1`
 - **THEN** archangel says that `src/missing.ts` does not exist, and exits with status 2
-- **TEST** `crates/archangel/tests/cli.rs` › "explain_of_a_missing_file_is_refused"
+- **TEST** `crates/archangel/tests/explain_import.rs` › "explain_of_a_missing_file_is_refused"
 
 ### Requirement: Explain of one import answers in JSON
 

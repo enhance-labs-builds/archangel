@@ -513,6 +513,14 @@ fn off_with_a_table_name_removes_each_rule_of_that_table_and_no_other() {
     }));
     let mut removed: Vec<&str> = config.off.iter().map(|rule| rule.name.as_str()).collect();
     removed.sort_unstable();
-    assert_eq!(removed, ["t.a", "t.b", "t.every-file-has-a-kind"]);
-    assert!(config.rules.iter().all(|rule| rule.name.starts_with("u.")));
+    assert_eq!(
+        removed,
+        ["t.a", "t.b", "t.every-file-has-a-kind"],
+        "off with a table name takes both its rows and the table's own rule"
+    );
+    assert!(
+        config.rules.iter().all(|rule| rule.name.starts_with("u.")),
+        "table u stays whole and nothing of t is left: {:?}",
+        config.rules
+    );
 }

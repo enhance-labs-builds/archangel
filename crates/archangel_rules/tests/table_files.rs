@@ -343,7 +343,8 @@ fn only_a_kind_row_with_no_file_is_listed_as_having_no_file() {
     let report = report_of(&config, &repo);
     assert_eq!(
         report.summary.rows_with_no_file.as_deref(),
-        Some(&["t.none".to_owned()][..])
+        Some(&["t.none".to_owned()][..]),
+        "only row none is a kind with no file: has has one, and empty names a part"
     );
 }
 

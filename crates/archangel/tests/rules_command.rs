@@ -521,7 +521,15 @@ fn rules_as_json_says_checks_nothing_only_for_a_rule_with_no_file() {
             .unwrap_or_else(|| panic!("no {name}: {document}"));
         rule.get("checksNothing").cloned()
     };
-    assert_eq!(says("t.b"), Some(json!("checks nothing: no file is in b")));
-    assert_eq!(says("t.a"), None);
+    assert_eq!(
+        says("t.b"),
+        Some(json!("checks nothing: no file is in b")),
+        "row b has no file, so its JSON entry says that it checks nothing"
+    );
+    assert_eq!(
+        says("t.a"),
+        None,
+        "row a holds src/x.a.ts, so its JSON entry has no checksNothing"
+    );
     assert_eq!(says("folders"), None, "a folder rule counts folders");
 }
