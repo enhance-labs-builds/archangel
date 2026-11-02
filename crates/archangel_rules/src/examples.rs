@@ -345,7 +345,7 @@ impl Judge<'_> {
         }
         diagnostics
             .iter()
-            .filter(|d| d.code == Code::EveryFileHasAKind && self.involves(d))
+            .filter(|d| d.code == Code::EveryFileHasAKind)
             .filter_map(|d| d.file.as_deref())
             .collect()
     }

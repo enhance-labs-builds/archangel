@@ -441,7 +441,7 @@ fn rules_says_which_name_has_no_file() {
     );
     let out = rules_of(&empty);
     assert!(
-        block(&out, "t.every-file-has-a-kind").contains("checks nothing: no file is in t"),
+        block(&out, "t.every-file-has-a-kind").ends_with("checks nothing: no file is in t"),
         "{out}"
     );
 }

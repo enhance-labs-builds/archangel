@@ -368,3 +368,17 @@ fn problems_exceptions_and_counts_come_from_the_report_of_the_check() {
     assert_eq!(found.report.diagnostics.len(), 1);
     assert_eq!(found.reach.rules[0].rule, 0);
 }
+
+#[test]
+fn a_cycle_rule_judges_only_an_import_with_both_ends_in_its_files() {
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "import './b';\nimport '../lib/c';\n")
+        .file("src/b.ts", "")
+        .file("lib/c.ts", "import '../src/b';\n");
+    let config = json!({
+        "parts": { "src": "src/**", "lib": "lib/**" },
+        "rules": [{ "name": "cycles", "files": "src", "noCycles": true }],
+    });
+    let found = reach_under(&config, &repo, None, "archangel.config.json");
+    assert_eq!(found.lines[0].3, 1, "{:?}", found.lines);
+}

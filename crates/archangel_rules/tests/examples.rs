@@ -1036,3 +1036,33 @@ fn one_list_may_hold_both_forms() {
     let (outcomes, _) = examples(&rules, &login());
     assert_eq!(passed(&outcomes), [true, true], "{outcomes:?}");
 }
+
+#[test]
+fn an_accepted_example_with_one_end_in_a_layer_proves_nothing() {
+    let repo = FixtureRepo::new().file("src/app/x.ts", "");
+    let rules = json!([{
+        "kind": "layers", "name": "l", "order": ["app", "feature"],
+        "examples": { "accepted": ["src/app/a.ts imports src/shared/s.ts"] },
+    }]);
+    let (outcomes, _) = examples(&rules, &repo);
+    let found = failures(&outcomes);
+    assert!(
+        matches!(&found[..], [Some((Code::ExampleProvesNothing, _))]),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn an_accepted_example_with_one_end_in_the_isolated_element_proves_nothing() {
+    let repo = FixtureRepo::new().file("src/features/x/x.ts", "");
+    let rules = json!([{
+        "kind": "isolate", "name": "i", "element": "feature",
+        "examples": { "accepted": ["src/features/x/a.ts imports src/shared/s.ts"] },
+    }]);
+    let (outcomes, _) = examples(&rules, &repo);
+    let found = failures(&outcomes);
+    assert!(
+        matches!(&found[..], [Some((Code::ExampleProvesNothing, _))]),
+        "{found:?}"
+    );
+}

@@ -561,7 +561,7 @@ impl Architecture {
             .any(|compiled| {
                 let sentence = &self.config.rules[rule].sentences[compiled.sentence];
                 match sentence.condition {
-                    Condition::NoCycles => in_files(compiled, from) && in_files(compiled, to),
+                    Condition::NoCycles => in_cycle_files(compiled, from, to),
                     _ => {
                         self.considers(rule, from, to)
                             && crate::facts::hold(sentence, edge, classes)
@@ -580,8 +580,7 @@ impl Architecture {
                 .any(|compiled| {
                     let sentence = &self.config.rules[rule].sentences[compiled.sentence];
                     matches!(sentence.condition, Condition::NoCycles)
-                        && in_files(compiled, from)
-                        && in_files(compiled, to)
+                        && in_cycle_files(compiled, from, to)
                 })
     }
 
@@ -622,6 +621,11 @@ fn in_set(set: usize, class: &ClassKey) -> bool {
 }
 
 /// Whether a file of this class is among a sentence's files.
+/// Whether a rule about cycles follows an import: both ends are in its files.
+fn in_cycle_files(compiled: &Compiled, from: &ClassKey, to: &ClassKey) -> bool {
+    in_files(compiled, from) && in_files(compiled, to)
+}
+
 pub(crate) fn in_files(compiled: &Compiled, class: &ClassKey) -> bool {
     let config_file = matches!(
         class,

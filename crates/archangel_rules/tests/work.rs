@@ -309,8 +309,13 @@ fn rule_evaluation_count_rejects_an_area_test_per_import() {
     let scenario = fail::FailScenario::setup();
     fail::cfg("rules::area_per_import", "return").unwrap();
     let result = area_counts_match();
+    let of_every_import = area_evaluations(10);
     scenario.teardown();
     assert!(result.is_err(), "the count catches an area test per import");
+    assert_eq!(
+        of_every_import, 10,
+        "one more for the area, on each of the 10 imports"
+    );
 }
 
 /// The evaluations of `count` imports inside one captured part, under a `mayOnlyImport` rule.

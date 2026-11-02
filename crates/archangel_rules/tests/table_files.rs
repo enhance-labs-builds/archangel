@@ -472,3 +472,83 @@ fn a_row_key_that_means_a_part_or_a_group_says_which_it_means() {
         "{gate}"
     );
 }
+
+/// A rule on the files of `src`, and a rule that gives a file with a directive another class.
+fn set_and_directive() -> archangel_rules::Architecture {
+    let config = json!({
+        "parts": { "x": "lib/**" },
+        "rules": [
+            { "name": "r", "files": "src/**", "mayNotImport": "x" },
+            { "name": "client", "files": { "directive": "use client" }, "mayNotImport": "x" },
+        ],
+    });
+    archangel_rules::Architecture::compile(
+        archangel_config::from_value(&config).expect("a valid config"),
+    )
+}
+
+fn has_selector_empty_for_src(report: &Report) -> bool {
+    report
+        .diagnostics
+        .iter()
+        .any(|d| d.code.as_str() == "selector-empty" && d.message.contains("src/**"))
+}
+
+#[test]
+fn a_set_becomes_empty_when_its_last_file_goes_in_a_session() {
+    let architecture = set_and_directive();
+    let repo = repo_of(&["src/a.ts", "lib/b.ts"]);
+    let mut work = archangel_graph::Work::default();
+    let mut graph = archangel_graph::ImportGraph::build(
+        repo.path(),
+        &archangel_graph::GraphOptions::default(),
+        &mut work,
+    );
+    let mut classes = archangel_rules::Classes::new();
+    classes.sync(&architecture, &graph, &mut work);
+    let before = check_again(&architecture, &graph, &mut classes);
+    assert!(
+        !has_selector_empty_for_src(&before),
+        "{:?}",
+        before.diagnostics
+    );
+
+    graph.apply_file_events(&[], &["src/a.ts".to_owned()], &mut work);
+    classes.sync(&architecture, &graph, &mut work);
+    let after = check_again(&architecture, &graph, &mut classes);
+    assert!(
+        has_selector_empty_for_src(&after),
+        "{:?}",
+        after.diagnostics
+    );
+}
+
+#[test]
+fn a_file_that_moves_to_another_class_is_counted_once_for_its_set() {
+    let architecture = set_and_directive();
+    let repo = repo_of(&["src/a.ts", "lib/b.ts"]);
+    let mut work = archangel_graph::Work::default();
+    let mut graph = archangel_graph::ImportGraph::build(
+        repo.path(),
+        &archangel_graph::GraphOptions::default(),
+        &mut work,
+    );
+    let mut classes = archangel_rules::Classes::new();
+    classes.sync(&architecture, &graph, &mut work);
+
+    graph.replace_file("src/a.ts", Some("'use client';\n"), &mut work);
+    let lookup = archangel_rules::Lookup::new(&architecture, &graph);
+    assert!(
+        classes.reclassify(lookup, "src/a.ts", &mut work),
+        "the directive moves the file"
+    );
+
+    graph.apply_file_events(&[], &["src/a.ts".to_owned()], &mut work);
+    classes.sync(&architecture, &graph, &mut work);
+    let after = check_again(&architecture, &graph, &mut classes);
+    assert!(
+        has_selector_empty_for_src(&after),
+        "{:?}",
+        after.diagnostics
+    );
+}
