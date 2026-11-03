@@ -1,0 +1,5 @@
+error[baseline-stale]: the baseline permits 1 more violation(s) of "app.shared" in src/shared/greeting.ts than the code has, because they were fixed; run `archangel baseline prune`
+
+checked 7 files and 4 imports: 1 problem
+  app.feature: 0 permitted by exceptions, 2 by the baseline
+For what a code means, run `archangel docs baseline-stale`.

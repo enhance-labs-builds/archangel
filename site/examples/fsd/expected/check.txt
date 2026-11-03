@@ -1,0 +1,20 @@
+error[plugin]: This slice has only one reference in slice "pages/home". Consider merging them.
+--> src/entities/product
+ = note: rule: fsd/insignificant-slice
+ = note: reason: A slice that at most one other slice uses belongs in that slice.
+ = note: see: https://feature-sliced.github.io/steiger/rules/insignificant-slice
+
+error[may-not-import]: src/entities/product/ui/product-card.ts may not import "@/features/add-to-cart", because files in "entities" may not import "fsd/features", "fsd/widgets", "fsd/pages", "fsd/app"
+ --> src/entities/product/ui/product-card.ts:1:33
+  |
+1 | import { addToCartButton } from '@/features/add-to-cart';
+  |                                 ^^^^^^^^^^^^^^^^^^^^^^^^ remove the import, or move the code to files that may import it
+  |
+  = note: rule: fsd/forbidden-imports
+  = note: reason: A module may import only from layers below its own, and a slice not from another slice of its layer, except through @x.
+  = note: see: https://feature-sliced.github.io/steiger/rules/forbidden-imports
+
+checked 12 files and 13 imports: 2 problems
+  fsd/widgets matches nothing in this repository
+  fsd/processes matches nothing in this repository
+For what a code means, run `archangel docs plugin` or `archangel docs may-not-import`.

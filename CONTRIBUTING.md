@@ -26,14 +26,15 @@ the checkers below; `rust-toolchain.toml` pins Rust 1.93, and CI pins the same v
 ```bash
 brew install actionlint zizmor typos-cli lychee cargo-deny
 npm ci --ignore-scripts
+npm ci --ignore-scripts --prefix site
 ```
 
 Install [zanity](https://github.com/benomahony/zanity) 0.1.33 from its release page, and check the
 download's SHA-256 against the one the release lists.
 
 `scripts/check` runs every check: formatting, clippy with every lint at `deny`, the tests,
-dependency licences and advisories, zanity, spelling, the workflows, Markdown links and the
-OpenSpec changes. CI runs the same script, so run it before you push:
+dependency licences and advisories, zanity, spelling, the workflows, Markdown links, the
+documentation site in `site/` and the OpenSpec changes. CI runs the same script, so run it before you push:
 
 ```bash
 scripts/check

@@ -1,0 +1,151 @@
+---
+title: Add archangel to an existing repository
+description: Turn on a rule today in a repository that already breaks it. Record the old problems in a baseline, and stop each new problem.
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This guide turns on an architecture rule in a repository that already breaks it. The check then
+fails only for new problems, and the old problems can only go down.
+
+## Before you start
+
+- You need Node 22.18 or later.
+- Read [Getting started](/archangel/start/getting-started/) if you do not know what a table is.
+
+The example repository is a shop with three features and some shared code. Some of its code
+already breaks the decision "a feature does not import another feature":
+
+<FileTree>
+- package.json
+- src/
+  - features/
+    - account/
+      - index.ts
+    - cart/
+      - index.ts
+    - checkout/
+      - index.ts
+  - shared/
+    - greeting.ts
+    - money.ts
+</FileTree>
+
+## Write the rule
+
+<Steps>
+
+1. Install archangel and write a starter config:
+
+   ```sh
+   npm install --save-dev @enhance-eng/archangel
+   npx archangel init --typescript
+   ```
+
+   `init` makes one part for each folder of source files. Change these parts to the parts of your
+   architecture.
+
+2. Write the decision as a table:
+
+   <Example fixture="baseline" file="archangel.config.ts" />
+
+3. Check the repository:
+
+   <Output fixture="baseline" output="check-before.txt" />
+
+   The check finds three problems. Each one existed before the rule. The check exits with code 1,
+   so CI fails.
+
+</Steps>
+
+Now you have two choices. You can fix all the problems before you merge the rule. Or you can
+record them, merge the rule today, and fix them later. In a large repository, the second choice is
+usually the only one that is possible.
+
+## Record the old problems in a baseline
+
+<Steps>
+
+1. Write the baseline:
+
+   <Output fixture="baseline" output="baseline-add.txt" />
+
+   Archangel writes `archangel.baseline.json` next to the config:
+
+   <Example fixture="baseline" file="expected/archangel.baseline.json" title="archangel.baseline.json" />
+
+   An entry records the rule, the file, the import specifier and a count. It does not record a
+   line number, so an edit above the import does not break the match. The file is sorted, so two
+   runs on the same code write the same bytes.
+
+2. Check again:
+
+   <Output fixture="baseline" output="check-baselined.txt" />
+
+   The check passes. The summary shows, for each rule, how many problems the baseline permits.
+
+3. Commit `archangel.config.ts` and `archangel.baseline.json`.
+
+</Steps>
+
+## A new problem still fails
+
+The baseline holds only the problems of today. Suppose that a new feature imports the cart:
+
+<Example fixture="baseline" file="later/billing.ts" title="src/features/billing/index.ts" />
+
+<Output fixture="baseline" output="check-new.txt" />
+
+The new import fails the check. The three old problems stay permitted.
+
+## The baseline only gets smaller
+
+A check never writes the baseline. When the code fixes an old problem, the baseline entry becomes
+a problem of its own.
+
+<Steps>
+
+1. Fix an old problem. Here, `greeting.ts` gets the name as an argument, so it does not import the
+   account feature:
+
+   <Example fixture="baseline" file="later/greeting-fixed.ts" title="src/shared/greeting.ts" />
+
+2. Check:
+
+   <Output fixture="baseline" output="check-stale.txt" />
+
+   The diagnostic `baseline-stale` tells you that the baseline permits more than the code needs.
+
+3. Remove the entries that the code does not need:
+
+   <Output fixture="baseline" output="baseline-prune.txt" />
+
+   `baseline prune` lowers or removes entries. It never adds an entry, and it never raises a count.
+
+   <Example fixture="baseline" file="expected/archangel.baseline.pruned.json" title="archangel.baseline.json" />
+
+4. Check again, and commit the smaller baseline:
+
+   <Output fixture="baseline" output="check-pruned.txt" />
+
+</Steps>
+
+<Aside type="tip" title="Prune in the pull request that fixes the code">
+  Each pull request that fixes old code also prunes the baseline. Then the diff of the pull request
+  shows which problems it fixed.
+</Aside>
+
+## Find what no rule checks
+
+A new rule can check less than you think. Run `npx archangel rules` after you add a rule. At the
+end, it lists the files and imports that no rule judges, and the outside packages that no rule
+names. Add a part, a row or a rule for each item that matters.
+
+## Next steps
+
+- [Exceptions and baselines](/archangel/guides/exceptions-and-baselines/) tells you when to use an
+  exception comment instead of the baseline.
+- [Use archangel in CI](/archangel/guides/ci/).
+- [Layer a backend](/archangel/guides/backend-layers/) shows a larger table.

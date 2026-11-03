@@ -1,0 +1,18 @@
+orders  5 rows  archangel.config.ts:8
+  because: A service uses repositories. A repository stores entities. An entity knows only itself.
+
+  orders.service: service may import only repository, entity, helpers, shared, and itself
+    1 file · 3 imports judged · 0 problems · 0 exceptions
+  orders.repository: repository may import only entity, shared, and itself
+    1 file · 1 import judged · 0 problems · 0 exceptions
+  orders.entity: entity may import only shared, and itself
+    1 file · 1 import judged · 0 problems · 0 exceptions
+  orders.helpers: helpers may import only entity, shared, and itself
+    1 file · 1 import judged · 0 problems · 0 exceptions
+  orders.shared: shared may import only itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  orders.every-file-has-a-kind: every file of orders has a row
+    5 files · 0 problems
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: none.

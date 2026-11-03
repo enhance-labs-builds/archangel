@@ -1,0 +1,16 @@
+app  2 rows  archangel.config.ts:16
+
+  app.feature: feature may import only shared, browser, and itself in the same instance
+    1 file · 2 imports judged · 0 problems · 0 exceptions
+  app.shared: shared may import only itself
+    2 files · 1 import judged · 0 problems · 0 exceptions
+  app.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
+    3 files · 0 problems
+
+tests-stay-out  archangel.config.ts:21
+  because: Code that ships never needs a test file.
+  files in not tests may not import tests
+    3 files · 3 imports judged · 0 problems · 0 exceptions
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: vitest (1 import).

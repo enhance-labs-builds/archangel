@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "file": "src/shared/label.ts",
+  "line": 1,
+  "imports": [
+    {
+      "specifier": "../features/cart/total",
+      "line": 1,
+      "target": {
+        "file": "src/features/cart/total.ts"
+      },
+      "from": {
+        "part": "shared",
+        "instance": [],
+        "kinds": []
+      },
+      "to": {
+        "part": "feature",
+        "instance": [
+          "cart"
+        ],
+        "kinds": []
+      },
+      "rules": [
+        {
+          "rule": "app.feature",
+          "verdict": "skips",
+          "reason": "the file is not in feature",
+          "permittedBy": null
+        },
+        {
+          "rule": "app.shared",
+          "verdict": "refuses",
+          "reason": "feature is not in its row (shared may import only itself)",
+          "permittedBy": null
+        },
+        {
+          "rule": "app.every-file-has-a-kind",
+          "verdict": "skips",
+          "reason": "this rule checks files, not imports",
+          "permittedBy": null
+        }
+      ]
+    }
+  ]
+}

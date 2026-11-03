@@ -1,0 +1,134 @@
+---
+title: Layer a backend
+description: Write the layers of a backend as a table, keep the database driver in one layer, give the domain files kinds, and stop import cycles.
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This guide writes the architecture of a small backend as tests. It uses two tables and one rule.
+
+## Before you start
+
+- Read [Getting started](/archangel/start/getting-started/).
+- You need a backend whose code is in folders by layer.
+
+The example is a users API. A route calls a service. A service uses the domain and the database
+code. Only the `db` folder talks to PostgreSQL through the package `pg`.
+
+<FileTree>
+- package.json
+- src/
+  - routes/
+    - health.ts
+    - users.ts
+  - services/
+    - sign-up.ts
+  - db/
+    - users.ts
+  - domain/
+    - email.value-object.ts
+    - user-created.event.ts
+    - user.entity.ts
+</FileTree>
+
+This is the config. The steps below tell you about each part of it:
+
+<Example fixture="backend" file="archangel.config.ts" />
+
+## Write the layers
+
+<Steps>
+
+1. Give a name to each layer in `parts`. Each file is in one part at most.
+
+2. Give a name to the database driver in `externals`. An externals set is a named set of outside
+   packages. Here, `driver` holds `pg`.
+
+3. Write the table `backend`. It has one row for each layer:
+
+   - `routes` may import `services`.
+   - `services` may import `domain` and `db`.
+   - `db` may import `domain` and the externals set `driver`.
+   - `domain` may import only itself.
+
+   A row always permits its own part. The table refuses each other import into the repository.
+
+</Steps>
+
+<Aside title="A table refuses a package only when a cell names it">
+  The cell `driver` on the row `db` tells the table about `pg`. So the table judges each import of
+  `pg`, and refuses it in each row that does not list `driver`. A table does not judge a package
+  that no cell names. Without the cell, each row could import `pg`.
+</Aside>
+
+## Give the domain files kinds
+
+The domain has three kinds of file: entities, value objects and events. The file name gives the
+kind, for example `user.entity.ts`. A second table, `model`, uses the kinds as its rows:
+
+- `kinds: 'src/domain/*.{kind}.ts'` is the pattern that gives a file its kind. In
+  `src/domain/user.entity.ts`, the capture `{kind}` takes `entity`.
+- `files: 'domain'` makes the table judge only the files of the part `domain`.
+- Because the table has `files`, each file in `domain` must have a row. A file such as
+  `src/domain/helpers.ts` has no kind, so the rule `model.every-file-has-a-kind` refuses it.
+
+You do not declare a kind. The pattern gives the names. Read [Kinds](/archangel/concepts/kinds/)
+for more patterns.
+
+## Stop import cycles
+
+The rule `no-cycles` refuses files that import each other. It counts only runtime imports by
+default, because the compiler removes an `import type`.
+
+In the example, `user.entity.ts` imports `user-created.event.ts`, and the event imports the type
+`User` from the entity. This is a cycle of one runtime import and one type import. It cannot break
+when the code runs, so `no-cycles` does not refuse it. To refuse type cycles too, add
+`imports: 'all'` to the rule.
+
+The rule has a rejected example. `archangel test` makes the two files of the example in memory and
+checks that the rule refuses them.
+
+## Check the backend
+
+<Steps>
+
+1. Run the check:
+
+   <Output fixture="backend" output="check.txt" />
+
+   The check finds two problems:
+
+   - `user.entity.ts` imports an event. The row `entity` lists only `value-object`. To fix it, let
+     the service make the event after it creates the user.
+   - `health.ts` imports `pg` in a route. To fix it, move the query to a function in `db`, and
+     call it through a service.
+
+2. Run the examples:
+
+   <Output fixture="backend" output="test.txt" />
+
+3. See what each row judged:
+
+   <Output fixture="backend" output="rules.txt" />
+
+   The table `backend` has no `files`, so its rule `backend.every-file-has-a-kind` does not check
+   files that have no row. The line says this. The table `model` has `files`, so each file of the
+   domain must have a row.
+
+</Steps>
+
+## A table or `layers`
+
+The shorthand `layers(['routes', 'services', 'db'])` also writes layers. It says only that a layer
+may not import a layer before it in the list. So a route may import `db` directly. A table says
+what each layer may import, so it refuses that import. Use a table when you want to say what each
+layer may use, not only what it may not use.
+
+## Next steps
+
+- [Tables, rows and cells](/archangel/concepts/tables-rows-and-cells/) explains each cell type.
+- [Exceptions and baselines](/archangel/guides/exceptions-and-baselines/) tells you what to do
+  with code that breaks a rule on purpose.
+- [Monorepos and workspace tables](/archangel/guides/monorepos/).

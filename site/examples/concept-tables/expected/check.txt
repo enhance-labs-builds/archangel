@@ -1,0 +1,12 @@
+error[may-import]: domain may not import the package `pg`, through "pg": domain may import only log, and itself
+ --> src/domain/order-store.ts:1:16
+  |
+1 | import pg from 'pg';
+  |                ^^^^ domain may import only log, and itself
+  |
+  = help: remove the import, or move the code to a file whose row permits the import
+  = note: rule: app.domain
+  = note: because: The UI shows the domain. Only db talks to the database.
+
+checked 6 files and 9 imports: 1 problem
+For what a code means, run `archangel docs may-import`.

@@ -1,0 +1,129 @@
+---
+title: File and folder names
+description: Check the style of file and folder names, permit a list of names, make a file export the name of its file, and make each folder hold its entry file.
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This guide checks the names of files and folders, and which files a folder must hold.
+
+## Before you start
+
+- Read [Getting started](/archangel/start/getting-started/).
+
+The example is a React app with components and features. Some of its names break the team's
+conventions:
+
+<FileTree>
+- archangel.config.ts
+- src/
+  - components/
+    - Avatar.tsx
+    - priceTag.tsx
+  - features/
+    - cart/
+      - index.ts
+      - ui/
+        - cart-row.tsx
+        - cart.container.tsx
+        - cart.view.tsx
+    - orderHistory/
+      - ui/
+        - orders.view.tsx
+</FileTree>
+
+## Write the rules
+
+This config has five rules. The sections below tell you about each one.
+
+<Example fixture="names" file="archangel.config.ts" />
+
+### A style for folders
+
+`folder-names` uses `folders`, not `files`. The pattern `src/**` matches each folder inside `src`.
+`mustBeNamed: 'kebab-case'` gives the style.
+
+The styles are `kebab-case`, `camelCase`, `PascalCase`, `snake_case` and
+`SCREAMING_SNAKE_CASE`.
+
+### A style for files
+
+`component-names` gives each component file a name in `PascalCase`. For a style, archangel reads
+the name up to the first dot. So `Avatar.tsx` has the name `Avatar`, and `Button.test.tsx` has the
+name `Button`.
+
+### A list of permitted names
+
+`ui-file-names` permits two name patterns: `*.view` and `*.container`. A name pattern reads the
+full name of the file without its last extension, so `cart.view.tsx` has the full name
+`cart.view`. In a name pattern, `*` is any text or no text.
+
+- `*.view` matches `cart.view.tsx`.
+- `*.view` does not match `view.tsx`, whose full name is `view`.
+- `*.view` does not match `cart.view.extra.tsx`, whose full name is `cart.view.extra`.
+
+One entry of the list must match. A list can mix styles and name patterns. An empty list is a
+config error.
+
+### A file exports the name of its file
+
+`component-exports` uses an export condition: `mustExport: '{FileName}'`. `{FileName}` is the name
+of the file in `PascalCase`. So `Avatar.tsx` must export `Avatar`. A re-export and `export *` count.
+
+The name of the file or its folder can go in a name pattern in each style: `{FileName}`,
+`{fileName}`, `{file-name}`, `{file_name}`, `{FILE_NAME}`, and the same spellings of
+`{FolderName}`.
+
+### Each folder has its entry file
+
+`feature-entry` uses `mustContain`. Each folder that `src/features/*` matches must hold
+`index.ts`. To permit one file of a list, write a list:
+`mustContain: ['index.ts', 'index.tsx']`.
+
+## Check the names
+
+<Steps>
+
+1. Check the app:
+
+   <Output fixture="names" output="check.txt" />
+
+   Each error says what is wrong and gives the correct name:
+
+   - `priceTag.tsx` is not in `PascalCase`.
+   - `cart-row.tsx` matches neither `*.view` nor `*.container`.
+   - `src/features/orderHistory` has no `index.ts`.
+   - `src/features/orderHistory` is not in `kebab-case`.
+
+2. Run the examples:
+
+   <Output fixture="names" output="test.txt" />
+
+</Steps>
+
+<Aside type="caution" title="An example sees your repository">
+  Archangel lays the files of an example over the files of your repository. So the example of
+  `feature-entry` uses a new feature, `search`. An example in `src/features/cart` would also see the
+  real `src/features/cart/index.ts`, and the rule would not refuse it.
+</Aside>
+
+## See what the rules cover
+
+<Output fixture="names" output="rules.txt" />
+
+The end of the output lists one file and three imports that no rule judges. Name rules judge
+files, not imports. To check the imports too, add a table.
+
+## What archangel does not check
+
+- Archangel has no rule for the first or the last character of a name, for example a name that
+  starts with `_`.
+- Archangel does not check the names inside a file, such as names of functions. `mustExport` and
+  `mayNotExport` check only exported names.
+
+## Next steps
+
+- [Conditions](/archangel/reference/conditions/) lists each structure and export condition.
+- [Migrate from eslint-plugin-check-file](/archangel/guides/from-eslint-plugin-check-file/).

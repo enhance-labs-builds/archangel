@@ -1,0 +1,114 @@
+---
+title: Next.js
+description: Keep server code out of client components with the nextjs preset, which follows chains of imports from each 'use client' file.
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This guide keeps server-only code out of the browser in a Next.js app, with the `nextjs` preset.
+
+## Before you start
+
+- Read [Getting started](/archangel/start/getting-started/).
+- You have a Next.js app that uses the App Router and `'use client'` files.
+
+## What the preset checks
+
+A file that starts with `'use client'` runs in the browser. So does each file that it reaches
+through runtime imports. The preset refuses a chain of imports from a client file to the package
+`server-only` or to a Node built-in module, such as `node:fs`.
+
+A chain stops at a file that starts with `'use server'`. Next.js changes an import of a server
+action into a network call, so the code of the action does not go to the browser.
+
+The preset has one rule, `nextjs/client-stays-client`. It counts only runtime imports, because the
+compiler removes an `import type`.
+
+## Add the preset
+
+The example app has a cart page, a client button, and a module that reads the cart from disk:
+
+<FileTree>
+- archangel.config.ts
+- tsconfig.json
+- app/
+  - cart/
+    - actions.ts
+    - page.tsx
+- components/
+  - cart-button.tsx
+- lib/
+  - cart.ts
+  - format.ts
+</FileTree>
+
+<Steps>
+
+1. Put the preset in `extends`:
+
+   <Example fixture="nextjs" file="archangel.config.ts" />
+
+   `nextjs()` checks the whole repository. To check one app of a monorepo, give its folder:
+   `nextjs({ root: 'apps/web' })`.
+
+2. Check the app:
+
+   <Output fixture="nextjs" output="check.txt" />
+
+   The button is a client component. It imports `lib/format.ts` to format the total.
+   `format.ts` imports `lib/cart.ts` for one constant, and `cart.ts` imports `server-only`. So the
+   button pulls server code into the browser. The error shows the full chain.
+
+</Steps>
+
+These are the files of the chain:
+
+<Example fixture="nextjs" file="components/cart-button.tsx" />
+
+<Example fixture="nextjs" file="lib/format.ts" />
+
+<Example fixture="nextjs" file="lib/cart.ts" />
+
+The button also imports `checkout` from `app/cart/actions.ts`, which also imports `lib/cart.ts`.
+The rule does not refuse that chain, because `actions.ts` starts with `'use server'`.
+
+## Fix the chain
+
+<Steps>
+
+1. Move the constant into `format.ts`, so that `format.ts` imports nothing from the server:
+
+   <Example fixture="nextjs" file="later/format.ts" title="lib/format.ts" />
+
+2. Check again:
+
+   <Output fixture="nextjs" output="check-fixed.txt" />
+
+</Steps>
+
+## Find a chain yourself
+
+`archangel why` shows the shortest chain of imports from one file to a file or a package:
+
+<Output fixture="nextjs" output="why.txt" />
+
+<Aside type="caution" title="why does not know where a rule stops">
+  `why` shows the shortest chain of all imports. This chain goes through `app/cart/actions.ts`, a
+  `'use server'` file, so the preset rule does not refuse it. Use `why` to see how code connects.
+  Use `archangel check` to see what a rule refuses.
+</Aside>
+
+## Prove the preset
+
+<Output fixture="nextjs" output="test.txt" />
+
+The preset brings its own examples: one client page that reaches `node:fs` through a helper, and
+one that reaches it only through a `'use server'` file.
+
+## Next steps
+
+- [Presets](/archangel/reference/presets/) lists the options of `nextjs`.
+- [Conditions](/archangel/reference/conditions/) tells you how to write your own rule about
+  chains of imports, with `transitively` and `stopAt`.

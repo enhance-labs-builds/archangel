@@ -1,0 +1,15 @@
+no-circular  archangel.config.ts:13
+  files in src/** may not import each other in a cycle
+    5 files · 1 problem
+
+ui-not-to-db  archangel.config.ts:20
+  because: The UI reads data through the api folder.
+  files in ui may not import db
+    1 file · 3 imports judged · 1 problem · 0 exceptions
+
+not-to-dev-dep  archangel.config.ts:27
+  files in all of (src/**, not tests) may not import * that the nearest package.json lists only for development
+    4 files · 1 import judged · 1 problem · 0 exceptions
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: none.

@@ -1,0 +1,11 @@
+{
+  "name": "plugin-view",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "react": "19.2.0"
+  },
+  "devDependencies": {
+    "@enhance-eng/archangel": "0.3.1"
+  }
+}

@@ -1,0 +1,40 @@
+---
+// Lists each diagnostic code by group, with the first sentence that `archangel docs` prints for it.
+// The code pages come from scripts/diagnostics.mjs, so this list and the pages always agree.
+import { getCollection } from 'astro:content';
+import groups from '../diagnostics.json';
+
+const pages = await getCollection('docs', (page) => page.id.startsWith('reference/diagnostics/'));
+const meaning = new Map(pages.map((page) => [page.id.replace('reference/diagnostics/', ''), page.data.description]));
+const missing = groups.flatMap((group) => group.codes).filter((code) => !meaning.has(code));
+if (missing.length > 0) throw new Error(`no page for the codes ${missing.join(', ')}: run scripts/diagnostics.mjs`);
+---
+
+{
+  groups.map((group) => (
+    <section>
+      <h2 id={group.group.toLowerCase().replaceAll(' ', '-')}>{group.group}</h2>
+      <p>{group.about}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>What it means</th>
+          </tr>
+        </thead>
+        <tbody>
+          {group.codes.map((code) => (
+            <tr>
+              <td>
+                <a href={`/archangel/reference/diagnostics/${code}/`}>
+                  <code>{code}</code>
+                </a>
+              </td>
+              <td>{meaning.get(code)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  ))
+}

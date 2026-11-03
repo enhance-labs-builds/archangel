@@ -1,0 +1,16 @@
+app  4 rows  archangel.config.ts:15
+  because: The UI shows the domain. Only db talks to the database.
+
+  app.ui: ui may import only domain, view, log, and itself
+    1 file · 2 imports judged · 0 problems · 0 exceptions
+  app.domain: domain may import only log, and itself
+    2 files · 3 imports judged · 1 problem · 0 exceptions
+  app.db: db may import only domain, driver, log, and itself
+    1 file · 2 imports judged · 0 problems · 0 exceptions
+  app.log: log may import only log, and itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  app.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
+    5 files · 0 problems
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: date-fns (1 import).

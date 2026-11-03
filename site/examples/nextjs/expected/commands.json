@@ -1,0 +1,6 @@
+[
+  { "args": ["check"], "output": "check.txt", "status": 1 },
+  { "args": ["test"], "output": "test.txt", "status": 0 },
+  { "args": ["why", "components/cart-button.tsx", "server-only"], "output": "why.txt", "status": 0 },
+  { "later": { "lib/format.ts": "format.ts" }, "args": ["check"], "output": "check-fixed.txt", "status": 0 }
+]

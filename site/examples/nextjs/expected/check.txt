@@ -1,0 +1,12 @@
+error[may-not-import]: components/cart-button.tsx reaches server-only through components/cart-button.tsx → lib/format.ts → lib/cart.ts → server-only
+ --> components/cart-button.tsx:3:29
+  |
+3 | import { formatTotal } from '@/lib/format';
+  |                             ^^^^^^^^^^^^^^ remove an import of the chain, or move what the file needs into code that does not reach it
+  |
+  = note: rule: nextjs/client-stays-client
+  = note: reason: Code that runs in the browser cannot use server-only code or Node built-in modules.
+  = note: see: https://nextjs.org/docs/app/getting-started/server-and-client-components
+
+checked 6 files and 9 imports: 1 problem
+For what a code means, run `archangel docs may-not-import`.

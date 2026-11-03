@@ -1,0 +1,16 @@
+error[plugin]: This slice has only one reference in slice "pages/home". Consider merging them.
+--> src/entities/product
+ = note: rule: fsd/insignificant-slice
+ = note: reason: A slice that at most one other slice uses belongs in that slice.
+ = note: see: https://feature-sliced.github.io/steiger/rules/insignificant-slice
+
+error[plugin]: This slice has only one reference in slice "pages/home". Consider merging them.
+--> src/features/add-to-cart
+ = note: rule: fsd/insignificant-slice
+ = note: reason: A slice that at most one other slice uses belongs in that slice.
+ = note: see: https://feature-sliced.github.io/steiger/rules/insignificant-slice
+
+checked 12 files and 12 imports: 2 problems
+  fsd/widgets matches nothing in this repository
+  fsd/processes matches nothing in this repository
+For what a code means, run `archangel docs plugin`.

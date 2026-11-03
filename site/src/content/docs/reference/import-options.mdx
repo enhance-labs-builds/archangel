@@ -1,0 +1,130 @@
+---
+title: Import options
+description: The options that make an import condition or a table apply to fewer imports, and the options for chains of imports.
+---
+
+Add one of these options to an import condition (`mayNotImport`, `mayOnlyImport`,
+`mayOnlyBeImportedBy`) or to a table. The condition then applies only to some imports.
+
+| Option | Values | The condition applies only to |
+| --- | --- | --- |
+| [`names`](#names) | list of names | imports that bring in one of these names |
+| [`specifier`](#specifier) | `'relative'`, `'parent'`, `'alias'`, `'package'` | imports whose specifier has this form |
+| [`instance`](#instance) | `'same'`, `'different'` | imports inside one instance, or between two instances |
+| [`dependency`](#dependency) | `'dev'`, `'undeclared'` | packages with this entry in the nearest `package.json` |
+| [`within`](#within) | set of files | imports into an area, or importers in an area |
+| [`imports`](#imports) | `'all'`, `'runtime'`, `'types'` | imports of this kind |
+
+An import that one of these options leaves out does not count as judged by the rule.
+`archangel rules` lists it under the imports that no rule judges.
+
+## `names`
+
+```ts
+rule('no-effects-in-views', { files: 'view', mayNotImport: { packages: ['react'] }, names: ['useEffect'], examples: { rejected: [{ 'src/view/a.ts': "import { useEffect } from 'react';" }] } })
+```
+
+- A default import brings in the name `default`.
+- A namespace import (`import * as x`), an `export *`, a dynamic `import()` and a `require()` bring
+  in each name, because archangel cannot see which names the code uses.
+
+## `specifier`
+
+```ts
+rule('no-parent-imports', { files: 'feature', mayNotImport: 'feature', specifier: 'parent', examples: { rejected: [{ 'src/features/login/ui/a.ts': "import '../b';", 'src/features/login/b.ts': '' }] } })
+```
+
+| Value | The specifier |
+| --- | --- |
+| `'relative'` | starts with `./` or `../` |
+| `'parent'` | starts with `../` |
+| `'alias'` | resolves through a tsconfig path or a package `imports` field |
+| `'package'` | is a package name |
+
+## `instance`
+
+```ts
+rule('features-apart', { files: 'feature', mayNotImport: 'feature', instance: 'different', examples: { rejected: ['src/features/login/a.ts imports src/features/cart/b.ts'] } })
+```
+
+- `'same'`: imports whose two ends are in one instance of the part in `files`.
+- `'different'`: imports between two instances of that part.
+
+`files` must be one part with a capture. Other `files` give
+[`rule-needs-capture`](/archangel/reference/diagnostics/rule-needs-capture/).
+
+## `dependency`
+
+```ts
+rule('no-dev-packages-in-src', { files: 'src/**', mayNotImport: { packages: ['*'] }, dependency: 'dev', examples: { rejected: [{ 'package.json': '{ "devDependencies": { "react": "1.0.0" } }', 'src/a.ts': "import 'react';" }] } })
+```
+
+| Value | The package |
+| --- | --- |
+| `'dev'` | is only in `devDependencies` of the nearest `package.json` of the importing file |
+| `'undeclared'` | is not in the nearest `package.json` of the importing file |
+
+The nearest `package.json` is the first one at or above the importing file. In a monorepo, this is
+the `package.json` of the workspace package. Read [Monorepos](/archangel/guides/monorepos/).
+
+## `within`
+
+`within` gives a rule an area. The rule then permits each import outside the area.
+
+```ts
+rule('entity-imports', { files: 'entity', mayOnlyImport: ['value-object', 'error'], within: 'src/**', examples: { rejected: ['src/entity/a.ts imports src/use-case/a.ts'] } })
+```
+
+| On | `within` limits |
+| --- | --- |
+| `mayOnlyImport` | the targets: the rule judges only imports into the area |
+| `mayOnlyBeImportedBy` | the importers: the rule judges only imports from files in the area |
+| a table | the targets: each row judges only imports into the area |
+
+- Without `within`, `mayOnlyImport` judges each import, packages too.
+- `within` can name an externals set. Then `mayOnlyImport` judges the imports of those packages.
+- With `within`, the list of `mayOnlyImport` can be empty. The rule then refuses each import into
+  the area, except into its own files.
+- Archangel refuses `within` on `mayNotImport`, and on a condition that judges no import. To limit
+  `mayNotImport` to an area, write the area on the other side:
+  `mayNotImport: { all: ['use-case', 'src/**'] }`.
+- An area that finds no file is an error.
+
+## `imports`
+
+| Value | The rule counts |
+| --- | --- |
+| `'all'` | each import. This is the default. |
+| `'runtime'` | the imports that stay in the compiled code. This is the default for `noCycles` and for a transitive rule. |
+| `'types'` | only type imports, such as `import type` |
+
+An `import type`, and an import that names only types with `import { type A }`, is a type import.
+With `verbatimModuleSyntax` in your tsconfig, `import { type A } from './a'` stays in the compiled
+code, so it is a runtime import.
+
+## `transitively`
+
+Add `transitively: true` to `mayNotImport`. The rule then finds chains of imports of each length,
+not only direct imports. The report shows the shortest chain.
+
+```ts
+rule('client-stays-client', {
+  files: { directive: 'use client' },
+  mayNotImport: { packages: ['node:*'] },
+  transitively: true,
+  stopAt: { directive: 'use server' },
+  examples: {
+    rejected: [{ 'src/view/a.tsx': "'use client';\nimport '../shared/a';", 'src/shared/a.ts': "import 'node:fs';" }],
+  },
+})
+```
+
+- A chain stops at a package, and at each file in `stopAt`.
+- A transitive rule counts only runtime imports by default. `imports: 'types'` is refused, because
+  a chain of type imports never runs.
+- A transitive rule cannot also have `names`, `specifier`, `instance`, `dependency` or `within`.
+- For each file that reaches the other side, archangel reports one problem with the shortest chain.
+  Among chains of one length, it shows the first in path order.
+
+`archangel why <file> <target>` shows the shortest chain between two files, or from a file to a
+package. It does not know `stopAt`, so it can show a chain that the rule stops.

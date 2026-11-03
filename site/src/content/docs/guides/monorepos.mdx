@@ -1,0 +1,126 @@
+---
+title: Monorepos and workspace tables
+description: Check which apps and packages of a workspace may use which, and make each app list the packages that it imports.
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This guide checks the architecture of a monorepo with one config at its root. A table says which
+apps and packages may use which. A second rule makes each app list the packages that it imports.
+
+## Before you start
+
+- Read [Getting started](/archangel/start/getting-started/).
+- Your monorepo uses workspaces of npm, pnpm or Yarn, so that each workspace package is linked in
+  `node_modules`.
+
+The example has two apps and two packages:
+
+<FileTree>
+- archangel.config.ts
+- package.json
+- apps/
+  - api/
+    - package.json
+    - src/
+      - index.ts
+  - web/
+    - package.json
+    - src/
+      - index.ts
+- packages/
+  - contract/
+    - package.json
+    - src/
+      - index.ts
+  - ui/
+    - package.json
+    - src/
+      - index.ts
+</FileTree>
+
+## How archangel sees a workspace package
+
+An app imports a package of the workspace by its name, for example `@acme/ui`. The package
+manager links `node_modules/@acme/ui` to `packages/ui`. Archangel follows the link, as Node and
+TypeScript do. So the import goes to a file in `packages/ui`, and a rule about parts judges it as
+an import of that file.
+
+<Aside>
+  For this reason, an externals set cannot hold the name of a workspace package. Archangel refuses
+  the config. Use a part for the folder of the package.
+</Aside>
+
+## Write the workspace table
+
+<Steps>
+
+1. Write one config at the root of the monorepo, with one part for each app and each package:
+
+   <Example fixture="monorepo" file="archangel.config.ts" />
+
+   The table `workspace` says:
+
+   - The web app may use the UI kit and the contract.
+   - The API may use only the contract.
+   - The UI kit and the contract may use no other workspace.
+
+2. Check the monorepo:
+
+   <Output fixture="monorepo" output="check.txt" />
+
+   The check finds two problems. The first is from the table: the API imports the UI kit. The
+   second is from the rule `declared-packages`, in the next section.
+
+</Steps>
+
+Here is the API file:
+
+<Example fixture="monorepo" file="apps/api/src/index.ts" />
+
+## Make each app list its packages
+
+In a monorepo, a package that one workspace installs is often visible to all of them. An app can
+then import a package that its own `package.json` does not list. It works on your laptop and fails
+when the app builds alone.
+
+The rule `declared-packages` refuses this. It uses two options:
+
+- `mayNotImport: { packages: ['*'] }` names each outside package.
+- `dependency: 'undeclared'` limits the rule to packages that the nearest `package.json` of the
+  importing file does not list.
+
+The API imports `zod`. The root `package.json` installs it, but `apps/api/package.json` does not
+list it:
+
+<Example fixture="monorepo" file="apps/api/package.json" />
+
+The API also imports `@acme/ui`, which its `package.json` does not list either. The rule does not
+refuse it, because the import goes to a file of the repository, not to an outside package. The
+table judges it.
+
+To find packages that are only in `devDependencies`, use `dependency: 'dev'`.
+
+## Prove the rules
+
+<Output fixture="monorepo" output="test.txt" />
+
+The example of `declared-packages` writes its own `package.json`. A rule with `dependency` needs
+files that you write, because the text of the manifest decides the result. One-line examples do
+not work here.
+
+<Output fixture="monorepo" output="rules.txt" />
+
+## One config or many
+
+Archangel uses the nearest config at or above the folder where it starts. One config at the root
+can check all workspaces in one run, and a table can say how they depend on each other. A config
+in a workspace sees only that workspace. Use one root config for the rules between workspaces.
+
+## Next steps
+
+- [Import options](/archangel/reference/import-options/) lists `dependency`, `specifier`,
+  `instance` and `within`.
+- [Next.js](/archangel/guides/nextjs/) shows how to use a preset for one app, with its `root`.

@@ -1,0 +1,98 @@
+---
+title: Examples prove rules
+description: A rule can be wrong and still pass. Examples are code that a rule must accept or reject, and archangel test checks them in memory, laid over your repository.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+A rule that finds no problem looks the same as a rule that checks nothing. A typing error in a path
+makes a rule find no files, and the check then shows "no problems". Examples prove that each rule
+can find what it is for.
+
+## Accepted and rejected
+
+An example is a small set of files. A rule has two lists of them:
+
+- **Rejected:** code that the rule must refuse. A rejected example proves that the rule can find a
+  problem. Each rule that is not a table row must have one.
+- **Accepted:** code that the rule must permit. An accepted example proves that the rule does not
+  refuse correct code.
+
+Write an example on one line, or as files with their text:
+
+```ts
+rule('no-react-in-shared', {
+  files: 'shared',
+  mayNotImport: { packages: ['react'] },
+  examples: {
+    accepted: ['src/shared/price.ts imports src/shared/money.ts'],
+    rejected: [{ 'src/shared/price.ts': "import { useState } from 'react';" }],
+  },
+})
+```
+
+[The examples reference](/archangel/reference/examples/) tells you how to write one line, and where
+archangel refuses one line.
+
+## What `archangel test` does
+
+<Steps>
+
+1. Archangel reads the repository one time, as a check does.
+2. For each example, it lays the example's files over the repository, in memory. A file of the
+   example at the path of a repository file replaces that file, for that example only. A file of
+   the example can import files of the repository.
+3. It checks only the files of the example, and their imports. It does not read the repository
+   again, and it does not write a file to disk.
+4. It decides the result:
+   - A rejected example passes only when **its own rule** reports a problem that involves a file of
+     the example. A problem from another rule, or from a repository file, does not count.
+   - An accepted example passes only when its own rule reports no problem in the example, and the
+     rule looked at the example. A rule that never looked at it proves nothing.
+5. It fails each rule that has no rejected example, with the error `rule-unproven`.
+
+</Steps>
+
+## Three mistakes that examples find
+
+This config has three mistakes. Each one looks correct when you read it:
+
+<Example fixture="concept-examples" file="archangel.config.ts" />
+
+<Output fixture="concept-examples" output="test.txt" />
+
+1. **The accepted example of `feature-entry` proves nothing.** Its only file is in `src/shared`, and
+   the rule looks only at the folders in `src/features`. The rule permits it because it never
+   looked at it.
+2. **The rejected example of `feature-entry` fails.** The example puts `model.ts` in
+   `src/features/cart`. The examples are laid over the repository, and the repository already has
+   `src/features/cart/index.ts`. So the folder `cart` has an index file, and the rule permits it.
+3. **`no-react-in-shared` has no rejected example.** Nothing shows that it can refuse an import.
+
+Here is the fixed config. Each example uses a folder that the repository does not have, and each
+rule has a rejected example:
+
+<Example fixture="concept-examples" file="later/archangel.config.ts" title="archangel.config.ts" />
+
+<Output fixture="concept-examples" output="test-fixed.txt" />
+
+<Aside type="tip" title="Use names that the repository does not have">
+  Examples are laid over your real files. Use folder names such as `search` or `example-login`,
+  which your repository does not have. Then the result depends only on the example.
+</Aside>
+
+## Tables and presets
+
+- **A table row needs no written example.** `archangel rules` shows what each row judged, and a
+  table that finds no file is the error `table-empty`. You can write examples for a table. They run
+  against all its rows, and a rejected example passes when one row refuses one of its imports.
+- **A preset brings its own examples.** `archangel test` checks them in your repository, under the
+  preset's root, with your tsconfig.
+
+## Run it in CI
+
+Run `archangel test` next to `archangel check`. A change to the config can break an example, and a
+change to the code can too, because examples are laid over the code. See
+[Use archangel in CI](/archangel/guides/ci/).

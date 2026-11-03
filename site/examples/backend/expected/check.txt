@@ -1,0 +1,22 @@
+error[may-import]: entity may not import event, through "./user-created.event": entity may import only value-object, and itself
+ --> src/domain/user.entity.ts:2:29
+  |
+2 | import { userCreated } from './user-created.event';
+  |                             ^^^^^^^^^^^^^^^^^^^^^^ entity may import only value-object, and itself
+  |
+  = help: remove the import, or move the code to a file whose row permits the import
+  = note: rule: model.entity
+  = note: because: An entity does not know its events. A service publishes them.
+
+error[may-import]: routes may not import the package `pg`, through "pg": routes may import only services, and itself
+ --> src/routes/health.ts:1:22
+  |
+1 | import { Pool } from 'pg';
+  |                      ^^^^ routes may import only services, and itself
+  |
+  = help: remove the import, or move the code to a file whose row permits the import
+  = note: rule: backend.routes
+  = note: because: A route calls a service. Only db talks to the database. The domain depends on nothing.
+
+checked 8 files and 10 imports: 2 problems
+For what a code means, run `archangel docs may-import`.

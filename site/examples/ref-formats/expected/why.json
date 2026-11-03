@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "from": "src/shared/label.ts",
+  "to": "src/features/cart/total.ts",
+  "chain": [
+    {
+      "file": "src/shared/label.ts",
+      "line": 1,
+      "specifier": "../features/cart/total"
+    }
+  ]
+}

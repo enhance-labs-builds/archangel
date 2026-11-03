@@ -1,0 +1,115 @@
+---
+title: Introduction
+description: What archangel is, what it checks, what it does not check, and why architecture needs tests.
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+Archangel tests the structure of your TypeScript code: which code imports which code, where files
+are, what files are called, and what they export. You write each architecture decision as a test.
+When the code breaks a test, archangel tells you, or your coding agent, where, why, and what to do.
+
+Unit tests check behavior. The type checker checks types. Archangel checks architecture.
+
+## The problem
+
+Some decisions about your code are in the code itself:
+
+- Features do not import each other.
+- The UI does not import the database client.
+- Shared code does not know about the app.
+- Other code imports a feature only through its `index.ts`.
+
+These decisions make a codebase easy to change. When features do not depend on each other, you can
+change one feature and not break another.
+
+Usually, a decision like this is in a document, a diagram, or the memory of a senior engineer.
+None of these stop the next import. A reviewer reads the diff, not the graph of imports, and a
+break is often one line in a large change. Each break makes the next break easier. After some
+months, the code does not have the architecture that the diagram shows.
+
+Coding agents make this happen faster. An agent writes code faster than a person can review it,
+and it does what makes the task work. When the fastest fix is an import from another feature, it
+adds that import.
+
+## What archangel does
+
+Archangel turns each decision into a test that a machine checks. A broken decision then fails like
+a broken test. The decision is in the repository, it has a version, and each change is checked
+against it.
+
+| It checks | For example |
+| --- | --- |
+| **Imports** | A view may import models and shared code, and nothing else. A package that `package.json` does not list is a problem. |
+| **Chains of imports** | A client component may not reach `server-only` through any chain of imports. |
+| **Cycles** | Files may not import each other in a cycle. |
+| **Structure** | Each feature folder has an `index.ts`. No file is outside a part. |
+| **Names** | Component files are in `PascalCase`. Files in `ui/` end in `.view` or `.container`. |
+| **Exports** | Each component file exports the name of its file. Index files only re-export. |
+
+It works where you work:
+
+- **In your editor**, through a language server. A problem shows as you type.
+- **In CI**, with annotations on the lines of a pull request.
+- **For coding agents**, with watch mode and JSON output. An agent sees the problem while it writes
+  the code.
+
+It is fast. A Rust core reads each file one time. It checks 400 rules on a 9,800-file monorepo in
+1.9 seconds on a laptop. Read [How archangel works](/archangel/start/how-archangel-works/).
+
+## What archangel believes
+
+**A rule that cannot fail is a defect.** A rule that finds no files shows "no problems". It looks
+the same as a rule that works, so the team believes that it is protected. So archangel does not let
+a rule pass in silence. Each rule needs an example of code that it must reject. A part, a group or a
+table that finds no file is an error. An import that archangel cannot resolve is an error.
+
+**There are no warnings.** A rule is on or off. Teams learn to ignore warnings, and a coding agent
+cannot know which warnings are important. When a rule is not important enough to fail the check,
+turn it off.
+
+**Each problem says what to do.** A message names the rule and your reason, and it shows what the
+rule permits.
+
+**Exceptions are visible and have a reason.** An exception is a comment above the one import that
+it permits, with a reason. For an old codebase, a baseline records the problems of today, and it
+can only get smaller.
+
+**The facts and the rules are separate.** Which file imports which file is a fact about the code.
+Which imports are permitted is a decision in the config. So you can test the rules with small
+examples.
+
+## What archangel is not
+
+- **Not a linter for code style.** Use ESLint or Biome.
+- **Not a type checker.** A rule that needs types, such as "only the repository calls `save`",
+  stays in ESLint with type information.
+- **Not a check of the whole architecture.** Archangel checks the decisions that are in the source
+  code. How services run, where data lives and how the system is deployed need other tools.
+- **Not a diagram tool.** Archangel can explain a file and show a chain of imports. It does not
+  draw your architecture. It checks it.
+
+## Where the ideas come from
+
+Archangel adds speed, examples and coding agents to old ideas:
+
+| Idea | Where it comes from |
+| --- | --- |
+| Architecture has several views, and one of them is the structure of the code | Philippe Kruchten, "The 4+1 View Model of Architecture" (1995) |
+| A module hides a decision, and other modules depend only on what it shows | David Parnas, "On the Criteria To Be Used in Decomposing Systems into Modules" (1972) |
+| Layers, and no cycles between parts of the code | John Lakos, *Large-Scale C++ Software Design* (1996); Robert C. Martin's Acyclic Dependencies Principle |
+| Dependencies point inward, toward the core | Robert C. Martin, *Clean Architecture* (2017); Alistair Cockburn, ports and adapters (2005) |
+| Architecture rules as tests that run with the build | ArchUnit, for Java |
+| An automated check that keeps an architecture from decay | "Fitness functions", in *Building Evolutionary Architectures* (2017) |
+| Import rules for JavaScript and TypeScript | dependency-cruiser, eslint-plugin-boundaries, Nx module boundaries, Sheriff |
+| Layers, slices and segments for front ends | Feature-Sliced Design, and its linter Steiger |
+| A rule is proved by code that it must accept and reject | ESLint's `RuleTester`, and mutation testing |
+| A baseline of old problems that only gets smaller | The baselines of Psalm and detekt |
+| Fast tools for JavaScript, written in Rust | oxc, which archangel uses to read and resolve code; Ruff and Biome |
+
+## Next
+
+<CardGrid>
+  <LinkCard title="Getting started" description="Install archangel and write a first table." href="/archangel/start/getting-started/" />
+  <LinkCard title="How archangel works" description="The map of the code, the rules, and the loop of check, test and rules." href="/archangel/start/how-archangel-works/" />
+</CardGrid>

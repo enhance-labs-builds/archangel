@@ -1,0 +1,8 @@
+{
+  "name": "formats",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@enhance-eng/archangel": "0.3.1"
+  }
+}

@@ -1,0 +1,2 @@
+::error file=src/shared/label.ts,line=1,col=23,endColumn=47,title=archangel app.shared::shared may not import feature, through "../features/cart/total": shared may import only itself%0Ahelp: shared may import only itself%0Areason: Shared code never depends on a feature.
+checked 2 files and 1 imports: 1 problem

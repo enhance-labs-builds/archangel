@@ -1,0 +1,9 @@
+src/billing/invoices/invoice.ts
+  part: "module", instance "billing/invoices"
+  groups: none
+  rules that apply: isolate(module)
+    isolate(module): files in module may not import module in a different instance
+  imports:
+    line 1  './number' -> src/billing/invoices/number.ts ("module", instance "billing/invoices")
+    line 2  '../payments/refund' -> src/billing/payments/refund.ts ("module", instance "billing/payments")  breaks isolate(module)
+  imported by: none

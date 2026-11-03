@@ -1,0 +1,9 @@
+src/ui/order-row.ts:2  'date-fns' -> package date-fns
+  file:    part ui
+  target:  package date-fns
+  skipped by:
+    app.ui                     date-fns is outside the repository
+    app.domain                 the file is not in domain
+    app.db                     the file is not in db
+    app.log                    the file is not in log
+    app.every-file-has-a-kind  this rule checks files, not imports

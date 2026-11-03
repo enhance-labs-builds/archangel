@@ -1,0 +1,59 @@
+---
+title: Rule options
+description: "The options that every rule, table and shorthand can have: name, because, link, imports and examples, with their types and defaults."
+---
+
+Each rule can have these options. A table and a shorthand can have them too, except `name` on a
+table, which is its first argument.
+
+| Option | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `name` | string | from the condition | The name in each report, in `off`, in exception comments and in the baseline. |
+| `because` | string | none | The reason. Each report shows it. |
+| `link` | string | none | A link. Each report shows it. |
+| `imports` | `'all'`, `'runtime'`, `'types'` | `'all'` | The imports that the rule counts. `'runtime'` for `noCycles` and a transitive rule. |
+| `examples` | `{ accepted, rejected }` | none | Code that the rule must accept, and code that it must reject. |
+
+## `name`
+
+Write the name first, or as an option. These two rules are the same:
+
+```ts
+rule('no-react-in-shared', { files: 'shared', mayNotImport: { packages: ['react'] }, examples: { rejected: ['src/shared/a.ts imports react'] } })
+```
+
+```ts
+rule({ name: 'no-react-in-shared', files: 'shared', mayNotImport: { packages: ['react'] }, examples: { rejected: ['src/shared/a.ts imports react'] } })
+```
+
+- Without a name, archangel uses the rule itself, for example `isolate(feature)`. A rule with
+  `sentences` must have a name.
+- Two rules cannot have one name: [`rule-name-duplicate`](/archangel/reference/diagnostics/rule-name-duplicate/).
+  A rule and a table cannot have one name either.
+- Your own names cannot have a `/`. A `/` separates the name of a preset from its rules. To replace
+  a preset rule, write a rule with the same name, such as `fsd/public-api`.
+
+## `because`
+
+Tell the reader why the rule exists. A person or a coding agent reads it when the rule refuses
+their code.
+
+```ts
+isolate('feature', { because: 'A feature changes alone. Code that two features need goes in shared.', examples: { rejected: ['src/features/login/a.ts imports src/features/cart/b.ts'] } })
+```
+
+Each report shows it on a line `= note: because: ...`. A config that uses the older spelling
+`reason` shows `reason:`.
+
+## `link`
+
+A link to more information, for example your architecture decision record. Each report shows it
+on a line `= note: see: ...`.
+
+## `imports`
+
+Read [Import options](/archangel/reference/import-options/#imports).
+
+## `examples`
+
+Read [Examples](/archangel/reference/examples/).

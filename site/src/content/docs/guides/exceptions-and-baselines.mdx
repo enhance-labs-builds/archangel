@@ -1,0 +1,122 @@
+---
+title: Exceptions and baselines
+description: Permit one import that breaks a rule on purpose, with a reason. Record the old problems of a codebase in a baseline that only gets smaller.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This guide tells you how to let code break a rule for now, and keep each case visible. Archangel
+has two ways:
+
+- An **exception** is a comment above one import, with the rule and a reason.
+- The **baseline** is a file that records each problem that existed when a rule started.
+
+Each check counts both, for each rule, in its summary. So a team can see the numbers go down.
+Neither one turns a rule off.
+
+## Before you start
+
+- Read [Getting started](/archangel/start/getting-started/).
+
+The example is a shop whose features must not import each other:
+
+<Example fixture="exceptions" file="archangel.config.ts" />
+
+## Write an exception
+
+An exception is a comment directly above the import. It names the rule, and it gives the reason
+after a colon:
+
+```ts
+// archangel-allow app.feature: checkout shows the cart total until the total moves to shared
+import { cartTotal } from '../cart';
+```
+
+<Steps>
+
+1. Look at the checkout feature. It imports two other features, and each import has an
+   exception:
+
+   <Example fixture="exceptions" file="src/features/checkout/index.ts" />
+
+2. Check:
+
+   <Output fixture="exceptions" output="check.txt" />
+
+   The first exception permits its import. The second exception has no reason, so it permits
+   nothing. Archangel shows `exception-without-reason`, and it also shows the import that the
+   exception did not permit.
+
+3. Give the second exception a reason:
+
+   <Example fixture="exceptions" file="later/checkout.ts" title="src/features/checkout/index.ts" />
+
+4. Check again:
+
+   <Output fixture="exceptions" output="check-reasons.txt" />
+
+   The summary counts the two imports that exceptions permit.
+
+</Steps>
+
+An exception permits one import to break one rule. Archangel still checks the import against each
+other rule. To permit one import for two rules, write two comments on the lines directly above it.
+A blank line between a comment and the import breaks the link.
+
+## Archangel checks each exception
+
+An exception must stay correct as the code changes.
+
+**The rule name must exist.** A typing error in the name is `exception-unknown-rule`, and the
+error lists the names of the rules:
+
+<Example fixture="exceptions" file="later/account.ts" title="src/features/account/index.ts" />
+
+<Output fixture="exceptions" output="check-typo.txt" />
+
+**An exception must permit something.** When the import below it no longer breaks the rule, the
+exception is `exception-unused`. So an exception goes away when the code is fixed:
+
+<Example fixture="exceptions" file="later/cart.ts" title="src/features/cart/index.ts" />
+
+<Output fixture="exceptions" output="check-unused.txt" />
+
+## Use the baseline for old problems
+
+When you start a rule on code that already breaks it, run `archangel baseline add`. It writes each
+current problem to `archangel.baseline.json`. A check then fails only for new problems.
+
+- An entry records the rule, the importing file, the import specifier and a count. It does not
+  record a line, so an edit above the import does not break the match.
+- A check never writes the baseline. When the code fixes a problem, its entry is a
+  `baseline-stale` problem. `archangel baseline prune` lowers or removes the entry. It never adds
+  one. So the baseline can only get smaller.
+- An entry for a rule that the config does not have is also `baseline-stale`. A baseline that is
+  not valid JSON stops the check with `baseline-invalid`.
+
+[Add archangel to an existing repository](/archangel/guides/existing-repository/) shows the full
+cycle, from `baseline add` to `baseline prune`, with the output of each step.
+
+<Aside type="note" title="A problem without an import">
+  An exception is a comment above an import. So it cannot permit a problem that has no import, for
+  example a file name or a file with no row in a table. Use the baseline for these problems.
+</Aside>
+
+## Which one to use
+
+| You have | Use |
+| --- | --- |
+| One import that breaks a rule on purpose, with a reason worth reading | An exception |
+| Many problems from before the rule existed | The baseline |
+| A rule that is wrong for part of the code | Change the rule or the parts, not an exception |
+| Files that archangel must not check, such as generated code | The `ignore` key of the config |
+| A rule that you do not want, from a preset | The `off` key of the config |
+
+`ignore` takes lines in `.gitignore` syntax. A file that `ignore` removes is not in the check.
+
+## Next steps
+
+- [Rule options](/archangel/reference/rule-options/).
+- [Config file](/archangel/reference/config/) lists `ignore` and `off`.

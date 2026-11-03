@@ -1,0 +1,7 @@
+[
+  { "args": ["check"], "output": "check.txt", "status": 1 },
+  { "args": ["check", "--format", "json"], "output": "check.json", "status": 1 },
+  { "args": ["check", "--format", "github"], "output": "check-github.txt", "status": 1 },
+  { "args": ["explain", "src/shared/label.ts:1", "--format", "json"], "output": "explain-line.json", "status": 0 },
+  { "args": ["why", "src/shared/label.ts", "src/features/cart/total.ts", "--format", "json"], "output": "why.json", "status": 0 }
+]

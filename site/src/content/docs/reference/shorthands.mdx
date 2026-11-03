@@ -1,0 +1,93 @@
+---
+title: Shorthands
+description: "The shorthands layers, isolate and entry: what each one writes for you, its options, its JSON form and the problems it reports."
+---
+
+import Output from '../../../components/Output.astro';
+
+Three shorthands write common rules for you. Each one means one or more sentences, which
+`archangel rules` shows.
+
+| Shorthand | It means |
+| --- | --- |
+| `layers(['app', 'feature', 'shared'])` | `feature` may not import `app`, and `shared` may not import `app` or `feature` |
+| `isolate('feature')` | an instance of `feature` may not import a different instance of `feature` |
+| `entry('feature', 'index.ts')` | code outside a feature may import it only through its `index.ts` |
+
+Each shorthand takes the [rule options](/archangel/reference/rule-options/) as its last argument.
+
+## layers
+
+```ts
+layers(['app', 'feature', 'shared'], { because: 'Code depends only on code below it.', examples: { rejected: ['src/shared/a.ts imports src/features/login/b.ts'] } })
+```
+
+The list goes from the top layer to the bottom layer. An import from a file in a layer into a
+layer earlier in the list is a problem. These imports pass:
+
+- imports inside one layer;
+- imports into a layer later in the list;
+- imports where one end is in no layer of the list.
+
+`layers(['app', 'feature', 'shared'])` means these two sentences:
+
+```ts
+rule('feature-below-app', { files: 'feature', mayNotImport: ['app'], examples: { rejected: ['src/features/login/a.ts imports src/app/a.ts'] } })
+```
+
+```ts
+rule('shared-at-bottom', { files: 'shared', mayNotImport: ['app', 'feature'], examples: { rejected: ['src/shared/a.ts imports src/app/a.ts'] } })
+```
+
+A layer can be an externals set. Then a layer above it may not import its packages. The
+diagnostic code is [`layers`](/archangel/reference/diagnostics/layers/).
+
+A table says more than `layers`, because it lists what each row may import, and it refuses each
+other import. Use `layers` when an order is all that you need.
+
+## isolate
+
+```ts
+isolate('feature', { examples: { rejected: ['src/features/login/a.ts imports src/features/cart/b.ts'] } })
+```
+
+The part must have a capture, such as `src/features/{feature}/**`. `isolate('feature')` means:
+
+```ts
+rule('features-apart', { files: 'feature', mayNotImport: 'feature', instance: 'different', examples: { rejected: ['src/features/login/a.ts imports src/features/cart/b.ts'] } })
+```
+
+The diagnostic code is [`isolate`](/archangel/reference/diagnostics/isolate/).
+
+## entry
+
+```ts
+entry('feature', ['index.ts', 'index.tsx'], { examples: { rejected: ['src/app/a.ts imports src/features/login/form.ts'] } })
+```
+
+Code outside an instance may import that instance only through its entry files. Imports inside one
+instance pass.
+
+- The second argument is a file pattern, or a list of patterns.
+- A pattern starts at the root of the instance. For `src/features/{feature}/**`, the root of
+  `login` is `src/features/login`, so `index.ts` means `src/features/login/index.ts`.
+- For a part without a capture, the root is the folders before the first wildcard of its pattern.
+
+When an import goes past the entry, the report says which import to use instead. In this
+repository, `src/app/main.ts` imports a file inside the cart feature:
+
+<Output fixture="from-boundaries" output="check.txt" />
+
+The diagnostic code is [`entry`](/archangel/reference/diagnostics/entry/).
+
+## In JSON
+
+In a JSON config, write a shorthand with its `kind`:
+
+```json
+{ "kind": "layers", "order": ["app", "feature", "shared"] }
+{ "kind": "isolate", "element": "feature" }
+{ "kind": "entry", "element": "feature", "files": ["index.ts"] }
+```
+
+The same objects can be sentences of a rule with `sentences`.

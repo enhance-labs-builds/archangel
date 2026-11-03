@@ -1,0 +1,11 @@
+error[isolate]: "billing/invoices" of "module" imports "billing/payments" of "module" through "../payments/refund", and instances of "module" may not import each other
+ --> src/billing/invoices/invoice.ts:2:24
+  |
+2 | import { refund } from '../payments/refund';
+  |                        ^^^^^^^^^^^^^^^^^^^^ move what both need into an element that instances of "module" may share
+  |
+  = note: rule: isolate(module)
+  = note: because: A module changes alone. Modules talk through events, not imports.
+
+checked 5 files and 3 imports: 1 problem
+For what a code means, run `archangel docs isolate`.
