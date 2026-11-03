@@ -368,15 +368,14 @@ Use `sentences` to give one name to a group of conditions. The rule fails when o
 ```ts
 rule('no-ui-in-app', {
   sentences: [
-    { files: 'src/app/ui/**', mustNotExist: true },
+    { folders: 'src/app/ui', mustNotExist: true },
     { files: 'src/app/ui.*', mustNotExist: true },
   ],
 })
 ```
 
-The files of a `mustNotExist` rule may match nothing, because that is how the rule passes. A
-`folders` sentence is different: a folder pattern that matches no folder is `selector-empty`. So write
-a rule about a folder that must not exist with `files`, as above.
+The files or folders of a `mustNotExist` rule may match nothing, because that is how the rule
+passes. A `folders` sentence gives one violation for the folder, not one for each file in it.
 
 ## Options for every rule
 

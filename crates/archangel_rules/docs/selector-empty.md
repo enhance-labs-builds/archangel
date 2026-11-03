@@ -15,7 +15,7 @@ A group that the config declares, a path pattern written inline in a rule, or th
 
 The message names the group and its definition, or the rule and its pattern. A group counts every file the walk visits, not only source files and not only files an import reaches, so `**/*.png` is not empty while the repository has an image. In the editor, a group can become empty after an edit, such as `{ directive: 'use client' }` when the last client file loses its directive, and the server reports it then.
 
-Three cases are exempt, because matching nothing is how they pass or changes nothing: the files of a `mustNotExist` rule, a pattern a rule writes inline only inside a `not`, such as an exemption list shared by rules whose globs match nothing in this repository yet, and everything a preset declares. A group the config declares is not exempt inside a `not`, because declaring it says the repository has such files. A preset's groups and parts that match nothing are listed in the summary instead; a preset that matches nothing at all is [`preset-empty`](preset-empty.md).
+Three cases are exempt, because matching nothing is how they pass or changes nothing: the files or folders of a `mustNotExist` rule, a pattern a rule writes inline only inside a `not`, such as an exemption list shared by rules whose globs match nothing in this repository yet, and everything a preset declares. A group the config declares is not exempt inside a `not`, because declaring it says the repository has such files. A preset's groups and parts that match nothing are listed in the summary instead; a preset that matches nothing at all is [`preset-empty`](preset-empty.md).
 
 ## What to do
 

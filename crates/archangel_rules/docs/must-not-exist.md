@@ -17,4 +17,4 @@ rule({ folders: 'src/processes', mustNotExist: true })
 
 ## What to do
 
-Move the file to where the architecture puts it, or delete it. The `files` of a `mustNotExist` rule may match nothing, because that is how the rule passes.
+Move the file to where the architecture puts it, or delete it. The `files` or `folders` of a `mustNotExist` rule may match nothing, because that is how the rule passes.

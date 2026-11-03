@@ -199,7 +199,8 @@ impl Architecture {
     }
 
     /// The diagnostics of the rules about files, folders and instances, and a `selector-empty`
-    /// diagnostic for each folder pattern that matches no folder.
+    /// diagnostic for each folder pattern that matches no folder, except in a `mustNotExist`
+    /// sentence, which passes by matching nothing.
     pub(crate) fn structure_diagnostics(&self, structure: &Structure) -> Vec<Diagnostic> {
         let mut found: Vec<Diagnostic> = structure
             .files
@@ -216,6 +217,7 @@ impl Architecture {
                 continue;
             };
             if structure.covered.get(index).copied().unwrap_or(0) > 0
+                || matches!(sentence.condition, Condition::MustNotExist)
                 || self.from_preset(&rule.name)
             {
                 continue;
