@@ -349,11 +349,26 @@ fn a_package_pattern_reads_as_words() {
             r#"{ "name": "@aws-sdk/s3", "main": "index.js" }"#,
         )
         .file("node_modules/@aws-sdk/s3/index.js", "")
+        .file(
+            "node_modules/eslint-plugin-x/package.json",
+            r#"{ "name": "eslint-plugin-x", "main": "index.js" }"#,
+        )
+        .file("node_modules/eslint-plugin-x/index.js", "")
+        .file(
+            "node_modules/react/package.json",
+            r#"{ "name": "react", "main": "index.js" }"#,
+        )
+        .file("node_modules/react/index.js", "")
         .file("src/app/a.ts", "import 'zod';\n")
-        .file("src/shared/b.ts", "import '@aws-sdk/s3';\n");
+        .file("src/shared/b.ts", "import '@aws-sdk/s3';\n")
+        .file(
+            "src/features/login/c.ts",
+            "import 'eslint-plugin-x';\nimport 'react';\n",
+        );
     let rules = json!([
         { "name": "declared", "files": "app", "mayNotImport": { "packages": ["*"] }, "dependency": "undeclared" },
         { "name": "no-aws", "files": "shared", "mayNotImport": { "packages": ["@aws-sdk/*"] } },
+        { "name": "no-lint", "files": "feature", "mayNotImport": { "packages": ["eslint-plugin-*", "react"] } },
     ]);
     let report = support::check(&layered(&rules), &repo, None).0;
     let found = rule_violations(&report);
@@ -362,6 +377,8 @@ fn a_package_pattern_reads_as_words() {
         messages,
         [
             "src/app/a.ts may not import \"zod\", because files in \"app\" may not import any package that package.json does not list",
+            "src/features/login/c.ts may not import \"eslint-plugin-x\", because files in \"feature\" may not import a package that matches `eslint-plugin-*`, the package `react`",
+            "src/features/login/c.ts may not import \"react\", because files in \"feature\" may not import a package that matches `eslint-plugin-*`, the package `react`",
             "src/shared/b.ts may not import \"@aws-sdk/s3\", because files in \"shared\" may not import a package in `@aws-sdk`",
         ],
         "a pattern of packages reads as words, not as the pattern"

@@ -335,3 +335,29 @@ fn a_part_that_matches_only_overlapping_files_is_not_empty() {
         "both patterns match the file, so neither part matches nothing"
     );
 }
+
+#[test]
+fn a_preset_part_that_matches_nothing_is_in_the_summary_and_not_an_error() {
+    let repo = FixtureRepo::new().file("src/features/cart/a.ts", "");
+    let config = archangel_config::from_value(&json!({
+        "extends": [{
+            "name": "fsd",
+            "root": "src",
+            "parts": { "features": "features/{slice}/**", "widgets": "widgets/{slice}/**" },
+        }],
+    }))
+    .expect("a valid config");
+    let mut work = Work::default();
+    let graph = ImportGraph::build(repo.path(), &GraphOptions::default(), &mut work);
+    let report = Architecture::compile(config).check(&graph, None, &mut work);
+    assert_eq!(
+        report.summary.preset_names_matching_nothing,
+        ["fsd/widgets"],
+        "the preset part with no file is listed, and the one with a file is not"
+    );
+    assert_eq!(
+        empty_elements(&report),
+        [] as [String; 0],
+        "neither is element-empty"
+    );
+}

@@ -644,3 +644,33 @@ fn a_kind_of_a_table_that_matches_nothing_is_not_selector_empty() {
         .collect();
     assert!(empty.is_empty(), "{empty:?}");
 }
+
+#[test]
+fn each_sentence_about_a_file_says_what_it_judges() {
+    let repo = FixtureRepo::new()
+        .file("src/a/x.ts", "")
+        .file("src/b/y.ts", "");
+    let config = json!({
+        "elements": { "src": "src/**" },
+        "rules": [
+            { "name": "own", "files": "src/a/**", "mayNotImport": "src/b/**" },
+            { "name": "other", "files": "src/b/**", "mayNotImport": "src/a/**" },
+            { "name": "both", "files": "src/a/**", "mayNotImport": "src/a/**" },
+        ],
+    });
+    let (architecture, graph) = compile(&config, &repo);
+    let judges: Vec<(usize, &str)> = architecture
+        .sentence_roles(&graph, "src/a/x.ts")
+        .iter()
+        .map(|about| (about.rule, about.judges()))
+        .collect();
+    assert_eq!(
+        judges,
+        [
+            (0, "its imports"),
+            (1, "imports of it"),
+            (2, "its imports and imports of it"),
+        ],
+        "x.ts is in the files of the first rule, on the side of the second, and both in the third"
+    );
+}

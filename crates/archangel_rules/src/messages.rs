@@ -598,9 +598,9 @@ fn package_words(pattern: &str) -> String {
     match pattern {
         "*" => "any package".to_owned(),
         _ => match pattern.strip_suffix("/*") {
-            Some(scope) if !scope.contains('*') => format!("a package in `{scope}`"),
-            _ if pattern.contains('*') => format!("a package that matches `{pattern}`"),
-            _ => format!("the package `{pattern}`"),
+            Some(scope) => format!("a package in `{scope}`"),
+            None if pattern.ends_with('*') => format!("a package that matches `{pattern}`"),
+            None => format!("the package `{pattern}`"),
         },
     }
 }
