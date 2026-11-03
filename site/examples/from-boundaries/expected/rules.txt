@@ -1,0 +1,17 @@
+element-types  3 rows  archangel.config.ts:10
+
+  element-types.app: app may import only feature, shared, and itself
+    1 file · 2 imports judged · 0 problems · 0 exceptions
+  element-types.feature: feature may import only shared, and itself in the same instance
+    3 files · 3 imports judged · 1 problem · 0 exceptions
+  element-types.shared: shared may import only itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  element-types.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
+    5 files · 0 problems
+
+entry-point  archangel.config.ts:16
+  files in feature may be imported from outside their instance only through its entry files index.ts
+    3 files · 4 imports judged · 1 problem · 0 exceptions
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: none.

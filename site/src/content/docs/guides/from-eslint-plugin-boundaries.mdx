@@ -1,0 +1,83 @@
+---
+title: Migrate from eslint-plugin-boundaries
+description: Turn boundaries elements into parts, element-types into a table, and entry-point into the entry shorthand.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This guide moves an eslint-plugin-boundaries setup to archangel. The two tools have the same idea:
+give names to areas of the code, then say which area may import which. In archangel, the names are
+**parts**, and the main rule is a **table**.
+
+## The config before
+
+<Example fixture="from-boundaries" file="before/eslint.config.js" />
+
+## Map each setting
+
+| eslint-plugin-boundaries | archangel |
+| --- | --- |
+| An element in `boundaries/elements` | A part in `parts`. |
+| `pattern` with `mode: 'full'` | A path pattern that ends in `/**`, from the config folder. |
+| `pattern: 'src/features/*'` with `capture: ['featureName']` | `'src/features/{featureName}/**'`. The capture goes in the pattern. |
+| `boundaries/element-types` with `default: 'disallow'` | A table. Each `from` is a row, and its `allow` list is the row's list. |
+| `allow` of the same element with `${from.featureName}` | Nothing. A row may import its own part in the same instance by default. |
+| `allow` of another instance of the same element | Add the part to its own row, for example `feature: ['shared', 'feature']`. |
+| `boundaries/entry-point` | `entry('feature', 'index.ts')`. |
+| `boundaries/no-private` | `entry`, or `isolate` for instances that may not import each other at all. |
+| `boundaries/external` | A cell that names an externals set, or a rule with `mayNotImport: { packages: [...] }`. |
+| `boundaries/no-unknown-files` | A rule with `mustNotExist` on the files that are in no part. |
+
+## The config after
+
+<Example fixture="from-boundaries" file="archangel.config.ts" />
+
+- Each element type is a part. The capture `{featureName}` makes each folder in `src/features` one
+  instance.
+- The table `element-types` keeps the name of the old rule. Its rows are named
+  `element-types.app`, `element-types.feature` and `element-types.shared`.
+- The `entry` shorthand takes the name `entry-point`, with a rejected example.
+
+## Run it
+
+<Steps>
+
+1. Prove the rules:
+
+   <Output fixture="from-boundaries" output="test.txt" />
+
+2. Check the repository:
+
+   <Output fixture="from-boundaries" output="check.txt" />
+
+   `app/main.ts` reaches past the entry file of `cart`, and `checkout` imports another feature.
+   Compare these problems with what ESLint reports before you remove the plugin.
+
+3. Read what each row judged:
+
+   <Output fixture="from-boundaries" output="rules.txt" />
+
+</Steps>
+
+## Results that change
+
+- **One run checks all files.** ESLint runs the plugin on each file, and the plugin resolves the
+  imports of that file. `archangel check` reads the repository one time, and it can also check
+  cycles and chains of imports.
+- **Each file is in one part at most.** boundaries takes the first element that matches a file. In
+  archangel, a file that two parts find is the error
+  [`part-overlap`](/archangel/reference/diagnostics/part-overlap/). Make the patterns disjoint, or
+  make one of them a group.
+- **An element that finds no file is an error.** In archangel, this is
+  [`element-empty`](/archangel/reference/diagnostics/element-empty/). It usually shows a pattern
+  with a typing error.
+- **A table refuses imports into the repository only.** A table judges a package only when a cell
+  names an externals set that holds it. See
+  [Tables, rows and cells](/archangel/concepts/tables-rows-and-cells/).
+
+<Aside type="tip" title="Keep ESLint for the rest">
+  Remove eslint-plugin-boundaries when archangel gives the same results. Keep ESLint for code style
+  and for rules that need types.
+</Aside>

@@ -173,6 +173,11 @@ Archangel checks structure only. Use ESLint for code style and the TypeScript co
 
 ## Documentation
 
+The full documentation, with guides, concepts and a reference, is at
+**[enhancelabs.ai/archangel](https://enhancelabs.ai/archangel/)**.
+Its examples run on each pull request against the published package. The pages below are the same
+material, short enough to read on GitHub.
+
 | Page | What it tells you |
 | --- | --- |
 | [docs/rules.md](docs/rules.md) | Parts, groups, tables, each condition, and how to prove a rule |

@@ -1,0 +1,4 @@
+pass  small-files  accepted #1  src/features/a/x.ts, src/features/a/y.ts
+pass  small-files  rejected #1  src/features/a/w.ts, src/features/a/x.ts, src/features/a/y.ts, src/features/a/z.ts
+pass  no-orphans  rejected #1  src/shared/unused.ts
+3 examples, none failed; 0 rules without a rejected example

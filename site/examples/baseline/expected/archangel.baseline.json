@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {
+      "rule": "app.feature",
+      "file": "src/features/checkout/index.ts",
+      "specifier": "../account",
+      "count": 1
+    },
+    {
+      "rule": "app.feature",
+      "file": "src/features/checkout/index.ts",
+      "specifier": "../cart",
+      "count": 1
+    },
+    {
+      "rule": "app.shared",
+      "file": "src/shared/greeting.ts",
+      "specifier": "../features/account",
+      "count": 1
+    }
+  ]
+}

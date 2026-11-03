@@ -1,0 +1,91 @@
+---
+title: Sets of files
+description: Each way to write a set of files, and the path patterns that archangel uses.
+---
+
+A set of files says which files a rule is about. You write a set in a group, in a rule's `files`,
+on the other side of an import condition, in `within`, in `stopAt`, and in a table's `files`.
+
+## The forms
+
+| You write | The set has |
+| --- | --- |
+| `'feature'` | the files of the part or group with this name |
+| `'src/**/*.view.tsx'` | the files that the path pattern finds |
+| `['app', 'feature']` | the files in one or more of these sets |
+| `{ any: ['app', 'feature'] }` | the files in one or more of these sets |
+| `{ all: ['src/**', { not: 'test' }] }` | the files that are in each of these sets |
+| `{ not: 'test' }` | each file except these files |
+| `{ element: 'feature' }` | the files of the part `feature` |
+| `{ element: 'feature', capture: { feature: 'login' } }` | the files of one instance of a part |
+| `{ element: '*' }` | each file that is in a part |
+| `{ directive: 'use client' }` | the files that start with this directive |
+
+On the other side of an import condition, you can also write packages:
+
+| You write | The other side has |
+| --- | --- |
+| `{ packages: ['react', 'react-dom'] }` | these packages and their subpaths |
+| `{ packages: ['@radix-ui/*'] }` | each package in the scope |
+| `{ packages: ['*'] }` | each package |
+| `'driver'` | the packages of the externals set `driver` |
+
+## A name or a path pattern
+
+Archangel reads a string in this order:
+
+1. When it is the name of a part, a group or an externals set, it means that name. The names of a
+   preset, such as `fsd/features`, count too.
+2. When it has a `/` or a `*`, it is a path pattern.
+3. Each other string is an error: [`rule-unknown-element`](/archangel/reference/diagnostics/rule-unknown-element/).
+   The message shows the declared names nearest to it.
+
+So `mayNotImport: 'lodash'` is an error, not a package. Write `{ packages: ['lodash'] }`.
+
+A kind is not a name here. A kind has a meaning only in its table.
+
+## Path patterns
+
+A pattern starts at the config folder. Archangel compares it with paths relative to the config
+folder, with `/` between folders on each operating system.
+
+| In a pattern | It matches |
+| --- | --- |
+| `**` | zero or more folders. It must be a full folder name. |
+| `*` | zero or more characters in one folder name or file name |
+| `{a,b}` | `a` or `b` |
+| `{name}` | a capture: one or more characters in one folder name or file name |
+
+Braces with a comma are alternatives. Braces with one name are a capture. A capture records the
+text that it matched. Read [Captures and instances](/archangel/concepts/captures-and-instances/).
+
+Archangel refuses a pattern with an empty folder name (`src//x`), a `**` that is not a full folder
+name (`src/ui**/x`), a capture without a name, or one capture name two times. The error is
+[`pattern-invalid`](/archangel/reference/diagnostics/pattern-invalid/).
+
+## Directives
+
+`{ directive: 'use client' }` finds each file whose first statement is that directive. Use it for
+React Server Components and Server Actions:
+
+```ts
+rule('client-has-no-db', {
+  files: { directive: 'use client' },
+  mayNotImport: 'db',
+  examples: {
+    rejected: [{ 'src/view/a.tsx': "'use client';\nimport '../db/a';" }],
+  },
+})
+```
+
+A rule that selects files by directive cannot use a [one-line example](/archangel/reference/examples/),
+because the text of the file decides the result.
+
+## A set that finds no file
+
+A part or a group that finds no file is an error, because a rule about an empty set can never find
+a problem. The codes are [`element-empty`](/archangel/reference/diagnostics/element-empty/) and
+[`selector-empty`](/archangel/reference/diagnostics/selector-empty/).
+
+A preset part that finds no file is not an error, because most repositories use only some parts of
+a preset. Archangel lists it in the summary. Read [Presets](/archangel/reference/presets/).

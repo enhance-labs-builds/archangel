@@ -1,0 +1,157 @@
+---
+title: Getting started
+description: Install archangel, write a first table, see it find a problem, and prove a rule with an example.
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This page takes you from an empty config to a table that finds a real problem. It takes about ten
+minutes. Each output on this page is what archangel 0.3.1 prints for the files on this page.
+
+## Before you start
+
+- You need Node 22.18 or later. Node runs `archangel.config.ts` without a build step.
+- You need a TypeScript or JavaScript repository.
+
+The example repository is a small shop. It has two features and some shared code:
+
+<FileTree>
+- package.json
+- src/
+  - features/
+    - cart/
+      - cart.ts
+      - index.ts
+    - checkout/
+      - checkout.ts
+  - shared/
+    - money.ts
+</FileTree>
+
+## Install archangel and write a config
+
+<Steps>
+
+1. Install the package as a development dependency:
+
+   ```sh
+   npm install --save-dev @enhance-eng/archangel
+   ```
+
+2. Write a starter config:
+
+   <Output fixture="getting-started" output="init.txt" />
+
+   `init` makes one part for each folder of source files. It also adds one rule against import
+   cycles:
+
+   <Example fixture="getting-started" file="expected/init-config.ts" title="archangel.config.ts" />
+
+3. Check the repository:
+
+   <Output fixture="getting-started" output="check.txt" />
+
+   The count includes the config file. The starter config finds no problem, because it has no
+   rule about your architecture yet.
+
+</Steps>
+
+## Write a table
+
+A table is the main form of an architecture test. Each row of the table is a set of files. The list
+on the row is what those files may import. The table refuses each other import into the
+repository.
+
+The shop has one decision: **a feature does not import another feature.** Code that two features
+need goes in `shared`.
+
+<Steps>
+
+1. Replace the config with this config:
+
+   <Example fixture="first-table" file="archangel.config.ts" mark={[5, { range: '9-14' }]} />
+
+   - `parts` gives names to the parts of the code. `{feature}` is a **capture**. It makes each
+     folder in `src/features` one **instance** of the part `feature`, so `cart` and `checkout` are
+     two instances.
+   - The table `app` has two rows. A file in `feature` may import `shared`, and files in its own
+     instance. A file in `shared` may import only `shared`.
+   - `because` is your reason. Archangel shows it with each problem.
+   - The rule `no-react-in-shared` is a rule with one condition. The next section tells you
+     about it.
+
+2. Check the repository again:
+
+   <Output fixture="first-table" output="check.txt" />
+
+   `checkout.ts` imports a file inside the cart feature. The error shows the line, the rule
+   `app.feature`, your reason, and what the row permits.
+
+3. Fix the problem. `checkout.ts` needs only the formatted total, so import `formatMoney` from
+   `shared`:
+
+   <Example fixture="first-table" file="later/checkout.ts" title="src/features/checkout/checkout.ts" />
+
+4. Check again:
+
+   <Output fixture="first-table" output="check-fixed.txt" />
+
+</Steps>
+
+<Aside type="tip" title="An import through index.ts is still an import">
+  If `checkout.ts` imports `'../cart'`, the import goes to `cart/index.ts`, which is still in the
+  instance `cart`. The table refuses it too. To permit imports through an entry file only, use
+  [`entry`](/archangel/reference/shorthands/#entry).
+</Aside>
+
+## Prove a rule with an example
+
+A rule can be wrong. For example, a typing error in a path can make a rule find no files, and then
+it never finds a problem. So each rule that is not a table row must have a **rejected example**:
+code that the rule must refuse.
+
+The rule `no-react-in-shared` has one example, on one line:
+
+```ts
+rule('no-react-in-shared', {
+  files: 'shared',
+  mayNotImport: { packages: ['react'] },
+  because: 'Shared code also runs on the server.',
+  examples: {
+    rejected: ['src/shared/money.ts imports react'],
+  },
+})
+```
+
+Run the examples:
+
+<Output fixture="first-table" output="test.txt" />
+
+Archangel makes the files of each example in memory, and checks that the rule refuses them. It
+does not write files. A table row needs no example, because `archangel rules` shows what each row
+judged, and a table that finds no file is an error.
+
+## See what your rules do
+
+`archangel rules` shows each rule as a sentence, with the number of files and imports that it
+judged:
+
+<Output fixture="first-table" output="rules.txt" />
+
+The last two lines are important. They list the files and imports that no rule judges, and the
+outside packages that no rule names. A file in that list can break your architecture, and no test
+fails.
+
+## Understand one import
+
+To see why archangel refused an import, give the file and the line:
+
+<Output fixture="first-table" output="explain-line.txt" />
+
+## Next steps
+
+- [Add archangel to a repository that already breaks its rules](/archangel/guides/existing-repository/).
+- [Use archangel in CI](/archangel/guides/ci/) and [in your editor](/archangel/guides/editors-and-agents/).
+- Read [Tables, rows and cells](/archangel/concepts/tables-rows-and-cells/) to write larger tables.

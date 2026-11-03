@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="128" viewBox="0 0 760 128" role="img" aria-label="Seconds to check the same 400 architecture rules on a 9,800-file TypeScript monorepo: archangel 1.9 s; dependency-cruiser, ESLint and Steiger together 67.7 s">
+<defs><clipPath id="r"><rect x="170" y="78" width="520.0" height="42" rx="5"/></clipPath></defs>
+<g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+<g clip-path="url(#r)">
+<rect x="170.0" y="78" width="130.7" height="42" fill="#d1d9e0"/>
+<rect x="300.7" y="78" width="224.6" height="42" fill="#c1cbd5"/>
+<rect x="525.3" y="78" width="164.7" height="42" fill="#afbac5"/>
+</g>
+<text x="156" y="30.0" text-anchor="end" font-weight="700" fill="#1f2328" font-size="16">archangel</text>
+<text x="156" y="46.0" text-anchor="end" fill="#59636e" font-size="12">one tool</text>
+<rect x="170" y="8" width="14.6" height="42" rx="5" fill="#8250df"/>
+<text x="194.6" y="35.0" font-weight="700" fill="#1f2328" font-size="16">1.9 s</text>
+<text x="156" y="100.0" text-anchor="end" font-weight="600" fill="#1f2328" font-size="16">three tools</text>
+<text x="156" y="116.0" text-anchor="end" fill="#59636e" font-size="12">for the same rules</text>
+<text x="235.3" y="96.0" text-anchor="middle" font-weight="600" fill="#1f2328" font-size="12.5">dependency-cruiser</text>
+<text x="235.3" y="111.0" text-anchor="middle" fill="#1f2328" font-size="12">17.0 s</text>
+<text x="413.0" y="96.0" text-anchor="middle" font-weight="600" fill="#1f2328" font-size="12.5">ESLint</text>
+<text x="413.0" y="111.0" text-anchor="middle" fill="#1f2328" font-size="12">29.2 s</text>
+<text x="607.7" y="96.0" text-anchor="middle" font-weight="600" fill="#1f2328" font-size="12.5">Steiger</text>
+<text x="607.7" y="111.0" text-anchor="middle" fill="#1f2328" font-size="12">21.4 s</text>
+<text x="700.0" y="105.0" font-weight="600" fill="#1f2328" font-size="16">67.7 s</text>
+</g>
+</svg>

@@ -1,0 +1,25 @@
+---
+// Shows a file of a fixture in site/examples. The test of the site runs every fixture, so the page
+// shows the bytes that archangel checked.
+import { Code } from '@astrojs/starlight/components';
+import { readFileSync } from 'node:fs';
+import { extname, join } from 'node:path';
+
+interface Props {
+  /** The folder in site/examples. */
+  fixture: string;
+  /** The path of the file in the fixture. */
+  file: string;
+  /** The title of the code frame; the file path by default. */
+  title?: string;
+  /** Lines or text to mark, as Expressive Code takes them. */
+  mark?: number | string | (number | string)[];
+}
+
+const { fixture, file, title, mark } = Astro.props;
+const code = readFileSync(join(process.cwd(), 'examples', fixture, file), 'utf8');
+const lang = { '.ts': 'ts', '.tsx': 'tsx', '.json': 'json', '.js': 'js', '.cjs': 'js', '.mjs': 'js' }[extname(file)] ?? 'txt';
+const shown = title ?? file.replace(/^(later|before|expected)\//, '');
+---
+
+<Code code={code.replace(/\n$/, '')} lang={lang} title={shown} mark={mark} />

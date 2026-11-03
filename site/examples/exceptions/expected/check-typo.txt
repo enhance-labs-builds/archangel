@@ -1,0 +1,16 @@
+error[exception-unknown-rule]: the exception names "app.featur", which is not a rule; the rules are app.feature, app.shared, app.every-file-has-a-kind
+--> src/features/account/index.ts:1:1
+
+error[may-import]: feature may not import another instance of feature, through "../cart": feature may import only shared, and itself in the same instance
+ --> src/features/account/index.ts:2:27
+  |
+2 | import { cartTotal } from '../cart';
+  |                           ^^^^^^^^^ feature may import only shared, and itself in the same instance
+  |
+  = help: remove the import, or move the code to a file whose row permits the import
+  = note: rule: app.feature
+  = note: because: A feature changes alone. Code that two features need goes in shared.
+
+checked 5 files and 5 imports: 2 problems
+  app.feature: 2 permitted by exceptions, 0 by the baseline
+For what a code means, run `archangel docs exception-unknown-rule` or `archangel docs may-import`.

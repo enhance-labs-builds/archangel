@@ -1,0 +1,12 @@
+error[may-import]: shared may not import feature, through "../features/cart/total": shared may import only itself
+ --> src/shared/label.ts:1:23
+  |
+1 | import { total } from '../features/cart/total';
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^ shared may import only itself
+  |
+  = help: remove the import, or move the code to a file whose row permits the import
+  = note: rule: app.shared
+  = note: because: Shared code never depends on a feature.
+
+checked 2 files and 1 imports: 1 problem
+For what a code means, run `archangel docs may-import`.

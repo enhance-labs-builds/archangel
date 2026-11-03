@@ -1,0 +1,18 @@
+small-files  archangel.config.ts:11
+  because: A file with many imports does too many things.
+  files in feature must meet the plugin condition team/max-imports
+    4 files · 1 problem
+
+no-orphans  archangel.config.ts:27
+  because: Shared code that nothing imports is dead code.
+  files in shared must meet the plugin condition team/no-orphans
+    2 files · 1 problem
+
+Files that no rule judges: 1
+  plugins/team.ts
+Imports between repository files that no rule judges: 4
+  src/features/cart/index.ts:1 imports src/shared/money.ts
+  src/features/cart/index.ts:2 imports src/features/cart/discount.ts
+  src/features/cart/index.ts:3 imports src/features/cart/tax.ts
+  src/features/cart/index.ts:4 imports src/features/cart/total.ts
+Outside packages that no rule names: @enhance-eng/archangel (1 import).

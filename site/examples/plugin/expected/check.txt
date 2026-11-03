@@ -1,0 +1,12 @@
+error[plugin]: src/features/cart/index.ts imports 4 files, and the limit is 2
+--> src/features/cart/index.ts
+ = note: rule: small-files
+ = note: because: A file with many imports does too many things.
+
+error[plugin]: no file imports src/shared/dates.ts; delete it or import it
+--> src/shared/dates.ts
+ = note: rule: no-orphans
+ = note: because: Shared code that nothing imports is dead code.
+
+checked 8 files and 7 imports: 2 problems
+For what a code means, run `archangel docs plugin`.

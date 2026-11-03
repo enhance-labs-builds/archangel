@@ -1,0 +1,3 @@
+[
+  { "args": ["check"], "output": "check.txt", "status": 0 }
+]

@@ -1,0 +1,8 @@
+src/features/checkout/checkout.ts
+  part: "feature", instance "checkout"
+  groups: none
+  rules that apply: app.feature
+    app.feature: feature may import only shared, and itself in the same instance
+  imports:
+    line 1  '../cart/cart' -> src/features/cart/cart.ts ("feature", instance "cart")  breaks app.feature
+  imported by: none

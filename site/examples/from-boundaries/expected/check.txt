@@ -1,0 +1,19 @@
+error[entry]: "../features/cart/cart-total" reaches inside "cart" of "feature" past its entry files
+ --> src/app/main.ts:1:27
+  |
+1 | import { cartTotal } from '../features/cart/cart-total';
+  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ import it through "../features/cart"
+  |
+  = note: rule: entry-point
+
+error[may-import]: feature may not import another instance of feature, through "../cart": feature may import only shared, and itself in the same instance
+ --> src/features/checkout/index.ts:1:27
+  |
+1 | import { cartTotal } from '../cart';
+  |                           ^^^^^^^^^ feature may import only shared, and itself in the same instance
+  |
+  = help: remove the import, or move the code to a file whose row permits the import
+  = note: rule: element-types.feature
+
+checked 6 files and 6 imports: 2 problems
+For what a code means, run `archangel docs entry` or `archangel docs may-import`.

@@ -1,0 +1,70 @@
+---
+title: Migrate from eslint-plugin-check-file
+description: Move file and folder naming rules from eslint-plugin-check-file to mustBeNamed and mustNotExist rules.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+eslint-plugin-check-file checks the names of files and folders. Archangel checks them with
+`mustBeNamed`, and checks where files may be with `mustNotExist`. This guide moves four common
+check-file rules.
+
+## The config before
+
+<Example fixture="from-check-file" file="before/eslint.config.js" />
+
+## Map each rule
+
+| eslint-plugin-check-file | archangel |
+| --- | --- |
+| `filename-naming-convention` | A rule on `files` with `mustBeNamed` and a style. |
+| `folder-naming-convention` | A rule on `folders` with `mustBeNamed` and a style. |
+| `KEBAB_CASE`, `CAMEL_CASE`, `PASCAL_CASE`, `SNAKE_CASE`, `SCREAMING_SNAKE_CASE` | `'kebab-case'`, `'camelCase'`, `'PascalCase'`, `'snake_case'`, `'SCREAMING_SNAKE_CASE'` |
+| `ignoreMiddleExtensions: true` | The default. A style reads the name up to the first dot, so `money.util.ts` is checked as `money`. |
+| A glob as the convention, such as `*.view` | A name pattern, or a list of them: `mustBeNamed: ['*.view', '*.container']`. |
+| `filename-blocklist` | A rule on the blocked files with `mustNotExist: true`, and the new name in `because`. |
+| `folder-match-with-fex` | A rule with `mustNotExist: true` on the files outside their folder: `{ all: ['**/*.test.ts', { not: '**/__tests__/**' }] }`. |
+| `no-index` | A rule on `**/index.ts` with `mustNotExist: true`. |
+
+## The config after
+
+<Example fixture="from-check-file" file="archangel.config.ts" />
+
+- The folder rule leaves out `__tests__` with a `!` pattern, as in `.gitignore`. `__tests__` is not
+  kebab-case, so the rule would refuse it.
+- `mustNotExist` reports each file that its `files` find. Write the set of files that must not exist.
+- Each rule has a rejected example on one line. For a naming rule, the one line is the path of one
+  empty file.
+
+## Run it
+
+<Steps>
+
+1. Prove the rules:
+
+   <Output fixture="from-check-file" output="test.txt" />
+
+2. Check the repository:
+
+   <Output fixture="from-check-file" output="check.txt" />
+
+   Each problem has the name to use. The style error shows the name in the correct style.
+
+</Steps>
+
+## Results that change
+
+- **A style checks the name up to the first dot.** Archangel checks `button` in
+  `button.view.tsx`. A name pattern, such as `*.view`, reads the full name without the last
+  extension, `button.view`.
+- **No rules for the first or last character.** Archangel has no rule for the first or the last
+  character of a name. Write a name pattern, or a plugin condition.
+- **A name can use its folder.** A name pattern can use the name of the file or its folder in each
+  style, for example `{folder-name}.test`. See [File and folder names](/archangel/guides/names/).
+
+<Aside type="tip" title="A blocklist rule on a clean repository">
+  A `mustNotExist` rule on `files` that finds no file is not an error, because no file is the goal.
+  So the blocklist rule stays correct after you rename the last blocked file.
+</Aside>

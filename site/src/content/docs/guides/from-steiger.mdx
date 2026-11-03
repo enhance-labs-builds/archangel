@@ -1,0 +1,112 @@
+---
+title: Migrate from Steiger
+description: Replace Steiger with the fsd preset. Each Steiger rule has a rule of the same name, with examples, and the differences are listed.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+Steiger is the linter of Feature-Sliced Design. Archangel's `fsd` preset has a rule for each of
+Steiger's 21 rules, with the same name and a link to Steiger's page for it. A test in the archangel
+repository runs Steiger and the preset on the same repositories, and compares the files that each
+one reports.
+
+[Feature-Sliced Design](/archangel/guides/feature-sliced-design/) tells you how to use the preset.
+This page tells you how to move from Steiger.
+
+## The config before
+
+<Example fixture="from-steiger" file="before/steiger.config.ts" />
+
+## The config after
+
+<Example fixture="from-steiger" file="archangel.config.ts" />
+
+| Steiger | archangel |
+| --- | --- |
+| `...fsd.configs.recommended` | `extends: [fsd({ root: 'src' })]` |
+| All rules on | `fsd({ root: 'src', strict: true })` |
+| `'fsd/<rule>': 'off'` | `off: ['fsd/<rule>']` |
+| `'fsd/<rule>': 'warn'` | No equivalent. A rule is on or off. |
+| `ignores: [...]` | `ignore: [...]` in the config, in `.gitignore` syntax. It removes the files from the whole check. |
+| `files: [...]` with a rule `off` | Write a rule with the same name as the preset rule. Your rule replaces it. |
+| A second FSD root | A second `fsd({ root, name })` with its own `name`, for example `fsd-admin`. |
+
+## Run it
+
+<Steps>
+
+1. Check the repository:
+
+   <Output fixture="from-steiger" output="check.txt" />
+
+   The feature `login` imports the feature `signup`, so `fsd/forbidden-imports` refuses it. The
+   lines that say "matches nothing" are parts of the preset with no files. A repository usually has
+   only some layers, so these lines are not errors.
+
+2. Run `npx archangel test`. It checks the examples of each preset rule in your repository, under
+   the preset's `root`, with your tsconfig.
+
+3. Remove Steiger when the results are the same.
+
+</Steps>
+
+## The rules
+
+Each rule name has the prefix of the preset, `fsd/` by default. The rules that Steiger recommends
+are on by default. `strict: true` adds the four rules that Steiger has as options.
+
+| Steiger rule | archangel rule | On |
+| --- | --- | --- |
+| `fsd/forbidden-imports` | `fsd/forbidden-imports` | Default |
+| `fsd/no-public-api-sidestep` | `fsd/no-public-api-sidestep` | Default |
+| `fsd/public-api` | `fsd/public-api` | Default |
+| `fsd/no-layer-public-api` | `fsd/no-layer-public-api` | Default |
+| `fsd/no-reserved-folder-names` | `fsd/no-reserved-folder-names` | Default |
+| `fsd/no-segmentless-slices` | `fsd/no-segmentless-slices` | Default |
+| `fsd/no-segments-on-sliced-layers` | `fsd/no-segments-on-sliced-layers` | Default |
+| `fsd/no-ui-in-app` | `fsd/no-ui-in-app` | Default |
+| `fsd/segments-by-purpose` | `fsd/segments-by-purpose` | Default |
+| `fsd/no-processes` | `fsd/no-processes` | Default |
+| `fsd/typo-in-layer-name` | `fsd/typo-in-layer-name` | Default |
+| `fsd/ambiguous-slice-names` | `fsd/ambiguous-slice-names` | Default |
+| `fsd/inconsistent-naming` | `fsd/inconsistent-naming` | Default |
+| `fsd/insignificant-slice` | `fsd/insignificant-slice` | Default |
+| `fsd/repetitive-naming` | `fsd/repetitive-naming` | Default |
+| `fsd/excessive-slicing` | `fsd/excessive-slicing` | Default |
+| `fsd/shared-lib-grouping` | `fsd/shared-lib-grouping` | Default |
+| `fsd/no-higher-level-imports` | `fsd/no-higher-level-imports` | `strict: true` |
+| `fsd/no-cross-imports` | `fsd/no-cross-imports` | `strict: true` |
+| `fsd/import-locality` | `fsd/import-locality` | `strict: true` |
+| `fsd/no-wildcard-exports` | `fsd/no-wildcard-exports` | `strict: true` |
+
+The rules about imports and folders are built-in conditions of archangel. The seven rules about
+names and counts, from `typo-in-layer-name` to `shared-lib-grouping`, are conditions of the preset's
+plugin, and they read the whole tree as Steiger does.
+
+## Results that change
+
+These differences are on purpose. The test that compares the two tools names each one.
+
+- **A slice is any folder in a sliced layer.** The built-in rules take each folder directly in
+  Entities, Features, Widgets or Pages as a slice, with or without segments. They do not know slice
+  groups. Steiger finds a slice by the segments inside it. The plugin rules find slices and slice
+  groups as Steiger does.
+- **Each folder in `shared/ui` and `shared/lib` needs an index file.** `fsd/public-api` asks for it
+  even when the segment has an index file of its own. Steiger checks those folders only when the
+  segment has none.
+- **A misspelt layer is reported beside the real one.** `fsd/typo-in-layer-name` reports
+  `src/featurez` even when `src/features` exists. Steiger then reports nothing.
+- **A layer has its exact name.** The built-in rules take only a folder named exactly as a layer.
+  Steiger also reads `1_shared` or `_app` as a layer.
+- **Code outside the layers is checked too.** `fsd/no-public-api-sidestep` checks imports from
+  files outside the layers, such as tests. A deep import from a test is still a sidestep. Steiger
+  reads only the files in the layers.
+- **A re-export is an import.** Each rule counts `export ... from` as an import, because a
+  re-export loads the module.
+
+<Aside type="tip" title="One tool for more rules">
+  Steiger checks Feature-Sliced Design only. With archangel, you can add your own tables and rules
+  next to the preset, in the same config, and check them in one run.
+</Aside>

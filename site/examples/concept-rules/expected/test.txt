@@ -1,0 +1,5 @@
+pass  layers(app, feature, shared)  rejected #1  src/app/main.ts, src/shared/a.ts
+pass  entry(feature)  rejected #1  src/app/main.ts, src/features/cart/cart.ts
+pass  no-react-in-shared  rejected #1  src/shared/a.ts, src/shared/b.ts
+pass  no-utils  rejected #1  src/shared/utils.ts
+4 examples, none failed; 0 rules without a rejected example

@@ -1,0 +1,9 @@
+src/features/checkout/checkout.ts:1  '../cart/cart' -> src/features/cart/cart.ts
+  file:    part feature (instance checkout)
+  target:  part feature (instance cart)
+  judged by:
+    app.feature                refuses: another instance of feature is not in its row (feature may import only shared, and itself in the same instance)
+  skipped by:
+    app.shared                 the file is not in shared
+    app.every-file-has-a-kind  this rule checks files, not imports
+    no-react-in-shared         the file is not in shared

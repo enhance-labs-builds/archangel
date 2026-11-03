@@ -1,0 +1,14 @@
+error[may-import]: feature may not import another instance of feature, through "../cart": feature may import only shared, and itself in the same instance
+ --> src/features/billing/index.ts:1:27
+  |
+1 | import { cartTotal } from '../cart';
+  |                           ^^^^^^^^^ feature may import only shared, and itself in the same instance
+  |
+  = help: remove the import, or move the code to a file whose row permits the import
+  = note: rule: app.feature
+  = note: because: A feature changes alone. Code that two features need goes in shared.
+
+checked 7 files and 6 imports: 1 problem
+  app.feature: 0 permitted by exceptions, 2 by the baseline
+  app.shared: 0 permitted by exceptions, 1 by the baseline
+For what a code means, run `archangel docs may-import`.

@@ -1,0 +1,4 @@
+[
+  { "args": ["check"], "output": "check.txt", "status": 2 },
+  { "args": ["docs", "rule-unknown-element"], "output": "docs.txt", "status": 0 }
+]

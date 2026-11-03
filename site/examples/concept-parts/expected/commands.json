@@ -1,0 +1,5 @@
+[
+  { "args": ["explain", "src/features/cart/cart-button.tsx"], "output": "explain-button.txt", "status": 0 },
+  { "args": ["check"], "output": "check.txt", "status": 0 },
+  { "args": ["rules"], "output": "rules.txt", "status": 0 }
+]

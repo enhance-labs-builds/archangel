@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "diagnostics": [
+    {
+      "code": "may-import",
+      "rule": "app.shared",
+      "file": "src/shared/label.ts",
+      "line": 1,
+      "column": 23,
+      "span": [
+        22,
+        46
+      ],
+      "specifier": "../features/cart/total",
+      "message": "shared may not import feature, through \"../features/cart/total\": shared may import only itself",
+      "help": "shared may import only itself",
+      "reason": "Shared code never depends on a feature.",
+      "link": null,
+      "id": {
+        "rule": "app.shared",
+        "file": "src/shared/label.ts",
+        "specifier": "../features/cart/total",
+        "occurrence": 0
+      },
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
+  "summary": {
+    "files": 2,
+    "imports": 1,
+    "exceptions": {},
+    "baselined": {},
+    "permittedUnresolved": 0,
+    "unfollowed": 0,
+    "linksNotFollowed": [],
+    "nestedRepositories": [],
+    "presetNamesMatchingNothing": [],
+    "work": {
+      "filesFound": 2,
+      "filesRead": 2,
+      "bytesRead": 113,
+      "filesParsed": 2,
+      "importsFound": 1,
+      "resolutions": 1,
+      "filesClassified": 4,
+      "patternPasses": 4,
+      "ruleEvaluations": 1,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    },
+    "rowsWithNoFile": []
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "next-shop",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "next": "16.0.0",
+    "react": "19.2.0",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@enhance-eng/archangel": "0.3.1"
+  }
+}

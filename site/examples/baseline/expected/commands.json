@@ -1,0 +1,9 @@
+[
+  { "args": ["check"], "output": "check-before.txt", "status": 1 },
+  { "args": ["baseline", "add"], "output": "baseline-add.txt", "status": 0, "files": { "archangel.baseline.json": "archangel.baseline.json" } },
+  { "args": ["check"], "output": "check-baselined.txt", "status": 0 },
+  { "later": { "src/features/billing/index.ts": "billing.ts" }, "args": ["check"], "output": "check-new.txt", "status": 1 },
+  { "later": { "src/features/billing/index.ts": "billing-fixed.ts", "src/shared/greeting.ts": "greeting-fixed.ts" }, "args": ["check"], "output": "check-stale.txt", "status": 1 },
+  { "args": ["baseline", "prune"], "output": "baseline-prune.txt", "status": 0, "files": { "archangel.baseline.json": "archangel.baseline.pruned.json" } },
+  { "args": ["check"], "output": "check-pruned.txt", "status": 0 }
+]

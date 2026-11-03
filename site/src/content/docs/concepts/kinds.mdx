@@ -1,0 +1,76 @@
+---
+title: Kinds
+description: A kind is a row name that one pattern gives to each file, such as entity for order.entity.ts. Kinds let one table cover many files with no declarations.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+Some codebases say what a file is in its name or its folder: `order.entity.ts`,
+`order.repository.ts`, `views/cart-page.tsx`. A **kind** turns that name into a table row. You
+write one pattern, and archangel gives each file its kind. You do not declare a part for each kind.
+
+## The kinds pattern
+
+A table's `kinds` option is a path pattern with the capture `{kind}`. The value of the capture is
+the file's kind.
+
+| Pattern | File | Kind |
+| --- | --- | --- |
+| `**/*.{kind}.ts` | `src/orders/order.entity.ts` | `entity` |
+| `src/features/*/{kind}/**` | `src/features/cart/views/page.tsx` | `views` |
+| `**/{kind}/**/*.{kind}.ts` | `src/entity/order.entity.ts` | `entity` |
+
+- `{kind}` can be in a pattern two times. Then the two places must give the same name.
+- A declaration file counts `.d.ts` as one extension. So `env.d.ts` has no kind `d`.
+- A file that the pattern does not match has no kind.
+
+## A table of kinds
+
+This table uses the end of each file name as its kind. It also has one row, `shared`, that is a
+part. One table can mix kinds, parts and groups:
+
+<Example fixture="concept-kinds" file="archangel.config.ts" mark={[{ range: '9-12' }, { range: '14-15' }]} />
+
+`archangel explain` shows the kind of a file. The file is in no part, but it has the kind `service`
+in the table `orders`:
+
+<Output fixture="concept-kinds" output="explain-service.txt" />
+
+## A new kind is not a silent gap
+
+The repository has a file that the table does not know: `order.helpers.ts`. Its kind is
+`helpers`, and the table has no row for it. Two rules find it:
+
+<Output fixture="concept-kinds" output="check.txt" />
+
+- `orders.every-file-has-a-kind` refuses the file itself. This rule checks only the files in the
+  table's `files`, here `src/**`. Without `files`, this rule checks nothing.
+- `orders.service` refuses the import of the file, because the row `service` does not list
+  `helpers`, and the table has no row for it.
+
+To fix it, decide where helpers belong in your architecture. Add a row, and name it in the rows that
+may import it:
+
+<Example fixture="concept-kinds" file="later/archangel.config.ts" title="archangel.config.ts" mark={[9, 12]} />
+
+<Output fixture="concept-kinds" output="check-helpers.txt" />
+
+You can also rename the file so that it has a kind with a row, or leave it out of the table's
+`files` with `not`.
+
+## Kinds or parts
+
+| Use | When |
+| --- | --- |
+| A kind | One pattern gives the names, for many folders or file endings. You add a kind when you add the first file with that ending, and the table tells you if it has no row. |
+| A part | The area has a name of its own, and rules other than this table use it. A rule's `files` can name a part. |
+
+A kind has a meaning only in its table. A rule's `files` cannot name a kind. To select the same
+files in a rule, write the pattern, for example `files: 'src/**/*.entity.ts'`.
+
+<Aside title="`files` does not change a kind">
+  The `files` option chooses only which importers the table judges, and which files must have a
+  row. A file outside `files` still has its kind when another file imports it.
+</Aside>

@@ -1,0 +1,6 @@
+error[exception-unused]: the exception for "app.feature" permits nothing, because the next line does not break that rule; delete it
+--> src/features/cart/index.ts:1:1
+
+checked 5 files and 4 imports: 1 problem
+  app.feature: 2 permitted by exceptions, 0 by the baseline
+For what a code means, run `archangel docs exception-unused`.

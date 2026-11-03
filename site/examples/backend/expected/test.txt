@@ -1,0 +1,3 @@
+pass  no-cycles  rejected #1  src/services/a.ts, src/services/b.ts
+1 examples, none failed; 0 rules without a rejected example
+7 table rows need no written example; `archangel rules` shows what each covers

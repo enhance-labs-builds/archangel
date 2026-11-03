@@ -1,0 +1,33 @@
+backend  4 rows  archangel.config.ts:14
+  because: A route calls a service. Only db talks to the database. The domain depends on nothing.
+
+  backend.routes: routes may import only services, and itself
+    2 files · 2 imports judged · 1 problem · 0 exceptions
+  backend.services: services may import only domain, db, and itself
+    1 file · 2 imports judged · 0 problems · 0 exceptions
+  backend.db: db may import only domain, driver, and itself
+    1 file · 2 imports judged · 0 problems · 0 exceptions
+  backend.domain: domain may import only itself
+    3 files · 3 imports judged · 0 problems · 0 exceptions
+  backend.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
+    7 files · 0 problems
+
+model  3 rows  archangel.config.ts:23
+  because: An entity does not know its events. A service publishes them.
+
+  model.entity: entity may import only value-object, and itself
+    1 file · 2 imports judged · 1 problem · 0 exceptions
+  model.event: event may import only entity, value-object, and itself
+    1 file · 1 import judged · 0 problems · 0 exceptions
+  model.value-object: value-object may import only itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  model.every-file-has-a-kind: every file of model has a row
+    3 files · 0 problems
+
+no-cycles  archangel.config.ts:33
+  because: Files that import each other cannot change one at a time.
+  files in src/** may not import each other in a cycle
+    7 files · 0 problems
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: none.

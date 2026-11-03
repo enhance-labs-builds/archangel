@@ -1,0 +1,113 @@
+---
+title: How archangel works
+description: The map of the code, how a rule asks a question about it, the loop of check, test and rules, and why it is fast.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+import Output from '../../../components/Output.astro';
+
+Archangel does two things. It makes a map of your code. Then each rule asks a question about the
+map. This page tells you how each step works, so you can reason about what a rule does.
+
+## 1. The map of the code
+
+Archangel reads each source file below the config folder one time. For each file, the map holds:
+
+- its path;
+- its part, its instance and its groups;
+- its imports, and the file or package that each import resolves to;
+- the files that import it;
+- what it exports.
+
+Archangel reads the files that Git does not ignore, with the extensions `.ts`, `.tsx`, `.mts`,
+`.cts`, `.js`, `.jsx`, `.mjs` and `.cjs`. It resolves each import as TypeScript does, with your
+tsconfig paths and the `exports` of each `package.json`.
+
+The map has no gaps. A file that archangel cannot parse is an error. An import that it cannot
+resolve is an error, unless the config permits it with `allowUnresolved`. Archangel never skips a
+file or an import without a word.
+
+## 2. Names on the map
+
+The config gives names to sets of files:
+
+- A **part** is a named area, such as `src/features/{feature}/**`. Each file is in one part at most.
+- A **capture**, such as `{feature}`, makes each folder one **instance** of the part.
+- A **group** is a named set of files that can cut across parts, such as the test files.
+- An **externals set** is a named set of outside packages.
+- In a table, a **kind** is a name that a pattern gives to a file, such as `entity` in
+  `user.entity.ts`.
+
+Read [Concepts](/archangel/concepts/parts-groups-and-externals/) for each one.
+
+## 3. Rules ask questions
+
+Each rule is a question about part of the map:
+
+| Rule | The question |
+| --- | --- |
+| a table row | Does a file in this row import something that the row does not list? |
+| `mayNotImport` | Does a file in these files import the other side? |
+| `noCycles` | Do these files import each other in a cycle? |
+| `mustBeNamed` | Does the name of each file match? |
+| a plugin condition | Your own question, as a TypeScript function. |
+
+When a rule decides to permit or refuse an import, it **judges** the import. An import that no rule
+judges is not checked. `archangel rules` lists these imports, so you can see the gaps.
+
+## 4. The loop
+
+You use three commands together:
+
+<Steps>
+
+1. **`archangel check`** asks each rule its question, and shows each problem. This is the test of
+   your code.
+
+   <Output fixture="backend" output="check.txt" />
+
+2. **`archangel test`** checks the examples of each rule. This is the test of your rules. A rule
+   with a typing error in a path finds no file, so it cannot reject its example, and the test fails.
+
+   <Output fixture="backend" output="test.txt" />
+
+3. **`archangel rules`** shows what each rule judged, and what no rule judges. This is how you see
+   the reach of your tests.
+
+   <Output fixture="backend" output="rules.txt" />
+
+</Steps>
+
+When `check` passes, `test` passes, and `rules` shows no gap that you care about, your architecture
+is tested.
+
+## The facts and the rules are separate
+
+Which file imports which file is a fact about the code. Which imports are permitted is a decision
+in the config. Archangel keeps the two separate:
+
+- A change to the config does not read the code again.
+- A change to one file reads only that file again.
+- An example of a rule is a small map in memory. So `archangel test` checks a rule with a few files,
+  and writes no file.
+
+## Why it is fast
+
+- A Rust core reads and parses each file one time, with [oxc](https://oxc.rs).
+- The work of a check grows with the number of files and imports. The cost of one import does not
+  grow with the number of rules.
+- Archangel needs no type checker, because it checks only structure.
+- In the editor and in watch mode, archangel keeps the map in memory. After a change, it reads only
+  the changed files, and checks only what the change can affect.
+
+On a 9,800-file monorepo, a full check of 400 rules takes 1.9 seconds on a laptop. The editor
+shows the result of a change in about 13 milliseconds.
+
+`--stats` shows the work of a check as counts, such as the files read and the imports resolved. Read
+[Output and exit codes](/archangel/reference/output-and-exit-codes/).
+
+## Where config code runs
+
+A TypeScript config, and each plugin, runs in Node 22.18 or later. Archangel runs the config one
+time for each load. Plugins stay in that Node process, and archangel sends them only the facts that
+they read. A JSON config needs no Node.

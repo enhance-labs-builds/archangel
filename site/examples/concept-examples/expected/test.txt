@@ -1,0 +1,10 @@
+fail  feature-entry  accepted #1  src/shared/format.ts
+      "feature-entry" never looked at a folder of this example, so accepting it proves nothing; give the example a file in a folder the rule names
+fail  feature-entry  rejected #1  src/features/cart/model.ts
+      no rule rejected the example, and "feature-entry" should have; fix the rule or the example
+pass  no-react-in-shared  accepted #1  src/shared/format.ts, src/shared/money.ts
+error[rule-unproven]: the rule "no-react-in-shared" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: no-react-in-shared
+
+3 examples, 2 failed; 1 rules without a rejected example

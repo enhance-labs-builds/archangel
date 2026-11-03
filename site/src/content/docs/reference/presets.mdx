@@ -1,0 +1,149 @@
+---
+title: Presets
+description: The fsd and nextjs presets, their options and rules, how to change a preset, and how to write one.
+---
+
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+A preset gives you a set of rules in one line. It is a function that returns part of a config:
+parts, groups, rules with their examples, and the plugins that its rules use.
+
+```ts
+extends: [fsd({ root: 'src' }), nextjs()],
+```
+
+Import a preset from `@enhance-eng/archangel`. A JSON config cannot use a preset, because a preset
+is code.
+
+## `fsd`: Feature-Sliced Design
+
+`fsd(options)` checks a front end that uses [Feature-Sliced Design](https://feature-sliced.design).
+It has the 21 rules of Steiger, the linter of Feature-Sliced Design. For a full guide, read
+[Feature-Sliced Design](/archangel/guides/feature-sliced-design/).
+
+| Option | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `root` | string | required | The folder that holds the layers, such as `src`. |
+| `strict` | boolean | `false` | Also turns on the four rules that Steiger has as options. |
+| `name` | string | `'fsd'` | The prefix of each name. A second use in one repository needs its own name. |
+
+### The parts of `fsd`
+
+Each pattern starts at `root`.
+
+| Part | Pattern |
+| --- | --- |
+| `fsd/shared` | `shared/**` |
+| `fsd/entities` | `entities/{slice}/**` |
+| `fsd/features` | `features/{slice}/**` |
+| `fsd/widgets` | `widgets/{slice}/**` |
+| `fsd/pages` | `pages/{slice}/**` |
+| `fsd/app` | `app/**` |
+| `fsd/processes` | `processes/**` |
+
+Each folder in a sliced layer is a slice. Steiger finds slices by the segments inside them, so the
+two tools can differ for a folder without segments.
+
+### The rules of `fsd`
+
+Each rule has the name of the Steiger rule, with the prefix `fsd/`. Each report links to the
+Steiger page of its rule.
+
+| Rule | On by default |
+| --- | --- |
+| `fsd/forbidden-imports` | yes |
+| `fsd/no-public-api-sidestep` | yes |
+| `fsd/public-api` | yes |
+| `fsd/no-layer-public-api` | yes |
+| `fsd/no-reserved-folder-names` | yes |
+| `fsd/no-segmentless-slices` | yes |
+| `fsd/no-segments-on-sliced-layers` | yes |
+| `fsd/no-ui-in-app` | yes |
+| `fsd/segments-by-purpose` | yes |
+| `fsd/no-processes` | yes |
+| `fsd/typo-in-layer-name` | yes |
+| `fsd/ambiguous-slice-names` | yes |
+| `fsd/inconsistent-naming` | yes |
+| `fsd/insignificant-slice` | yes |
+| `fsd/repetitive-naming` | yes |
+| `fsd/excessive-slicing` | yes |
+| `fsd/shared-lib-grouping` | yes |
+| `fsd/no-higher-level-imports` | with `strict: true` |
+| `fsd/no-cross-imports` | with `strict: true` |
+| `fsd/import-locality` | with `strict: true` |
+| `fsd/no-wildcard-exports` | with `strict: true` |
+
+Seven rules use the conditions of the preset's plugin `fsd`: `typo-in-layer-name`,
+`ambiguous-slice-names`, `inconsistent-naming`, `insignificant-slice`, `repetitive-naming`,
+`excessive-slicing` and `shared-lib-grouping`. Your own rule can use them too, with
+`plugin: 'fsd/insignificant-slice'`.
+
+## `nextjs`: Next.js
+
+`nextjs(options)` keeps server code out of client components. A file that starts with
+`'use client'`, and each file that it reaches through runtime imports, may not import
+`server-only` or a Node built-in module. A chain stops at a file that starts with `'use server'`,
+because Next.js makes an import of a Server Action into a network call. For a full guide, read
+[Next.js](/archangel/guides/nextjs/).
+
+| Option | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `root` | string | the config folder | The folder of the Next.js app. |
+| `name` | string | `'nextjs'` | The prefix of each name. |
+
+It has one rule, `nextjs/client-stays-client`, and two groups: `nextjs/client` and
+`nextjs/server`.
+
+## Change a preset
+
+<Example fixture="fsd" file="later/archangel.config.ts" title="archangel.config.ts" />
+
+- **Names have a prefix.** Each name of a preset starts with the preset's name, for example
+  `fsd/features`. Your own part `shared` does not replace the part `fsd/shared`.
+- **A second use needs its own name.** To use a preset two times, for example for two apps, give
+  the second use a `name`, such as `fsd({ root: 'apps/admin/src', name: 'fsd-admin' })`.
+- **Replace a rule.** Write a rule with the same name as a preset rule, such as
+  `rule('fsd/public-api', { ... })`. Your rule replaces it. `archangel rules` shows "replaces the
+  rule public-api of the preset fsd".
+- **Remove a rule.** Put its name in `off`. `archangel rules` lists the rules that `off` removes.
+- **Typing errors stop the check.** A name in `off` must match a rule, and so must a replacement
+  rule. When it does not, archangel stops and shows the nearest correct name.
+- **Your names cannot have a slash**, except to replace a preset rule. With `defineConfig`, the
+  editor marks a rule name with a slash that does not start with a preset that you extend.
+
+## Empty parts of a preset
+
+A preset declares each part of its architecture, and most repositories use only some parts. So a
+preset part that finds no file is not an error. The summary of `archangel check` lists it. Here,
+the repository has no widgets and no processes:
+
+<Output fixture="fsd" output="check-strict.txt" />
+
+When all parts of a preset find no file, the `root` is probably wrong. Archangel then shows
+[`preset-empty`](/archangel/reference/diagnostics/preset-empty/).
+
+## The examples of a preset
+
+`archangel test` checks the examples of each preset rule in your repository, under the preset's
+`root`, with your tsconfig. So the examples prove that the rules work in your repository, not only in
+the repository of the preset.
+
+## Write a preset
+
+A preset is a function that returns an object with these fields:
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `name` | string | The prefix of each name that the preset declares, such as `fsd`. |
+| `root` | string | The folder that the preset applies to, from the config folder. Each pattern starts there. |
+| `package` | string | The package that the preset comes from. A problem that its user cannot fix names it. |
+| `parts` | object | Parts, as in a config. |
+| `groups` | object | Groups, as in a config. |
+| `externals` | object | Externals sets, as in a config. |
+| `plugins` | object | The plugins that its rules use. |
+| `rules` | list or function | The rules, each with a name. |
+
+Each rule of a preset needs a name. The preset writes names without the prefix, and archangel adds
+it. Publish a preset as a plain function, in the package of your plugin if you have one. Name the
+package `archangel-plugin-<name>` or `@scope/archangel-plugin`.

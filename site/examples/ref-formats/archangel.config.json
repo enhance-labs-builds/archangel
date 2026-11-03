@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/@enhance-eng/archangel/archangel.schema.json",
+  "parts": {
+    "feature": "src/features/{feature}/**",
+    "shared": "src/shared/**"
+  },
+  "rules": [
+    {
+      "kind": "mayImport",
+      "name": "app",
+      "rows": { "feature": ["shared"], "shared": [] },
+      "because": "Shared code never depends on a feature."
+    }
+  ]
+}

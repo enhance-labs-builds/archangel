@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "rule": "app.feature",
+      "file": "src/features/checkout/index.ts",
+      "specifier": "../account",
+      "count": 1
+    },
+    {
+      "rule": "app.feature",
+      "file": "src/features/checkout/index.ts",
+      "specifier": "../cart",
+      "count": 1
+    }
+  ]
+}

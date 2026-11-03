@@ -1,0 +1,2 @@
+pass  isolate(module)  rejected #1  src/sales/orders/a.ts, src/sales/quotes/b.ts
+1 examples, none failed; 0 rules without a rejected example

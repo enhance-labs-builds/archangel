@@ -1,0 +1,229 @@
+---
+title: Commands
+description: Each archangel command, its arguments and options, and what it prints.
+---
+
+import Output from '../../../components/Output.astro';
+
+Run each command with `npx archangel <command>`, or `archangel <command>` when archangel is on your
+`PATH`.
+
+| Command | What it does |
+| --- | --- |
+| [`check`](#check) | Checks the repository, and shows each problem and a summary. |
+| [`test`](#test) | Checks the examples of each rule. |
+| [`rules`](#rules) | Shows each rule as a sentence, what it judged, and what no rule judges. |
+| [`explain`](#explain) | Shows the place of a file in the architecture, or each rule that judged one import. |
+| [`why`](#why) | Shows the shortest chain of imports from a file to a file or a package. |
+| [`watch`](#watch) | Checks, and then checks again after each change. |
+| [`baseline`](#baseline) | Records the problems of today, or removes the entries that the code does not need now. |
+| [`lsp`](#lsp) | Starts the language server. |
+| [`init`](#init) | Writes a starter config. |
+| [`docs`](#docs) | Shows what a diagnostic code means. |
+| [`completions`](#completions) | Writes the completion script of a shell. |
+| [`man`](#man) | Writes the manual page. |
+
+## Options of each command
+
+| Option | Values | Default | What it does |
+| --- | --- | --- | --- |
+| `--config <file>` | a path | the nearest config | Uses this config. Without it, archangel uses the nearest config in the current folder or above it. |
+| `--format <format>` | `text`, `json`, `github`, `sarif` | `text` | The output format. Read [Output and exit codes](/archangel/reference/output-and-exit-codes/). |
+| `--stats` | | off | Adds the work that archangel did, and the time of each stage. |
+| `--color <when>` | `auto`, `always`, `never` | `auto` | When to use color in text output. `auto` uses color on a terminal, unless `NO_COLOR` is set. |
+| `-h`, `--help` | | | Shows the help. `-h` shows a summary. |
+| `-V`, `--version` | | | Shows the version. Write it before the command: `archangel --version`. |
+
+`rules` and `explain` write only `text` or `json`. For another format, they stop with exit code 2.
+
+## `check`
+
+```sh
+archangel check [FILES]...
+```
+
+Checks the repository with the config, and shows each problem and a summary. This is the command
+for CI.
+
+<Output fixture="first-table" output="check.txt" />
+
+With file arguments, archangel shows only the problems of those files. It still checks the whole
+repository, because a cycle or an empty part depends on all files. The exit code then follows the
+problems that it shows.
+
+The summary counts the files and the imports that archangel checked. It also shows the exceptions
+and the baseline entries of each rule, and the parts of a preset that find no file.
+
+## `test`
+
+```sh
+archangel test
+```
+
+Checks each accepted and rejected example of each rule, in memory. It prints one line for each
+example. It fails when an example fails, and when a rule has no rejected example.
+
+<Output fixture="first-table" output="test.txt" />
+
+Read [Examples](/archangel/reference/examples/).
+
+## `rules`
+
+```sh
+archangel rules [PATH]
+```
+
+Shows each rule as a sentence, with its reason, where you wrote it, the files and imports that it
+judged, and its problems and exceptions.
+
+<Output fixture="first-table" output="rules.txt" />
+
+- A rule that covers no file says that it checks nothing.
+- A rule from a preset says which preset. A rule that replaces a preset rule says so.
+- At the end, it lists the files and the imports between repository files that no rule judges,
+  and the outside packages that no rule names.
+- With a path, it shows only the rules, and the files and imports that no rule judges, under that
+  folder or file.
+
+`rules` describes. It does not fail because of a problem in the code.
+
+## `explain`
+
+```sh
+archangel explain <FILE>
+archangel explain <FILE>:<LINE>
+```
+
+With a file, it shows the part of the file, its groups, the rules that apply to it, its imports and
+the files that import it:
+
+<Output fixture="first-table" output="explain-file.txt" />
+
+With a file and a line, it shows each rule that judged the import on that line, with its result,
+and why each other rule did not judge it:
+
+<Output fixture="first-table" output="explain-line.txt" />
+
+- Any line of a statement that spans many lines works.
+- When a line has more than one import, it shows each of them.
+- It shows an exception or a baseline entry next to its rule.
+- A line with no import is an error, with exit code 1.
+
+## `why`
+
+```sh
+archangel why <FROM> <TO>
+```
+
+Shows the shortest chain of imports from a source file to a repository file or a package.
+
+<Output fixture="first-table" output="why.txt" />
+
+When no chain exists, it says so and exits with 1. `why` follows each import. It does not know the
+`stopAt` of a rule, so it can show a chain that a rule stops.
+
+## `watch`
+
+```sh
+archangel watch
+```
+
+Checks, and then checks again after each change. It prints what is new and what is gone after
+each check.
+
+- With `--format json`, it prints one line of JSON for each check. The line has `schemaVersion`,
+  the diagnostics that are `new`, the diagnostics that are `gone`, and a `summary`. The first line
+  lists each diagnostic as new.
+- When the operating system loses file events, archangel checks again from the start.
+- When the system has no file watches left, archangel looks for changes at a fixed interval. Each
+  summary then says so, names the limit, and names the command that raises it. In JSON, the field
+  is `polling`.
+
+Read [Editors and coding agents](/archangel/guides/editors-and-agents/).
+
+## `baseline`
+
+```sh
+archangel baseline add
+archangel baseline prune
+```
+
+| Command | What it does |
+| --- | --- |
+| `baseline add` | Records each current problem in `archangel.baseline.json`, next to the config. |
+| `baseline prune` | Lowers or removes the entries that the code does not need now. It never adds an entry or raises a count. |
+
+<Output fixture="baseline" output="baseline-add.txt" />
+
+A check never writes the baseline. Read
+[Exceptions and baselines](/archangel/guides/exceptions-and-baselines/).
+
+## `lsp`
+
+```sh
+archangel lsp
+```
+
+Starts the language server on standard input and output. Your editor starts it for you. It finds
+the config as the command line does, from the folder that the editor opened. Read
+[Editors and coding agents](/archangel/guides/editors-and-agents/).
+
+## `init`
+
+```sh
+archangel init
+archangel init --typescript
+```
+
+Writes a starter config, with one part for each folder of source files and one rule against import
+cycles. The config passes from the start.
+
+| Option | What it does |
+| --- | --- |
+| `--typescript` | Writes `archangel.config.ts` with `defineConfig`. Without it, `init` writes `archangel.config.json`. |
+
+<Output fixture="getting-started" output="init.txt" />
+
+When a config already exists, `init` writes nothing and exits with 2.
+
+## `docs`
+
+```sh
+archangel docs <CODE>
+```
+
+Shows what a diagnostic code means, an example, and what to do. It needs no config.
+
+<Output fixture="ref-config-error" output="docs.txt" />
+
+Each code also has a page on this site. Read [Diagnostic codes](/archangel/reference/diagnostics/).
+
+## `completions`
+
+```sh
+archangel completions <SHELL>
+```
+
+Writes the completion script for `bash`, `zsh`, `fish`, `elvish` or `powershell`. For example, in
+zsh:
+
+```sh
+archangel completions zsh > "${fpath[1]}/_archangel"
+```
+
+## `man`
+
+```sh
+archangel man
+```
+
+Writes the manual page of archangel, in roff. The list of commands in `--help` does not show this
+command.
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | The command succeeded, and found no problem. |
+| `1` | Archangel found a problem, or the answer is no: a failed example, no chain for `why`, no import on the line for `explain`. |
+| `2` | Archangel could not run: the config, the baseline or the command line has an error. |

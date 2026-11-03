@@ -1,0 +1,157 @@
+---
+title: Plugin API
+description: defineCondition, definePlugin, the view that a condition receives, and what it returns.
+---
+
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+A plugin adds conditions that you write in TypeScript. Use a plugin when the built-in conditions
+cannot say what you want. For a step-by-step guide, read [Write a plugin](/archangel/guides/plugins/).
+
+## A plugin
+
+```ts
+import { defineCondition, definePlugin } from '@enhance-eng/archangel';
+
+export default definePlugin({ name: 'team', schemaVersion: 1, conditions: [maxImports] });
+```
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `name` | string | The name of the plugin. By convention, the name of its package without `archangel-plugin-`. |
+| `schemaVersion` | `1` | The version of the view that the plugin was written for. |
+| `conditions` | list | The conditions of the plugin. |
+
+`definePlugin` and `defineCondition` change nothing at run time. They give the types.
+
+## A condition
+
+| Field | Type | Required | What it is |
+| --- | --- | --- | --- |
+| `name` | string | yes | The name that a rule uses after the plugin's name, as `team/max-imports`. |
+| `description` | string | yes | One sentence that says what the condition requires. `archangel rules` uses it. |
+| `reads` | list of `'imports'`, `'importers'`, `'exports'` | yes | The facts that `check` needs. Archangel sends only these facts. |
+| `optionsSchema` | JSON Schema | no | The schema of the options of a rule. Archangel refuses a rule whose options do not match it. Without it, a rule cannot have options. |
+| `docs` | string | no | Where to read more. |
+| `check` | function | yes | `check(view, options)`. It returns a list of problems, or a promise of a list. |
+
+If a condition has a field that archangel does not know, archangel stops before the check and
+names the field.
+
+## Use a condition in a rule
+
+Load the plugin in `plugins`, with the name that rules use. Then write `plugin: '<plugin>/<condition>'`:
+
+```ts
+plugins: { team },
+rules: ({ rule }) => [
+  rule('small-files', { files: 'feature', plugin: 'team/max-imports', options: { max: 2 }, examples: { ... } }),
+],
+```
+
+| Option | What it is |
+| --- | --- |
+| `files` | The files that the condition sees. |
+| `plugin` | The condition, as `<plugin>/<condition>`. |
+| `options` | The options. Archangel checks them against `optionsSchema` when the config loads. |
+| `name`, `because`, `link`, `examples` | The same as for each rule. |
+
+A plugin rule needs a rejected example, written as an object of files. One-line examples are
+refused, because the condition can read the text of a file.
+
+## The view
+
+`check(view, options)` gets the files of the rule's `files`, sorted by path. This is a real call.
+The condition `show` prints its two arguments, and the rule has `options: { max: 2 }`:
+
+<Example fixture="ref-plugin-view" file="plugins/dump.ts" />
+
+<Output fixture="ref-plugin-view" output="check.txt" />
+
+- `options` is the `options` object of the rule, without changes.
+- `view.files` has one record for each file in the rule's `files`.
+- Each line that a plugin prints goes to standard error, or to the log of the editor, with the name
+  of the plugin.
+
+### A file
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `path` | `string` | The path from the config folder. |
+| `element` | `string` or `null` | The part of the file. `null` when the file is in no part. |
+| `captures` | object | The values of the captures of the part. For `src/features/{feature}/**`, this is `{ "feature": "cart" }`. |
+| `selectors` | `string[]` | The groups that hold the file. |
+| `imports` | list of imports | Only when the condition reads `'imports'`. |
+| `importers` | `string[]` | Only when the condition reads `'importers'`. The paths of the files that import this file. |
+| `exports` | object | Only when the condition reads `'exports'`. |
+
+### An import
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `specifier` | `string` | The text in the quotes, such as `'../login'`. |
+| `occurrence` | `number` | 0 for the first import of this specifier in the file, 1 for the second, and so on. |
+| `line`, `column` | `number` | The position of the specifier. Both start at 1. The column counts characters. |
+| `kind` | `'runtime'` or `'type'` | `'type'` for an import that the compiler removes, such as `import type`. |
+| `names` | `string[]` | The names that the import brings in: a name, `default` or `*`. |
+| `file` | `string` or `null` | The repository file that the import resolves to. `null` for a package, or when the import does not resolve. |
+| `package` | `string` or `null` | The package that the import resolves to. `null` for a repository file. |
+
+### The exports of a file
+
+| Field | Type | What it is |
+| --- | --- | --- |
+| `names` | `string[]` | The names that the file exports, `default` included. |
+| `default` | `boolean` | `true` when the file has a default export. |
+| `star` | `boolean` | `true` when the file has an `export *`. |
+
+## What `check` returns
+
+A list of problems. An empty list means no problem.
+
+```ts
+{ file: 'src/features/cart/cart.ts', message: 'cart.ts imports 4 files, and the limit is 2' }
+```
+
+| Field | Required | What it is |
+| --- | --- | --- |
+| `file` | yes | A file of the view, or a folder that holds a file of the view. |
+| `message` | yes | What is wrong, for the reader. |
+| `import` | no | `{ specifier, occurrence }`. The import that the problem is about. An exception comment above that import can then permit it. |
+
+Each problem is a diagnostic with the code [`plugin`](/archangel/reference/diagnostics/plugin/), like
+each other problem. The baseline and `off` work the same way.
+
+## When a plugin fails
+
+A plugin rule never passes because its code did not run. Archangel shows
+[`plugin-failed`](/archangel/reference/diagnostics/plugin-failed/), and the check fails, when:
+
+- a condition throws an error;
+- a condition reports a file that is not in its view;
+- the plugin process stops.
+
+## Where a plugin runs
+
+Plugins run in the Node process that loads your config, not in archangel's own process. In the
+editor, archangel shows its own problems at once, and the problems of a plugin when the plugin
+answers.
+
+## The types
+
+`@enhance-eng/archangel` exports the types: `View`, `FileRecord`, `ImportRecord`, `ExportsRecord`,
+`Violation`, `Condition`, `Plugin` and `Fact`. With `defineCondition`, the type of each file in
+`view.files` has the facts of `reads`, so `file.imports` has no `undefined`.
+
+## Versions
+
+A new field in the view does not change `schemaVersion`. A plugin reads only the fields that it
+knows, so a new release of archangel does not break it. `schemaVersion` changes only when the
+meaning of a field changes.
+
+## Publish a plugin
+
+- Name the package `archangel-plugin-<name>` or `@scope/archangel-plugin`.
+- Export the plugin as the default export, and a preset as a plain function next to it if you have
+  one.

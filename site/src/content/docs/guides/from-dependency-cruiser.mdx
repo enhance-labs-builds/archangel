@@ -1,0 +1,101 @@
+---
+title: Migrate from dependency-cruiser
+description: Move forbidden rules from dependency-cruiser to archangel, and know which results change.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This guide moves the rules of a `.dependency-cruiser.cjs` file to archangel. Each rule keeps its
+name, so a team can find it again. At the end, archangel checks the same decisions, with examples
+that prove each rule.
+
+## Before you start
+
+- Install archangel: `npm install --save-dev @enhance-eng/archangel`.
+- Keep dependency-cruiser until archangel gives the results that you expect.
+
+## The config before
+
+This repository has three forbidden rules:
+
+<Example fixture="from-dependency-cruiser" file="before/.dependency-cruiser.cjs" />
+
+## Map each rule
+
+| dependency-cruiser | archangel |
+| --- | --- |
+| `from: { path }` | The rule's `files`: a part, a group or a path pattern. |
+| `to: { path }` | `mayNotImport`, with a part, a group or a path pattern. |
+| `pathNot` | `{ all: [..., { not: ... }] }` in `files` or on the other side. |
+| `to: { circular: true }` | `noCycles: true`. Add `imports: 'all'` to count type imports too. |
+| `to: { dependencyTypes: ['npm-dev'] }` | `mayNotImport: { packages: ['*'] }` with `dependency: 'dev'`. |
+| `to: { dependencyTypes: ['npm-no-pkg'] }` | `mayNotImport: { packages: ['*'] }` with `dependency: 'undeclared'`. |
+| `allowed` with `allowedSeverity` | A [table](/archangel/concepts/tables-rows-and-cells/): each row lists what it may import, and the table refuses the rest. |
+| `comment` | `because`. Archangel shows it with each problem. |
+| `severity: 'warn'` | No equivalent. A rule is on or off. |
+| `no-orphans` | No built-in condition. Write a [plugin](/archangel/guides/plugins/) condition that reads `importers`. |
+
+## The config after
+
+<Example fixture="from-dependency-cruiser" file="archangel.config.ts" />
+
+- The paths become parts: `ui`, `api` and `db`. Many rules can use a part, and a part that finds no
+  file is an error.
+- `pathNot: '\\.test\\.ts$'` becomes the group `tests`, and `files` takes all of `src` except that
+  group.
+- Each rule has a rejected example. `archangel test` fails if a rule cannot refuse its example.
+
+## Run it
+
+<Steps>
+
+1. Prove the rules:
+
+   <Output fixture="from-dependency-cruiser" output="test.txt" />
+
+2. Check the repository:
+
+   <Output fixture="from-dependency-cruiser" output="check.txt" />
+
+3. Compare each problem with the output of dependency-cruiser. The next section lists the results
+   that can change.
+
+4. See what the rules cover:
+
+   <Output fixture="from-dependency-cruiser" output="rules.txt" />
+
+</Steps>
+
+## Results that change
+
+- **The cycle above is made of type imports.** `notes.ts` and `note.ts` import each other with
+  `import type`. dependency-cruiser with `tsPreCompilationDeps` reports cycles of type imports.
+  Archangel's `noCycles` counts only runtime imports by default, because the compiler removes a type
+  import. The config above adds `imports: 'all'` to keep the result of dependency-cruiser. Remove it
+  to report only the cycles that exist when the code runs.
+- **An import that does not resolve is an error.** Archangel reports
+  [`import-unresolved`](/archangel/reference/diagnostics/import-unresolved/) for an import with no
+  file and no installed package. dependency-cruiser does not stop on it. So expect some new errors
+  when you move: each one is an import or a path that was wrong before. For an import that a tool
+  makes at build time, add it to `allowUnresolved` in the config, with the reason.
+- **A rule that finds no files is an error.** A path in dependency-cruiser that matches nothing
+  makes a rule that never fires, and the run passes. In archangel, a part, a group or a pattern
+  that matches nothing gives [`selector-empty`](/archangel/reference/diagnostics/selector-empty/)
+  or [`element-empty`](/archangel/reference/diagnostics/element-empty/).
+- **One table can replace many forbidden rules.** A set of `forbidden` rules that each refuse one
+  pair of folders says, in effect, what each folder may import. A table says that directly, and it
+  also refuses an import into a folder that no rule named.
+
+<Aside type="tip" title="Keep the names">
+  Use the dependency-cruiser rule name as the archangel rule name. A team member who searches for
+  `not-to-dev-dep` then finds the new rule.
+</Aside>
+
+## Next steps
+
+- Turn the forbidden rules about folders into a table:
+  [Layer a backend](/archangel/guides/backend-layers/).
+- Start on code that already breaks the rules:
+  [Exceptions and baselines](/archangel/guides/exceptions-and-baselines/).

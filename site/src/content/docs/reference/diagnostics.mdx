@@ -1,0 +1,18 @@
+---
+title: Diagnostic codes
+description: "Every diagnostic code that archangel gives, by group: rule violations, config problems, repository problems, exceptions, the baseline and examples."
+---
+
+import DiagnosticList from '../../../components/DiagnosticList.astro';
+
+Each problem that archangel shows has a code, such as `may-import` or `selector-empty`. The code
+is in the first line of the problem: `error[may-import]`.
+
+- Run `archangel docs <code>` to see what a code means, an example, and what to do.
+- Each code has a page on this site with the same text.
+
+A rule violation exits with code 1. A config problem that stops the check exits with code 2. Some
+config problems, such as a group that finds no file, do not stop the check. They exit with code 1,
+because archangel can still check the other rules.
+
+<DiagnosticList />

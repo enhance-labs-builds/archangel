@@ -1,0 +1,8 @@
+{
+  "parts": {
+    "shared": "src/shared/**"
+  },
+  "rules": [
+    { "name": "no-react-in-shared", "files": "shraed", "mayNotImport": { "packages": ["react"] } }
+  ]
+}

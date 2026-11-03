@@ -1,0 +1,97 @@
+---
+title: Parts, groups and externals
+description: The three kinds of names that a config gives to code. A file is in one part at most, in many groups, and an externals set names outside packages.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+Before you write a test, you give names to sets of code. A rule then says "these files may not
+import those files", and each name in the sentence is one of these sets. Archangel has three types
+of names:
+
+| Name | What it holds | How many per file |
+| --- | --- | --- |
+| **Part** | Files, found by a path pattern | One part at most |
+| **Group** | Files, found by a pattern, a directive or a combination | Any number |
+| **Externals set** | Outside packages, by package name | Not about files |
+
+This config uses all three:
+
+<Example fixture="concept-parts" file="archangel.config.ts" mark={[{ range: '4-7' }, { range: '8-11' }, { range: '12-14' }]} />
+
+## Parts
+
+A part is a named area of your code. Archangel gives each file one part at most, so a part answers
+the question "where does this file live?". Parts are the names that most tables and rules use.
+
+- A part is a path pattern, or a list of path patterns. Paths start at the config folder.
+- A file that no part finds is in no part. That is not an error. To make it an error, write a rule
+  with [`mustNotExist`](/archangel/reference/conditions/) on the files that are in no part.
+- If two parts find one file, archangel shows the error
+  [`part-overlap`](/archangel/reference/diagnostics/part-overlap/). It cannot know which part
+  judges the file. Narrow one pattern with `not`, or make one of the two a group.
+- If a part finds no file, archangel shows the error
+  [`element-empty`](/archangel/reference/diagnostics/element-empty/). A part that finds nothing
+  usually has a typing error in its pattern.
+
+A part can have a **capture**, such as `{feature}`. A capture makes each folder one **instance** of
+the part. [Captures and instances](/archangel/concepts/captures-and-instances/) tells you more.
+
+<Aside title="Older spelling">
+  Archangel 0.1 called parts `elements`. A config can still use `elements`, but not both spellings.
+</Aside>
+
+## Groups
+
+A group is a named set of files that can cross parts. Use a group for files that have something in
+common, but live in many places: tests, stories, client components, generated code.
+
+- A file can be in many groups, and in a part too.
+- A group can be a path pattern, a list, a directive such as `{ directive: 'use client' }`, or a
+  combination with `all`, `any` and `not`.
+  [Sets of files](/archangel/reference/sets-of-files/) lists each form.
+- A group that finds no file is the error
+  [`selector-empty`](/archangel/reference/diagnostics/selector-empty/).
+
+## Externals sets
+
+An externals set is a named set of outside packages. Use one in a table cell, so that a row may
+import those packages. On the other side of a rule, you can use the name, or write the packages
+in place with `{ packages: ['react'] }`.
+
+- A name matches the package and each of its subpaths. `react` matches `react/jsx-runtime`.
+- `@aws-sdk/*` matches each package in a scope. `*` matches each package.
+- Write a Node built-in module with `node:`, for example `node:fs`. Archangel refuses `fs`.
+- Archangel refuses a name with a subpath, a name that starts with `@types/`, and the name of a
+  package in your repository.
+
+## See the names of a file
+
+`archangel explain` shows the part, the instance and the groups of one file:
+
+<Output fixture="concept-parts" output="explain-button.txt" />
+
+The file is in the part `feature`, in the instance `cart`, and in the group `client`, because it
+starts with `'use client'`. The import of `react` shows its externals set, `browser`.
+
+The same file is in the table row `feature`, and the rule `tests-stay-out` judges it, because the
+file is not in the group `tests`. A group is the right tool for this rule. A test file lives next
+to the code that it tests, so a part cannot hold the test files.
+
+<Output fixture="concept-parts" output="rules.txt" />
+
+The last line lists `vitest`. No rule names it, so no rule can refuse an import of it. A table
+judges a package only when a cell names an externals set that holds it.
+[Tables, rows and cells](/archangel/concepts/tables-rows-and-cells/) tells you why.
+
+## Which name to use
+
+- **Use a part** for an area that has its own name and that many tests use: an app, a layer, a
+  feature, a package.
+- **Use a group** for files that cross parts: tests, stories, client components.
+- **Use a kind** when one pattern gives the names, for example each `*.entity.ts` file. A kind needs
+  no declaration, but it has a meaning only in its table. [Kinds](/archangel/concepts/kinds/)
+  tells you more.
+- **Use an externals set** for packages that a table row may import.

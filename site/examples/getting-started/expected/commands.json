@@ -1,0 +1,5 @@
+[
+  { "args": ["init", "--typescript"], "output": "init.txt", "status": 0, "files": { "archangel.config.ts": "init-config.ts" } },
+  { "args": ["check"], "output": "check.txt", "status": 0 },
+  { "args": ["rules"], "output": "rules.txt", "status": 0 }
+]

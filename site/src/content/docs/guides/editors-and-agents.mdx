@@ -1,0 +1,147 @@
+---
+title: Editors and coding agents
+description: See each problem as you type, in VS Code, Neovim or another editor, and give a coding agent the result of each change.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+This guide shows archangel's problems in your editor while you type, and gives a coding agent the
+result of each change it makes.
+
+## Before you start
+
+- Install archangel in the repository: `npm install --save-dev @enhance-eng/archangel`.
+- The repository has an archangel config.
+
+## The language server
+
+`archangel lsp` is a language server on standard input and output. Your editor starts it for you.
+
+- When the editor starts, it shows the problems of a full check.
+- It follows the text that you type, before you save.
+- It offers each fix that archangel has checked as a quick fix.
+- It finds the config as the command line does: the nearest config at or above the folder that the
+  editor opened.
+
+## Set up your editor
+
+<Tabs>
+  <TabItem label="VS Code">
+    The Archangel extension for VS Code is in the archangel repository, in
+    [`editors/vscode`](https://github.com/enhance-labs-builds/archangel/tree/main/editors/vscode).
+    It is not on the Marketplace yet. To run it from a clone of the repository:
+
+    <Steps>
+
+    1. Build the extension:
+
+       ```sh
+       cd editors/vscode
+       npm ci
+       npm run bundle
+       ```
+
+    2. Start VS Code with the extension, and open your repository:
+
+       ```sh
+       code --extensionDevelopmentPath="$PWD" /path/to/your/repository
+       ```
+
+    </Steps>
+
+    The extension starts in a workspace whose folder has an archangel config. It runs the first
+    archangel that it finds:
+
+    1. the `archangel.path` setting;
+    2. the workspace's `node_modules/.bin/archangel`;
+    3. `archangel` on `PATH`, for example after `cargo install archangel`.
+
+    The **Archangel** output channel says which one it runs. If it finds none, it shows an error
+    that names the three places. Install archangel, then run **Archangel: Restart Server**.
+
+    In a workspace with more than one folder, the extension checks the first folder.
+  </TabItem>
+  <TabItem label="Neovim">
+    Neovim 0.11 and later start a language server from a config. Put this in `init.lua`:
+
+    ```lua
+    vim.lsp.config('archangel', {
+      cmd = { 'npx', 'archangel', 'lsp' },
+      filetypes = { 'typescript', 'typescriptreact', 'javascript', 'javascriptreact' },
+      root_markers = {
+        'archangel.config.ts',
+        'archangel.config.mts',
+        'archangel.config.js',
+        'archangel.config.mjs',
+        'archangel.config.json',
+      },
+    })
+    vim.lsp.enable('archangel')
+    ```
+
+    If you installed archangel with Cargo, use `cmd = { 'archangel', 'lsp' }`.
+  </TabItem>
+  <TabItem label="Zed">
+    Zed starts a language server only through an extension, and archangel has no Zed extension
+    yet. Run `npx archangel watch` in Zed's terminal. After each save, it prints each problem that
+    is new and each problem that is gone.
+  </TabItem>
+  <TabItem label="Other editors">
+    Each editor that can start a language server can run archangel. Configure the command
+    `npx archangel lsp`, for the file types TypeScript and JavaScript, with or without JSX. Use a
+    folder that holds an archangel config as the root.
+  </TabItem>
+</Tabs>
+
+## Coding agents
+
+A coding agent writes code faster than a person reviews it. If it does not know your architecture,
+it adds the import that makes its task work. Give it the check while it writes, not ten minutes
+later in CI.
+
+<Steps>
+
+1. Start watch mode beside the agent, with JSON output:
+
+   ```sh
+   npx archangel watch --format json
+   ```
+
+2. Tell the agent to read the last line after each edit, and to fix each new problem before it
+   moves on.
+
+</Steps>
+
+Each check prints one line, a JSON document with these keys:
+
+| Key | What it holds |
+| --- | --- |
+| `schemaVersion` | The version of this format, now `1`. |
+| `new` | The problems that this check found and the last check did not. |
+| `gone` | The problems of the last check that this check did not find. |
+| `summary` | The counts of files, imports and problems, the exceptions and baseline entries for each rule, the work that the check did, and `polling`. |
+
+The first line lists each problem as new. Each problem has its `code`, `rule`, `file`, `line`,
+`column`, `message`, `help` and `reason`, as in `archangel check --format json`.
+
+When the system has no file watches left, archangel polls the files. Each summary then says so in
+`polling`.
+
+<Aside type="tip" title="Tell the agent what to run">
+  Put the commands in the instructions file of your agent, for example `AGENTS.md`: run
+  `npx archangel check` before a task is done, and `npx archangel explain <file>:<line>` to see why
+  an import is refused.
+</Aside>
+
+An agent can also run single commands:
+
+- `npx archangel check src/features/cart/index.ts` shows only the problems of one file. It still
+  checks the whole repository, because a cycle depends on all files.
+- `npx archangel explain <file>` shows the part, the rules and the imports of a file.
+- `npx archangel why <file> <file or package>` shows the shortest chain of imports between two
+  points.
+
+## Next steps
+
+- [Use archangel in CI](/archangel/guides/ci/).
+- [Commands](/archangel/reference/commands/).

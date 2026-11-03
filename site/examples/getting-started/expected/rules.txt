@@ -1,0 +1,7 @@
+no-cycles  archangel.config.ts:9
+  because: Files that import each other cannot change or load one at a time.
+  files in ** may not import each other in a cycle
+    5 files · 0 problems
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: none.

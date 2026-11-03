@@ -1,0 +1,109 @@
+---
+title: Output and exit codes
+description: The text, JSON, GitHub and SARIF formats, the work counts of --stats, and the exit codes.
+---
+
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+Each example on this page comes from one repository. Its JSON config has one table. The file
+`src/shared/label.ts` imports a file of the feature `cart`, and the table refuses it:
+
+<Example fixture="ref-formats" file="archangel.config.json" />
+
+## `text`
+
+The default format, for people. Each problem shows its code, its message, the line of source code
+with a mark under the import, what to do, the rule and your reason.
+
+<Output fixture="ref-formats" output="check.txt" />
+
+| Line | What it is |
+| --- | --- |
+| `error[may-import]: ...` | The diagnostic code and the message. `archangel docs <code>` explains the code. |
+| `--> src/shared/label.ts:1:23` | The file, the line and the column. |
+| `= help: ...` | What to do. |
+| `= note: rule: ...` | The name of the rule, for `off`, an exception or the baseline. |
+| `= note: because: ...` | Your reason, from `because`. |
+| `= note: see: ...` | Your link, from `link`. |
+
+There are no warnings. Each problem is an error.
+
+## `json`
+
+One JSON document, for programs. `check`, `test`, `rules`, `explain` and `why` write JSON.
+
+<Output fixture="ref-formats" output="check.json" />
+
+- `schemaVersion` is the version of the document.
+- Each diagnostic has `id`, the identity of the problem: the rule, the file, the specifier and the
+  occurrence. It does not hold the line, so it stays the same when the line moves.
+- `cycle`, `group` and `chain` hold the files of a cycle or of a chain of imports.
+- `fix` holds a fix that archangel checked, when it has one.
+- `summary.work` holds the work counts.
+
+`explain` with a line writes each rule and its verdict:
+
+<Output fixture="ref-formats" output="explain-line.json" />
+
+`why` writes the chain:
+
+<Output fixture="ref-formats" output="why.json" />
+
+`watch --format json` writes one line of JSON for each check. Read
+[Commands](/archangel/reference/commands/#watch).
+
+## `github`
+
+Writes each problem as a GitHub Actions annotation. GitHub shows it on its line in the pull request.
+
+<Output fixture="ref-formats" output="check-github.txt" />
+
+Use it in a workflow:
+
+```yaml
+- run: npx archangel check --format github
+- run: npx archangel test --format github
+```
+
+Read [Use archangel in CI](/archangel/guides/ci/).
+
+## `sarif`
+
+Writes a SARIF 2.1.0 log, for GitHub code scanning or another tool that reads SARIF. The log lists
+each diagnostic code as a rule, with the text of `archangel docs`. Each result has the identity of
+its problem, so an alert stays the same when its line moves.
+
+```sh
+npx archangel check --format sarif > archangel.sarif
+```
+
+## `--stats`
+
+Adds the work that archangel did, and the time of each stage. The work counts are:
+
+| Count | What it counts |
+| --- | --- |
+| files found, files read, bytes read, files parsed | the source files |
+| imports found, resolutions | the imports, and the imports that archangel resolved |
+| files classified, pattern passes | the work to find the parts and groups of each file |
+| rule evaluations | the times that archangel applied a rule |
+| cycle files visited, transitive files visited | the files that the search for cycles and chains visited |
+| structure evaluations, folder evaluations, export evaluations | the work of structure, folder and export rules |
+| examples checked, files written | the examples of `test`. `files written` is always 0. |
+| plugin records sent, plugin checks | the work of plugins |
+
+The JSON output holds the same counts in `summary.work`. The times are only in `--stats`, because a
+time changes from run to run.
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | The command succeeded, and found no problem. |
+| `1` | Archangel found a problem, or the answer is no. |
+| `2` | Archangel could not run: the config, the baseline or the command line has an error. |
+
+A config error stops the check before archangel reads the code. It exits with 2:
+
+<Output fixture="ref-config-error" output="check.txt" />

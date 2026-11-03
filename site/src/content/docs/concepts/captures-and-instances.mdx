@@ -1,0 +1,96 @@
+---
+title: Captures and instances
+description: A capture such as {feature} makes each folder one instance of a part. Rules can treat an import inside one instance differently from one between two.
+---
+
+import { FileTree } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+Many architectures have a set of folders with the same shape: features, modules, packages. Each
+folder must stay apart from the others. A **capture** lets one part describe all of these folders,
+and still tell them apart.
+
+## A capture takes a name from the path
+
+A capture is a name in braces in a path pattern. It takes one folder name from the path of each
+file.
+
+| Pattern | File | Captures |
+| --- | --- | --- |
+| `src/features/{feature}/**` | `src/features/cart/views/page.tsx` | `feature` = `cart` |
+| `src/{area}/{module}/**` | `src/billing/invoices/invoice.ts` | `area` = `billing`, `module` = `invoices` |
+
+Braces with a comma are not a capture. `src/{ui,lib}/**` matches `src/ui` or `src/lib`.
+
+## An instance is the files with the same captures
+
+An **instance** is the set of files that have the same value in each capture of their part. With
+the pattern `src/{area}/{module}/**`, this repository has three instances of the part `module`:
+
+<FileTree>
+- src/
+  - billing/
+    - invoices/ instance `billing/invoices`
+      - invoice.ts
+      - number.ts
+    - payments/ instance `billing/payments`
+      - refund.ts
+  - shipping/
+    - invoices/ instance `shipping/invoices`
+      - label.ts
+</FileTree>
+
+`billing/invoices` and `shipping/invoices` are two instances. They have the same `module`, but a
+different `area`.
+
+## Rules that use instances
+
+This config keeps the modules apart with one shorthand:
+
+<Example fixture="concept-instances" file="archangel.config.ts" />
+
+`archangel explain` shows the instance of the file, and the instance of each import:
+
+<Output fixture="concept-instances" output="explain-file.txt" />
+
+The import on line 1 stays in the instance, so `isolate` permits it. The import on line 2 goes to
+another instance, so `isolate` refuses it:
+
+<Output fixture="concept-instances" output="check.txt" />
+
+The rule has no `name`, so archangel names it after the rule itself: `isolate(module)`. Use this
+name in an exception, in the baseline and in `off`.
+
+These rules use instances:
+
+| Rule | What it does with instances |
+| --- | --- |
+| A table row | A row may import files of its own part or kind in the same instance. An import of another instance of its own name needs the name in the row's list. |
+| `isolate('feature')` | An instance may not import another instance of the same part. |
+| `entry('feature', 'index.ts')` | Code outside an instance may import it only through its entry files. |
+| `mayOnlyImport` | When `files` is one part with a capture, the rule permits imports in the same instance only. To permit each instance, add the part to the list. |
+| `instance: 'same'` or `'different'` | An import condition then applies only to imports in the same instance, or only to imports between two instances. `files` must be a part with a capture. |
+| `mustContain` | Each instance must have a file that matches the pattern. |
+
+So the table row `feature: ['shared']` reads: "a feature may import shared, and files of its own
+feature". Write `feature: ['shared', 'feature']` to also permit imports between two features.
+
+## Select one instance
+
+To write a rule about one instance only, select it by its captures:
+
+```ts
+rule('login-no-react', {
+  files: { element: 'feature', capture: { feature: 'login' } },
+  mayNotImport: { packages: ['react'] },
+  examples: { rejected: ['src/features/login/a.ts imports react'] },
+})
+```
+
+## Rules that need a capture
+
+`isolate` needs a part with a capture, because without one the part has only one instance. If you
+name a part without a capture, archangel shows the error
+[`rule-needs-capture`](/archangel/reference/diagnostics/rule-needs-capture/). With `defineConfig`,
+the TypeScript compiler finds this error before archangel runs.

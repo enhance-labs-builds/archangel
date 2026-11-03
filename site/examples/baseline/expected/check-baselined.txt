@@ -1,0 +1,3 @@
+checked 6 files and 5 imports: no problems
+  app.feature: 0 permitted by exceptions, 2 by the baseline
+  app.shared: 0 permitted by exceptions, 1 by the baseline

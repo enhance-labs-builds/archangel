@@ -1,0 +1,166 @@
+---
+title: Feature-Sliced Design
+description: Check a Feature-Sliced Design front end with the fsd preset, which holds the rules of Steiger, each with examples.
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This guide checks a front end that uses [Feature-Sliced Design](https://feature-sliced.design)
+(FSD) with the `fsd` preset. The preset holds the rules of Steiger, the official linter for FSD.
+
+## Before you start
+
+- Read [Getting started](/archangel/start/getting-started/).
+- Your front end has the FSD layers in one folder: `app`, `pages`, `widgets`, `features`,
+  `entities` and `shared`. A repository needs only some of them.
+
+The example is a small store front. An import between two slices uses the alias `@/`, which
+`tsconfig.json` points at `src`:
+
+<FileTree>
+- archangel.config.ts
+- tsconfig.json
+- src/
+  - app/
+    - index.ts
+  - pages/
+    - home/
+      - index.ts
+      - ui/
+        - home-page.ts
+  - features/
+    - add-to-cart/
+      - index.ts
+      - model/
+        - cart.ts
+      - ui/
+        - add-to-cart-button.ts
+  - entities/
+    - product/
+      - index.ts
+      - model/
+        - product.ts
+      - ui/
+        - product-card.ts
+  - shared/
+    - ui/
+      - button.ts
+      - index.ts
+</FileTree>
+
+## Add the preset
+
+<Steps>
+
+1. Put the preset in `extends`. `root` is the folder that holds the layers:
+
+   <Example fixture="fsd" file="archangel.config.ts" />
+
+   The config has no parts and no rules of its own. The preset declares each layer as a part, and
+   each slice as an instance.
+
+2. Check the repository:
+
+   <Output fixture="fsd" output="check.txt" />
+
+   The check finds two problems:
+
+   - `fsd/forbidden-imports`: the entity `product` imports the feature `add-to-cart`. In FSD, a
+     layer imports only from the layers below it.
+   - `fsd/insignificant-slice`: only one other slice uses the entity `product`. Steiger tells you
+     to merge it into that slice.
+
+   The summary also lists the preset parts that find no file, here `widgets` and `processes`.
+   This is not an error. A preset declares each layer of FSD, and most repositories have only some
+   of them.
+
+3. Run the examples:
+
+   <details>
+   <summary>Output of <code>archangel test</code></summary>
+
+   <Output fixture="fsd" output="test.txt" />
+
+   </details>
+
+   Each rule of the preset has examples. Archangel checks them in your repository, under `root`,
+   with your `tsconfig.json`. So a passing test also tells you that `root` is correct.
+
+</Steps>
+
+## Fix the problems
+
+<Steps>
+
+1. Remove the import of the feature from the entity. An entity shows a product. It does not add
+   it to a cart:
+
+   <Example fixture="fsd" file="later/product-card.ts" title="src/entities/product/ui/product-card.ts" />
+
+2. Check again:
+
+   <Output fixture="fsd" output="check-fixed.txt" />
+
+   Now no entity imports `add-to-cart`, so only the page uses each slice. `fsd/insignificant-slice`
+   finds both slices.
+
+</Steps>
+
+## Change the preset
+
+A store front this small has slices that only one page uses. The team decides that this is
+correct. It also wants the four rules of Steiger that are off by default.
+
+<Steps>
+
+1. Add `strict: true` and put the rule name in `off`:
+
+   <Example fixture="fsd" file="later/archangel.config.ts" title="archangel.config.ts" />
+
+   `strict: true` adds the rules `fsd/no-cross-imports`, `fsd/no-higher-level-imports`,
+   `fsd/import-locality` and `fsd/no-wildcard-exports`.
+
+2. Check again:
+
+   <Output fixture="fsd" output="check-strict.txt" />
+
+</Steps>
+
+<Aside type="caution" title="import-locality needs an alias">
+  `fsd/import-locality` wants a relative import inside a slice, and an alias such as `@/` between
+  slices and layers. If your code uses relative paths between slices, `strict: true` refuses each
+  of them.
+</Aside>
+
+You can also change one rule of the preset:
+
+- **Remove a rule.** Put its name in `off`, as above. `archangel rules` lists the rules that `off`
+  removes.
+- **Replace a rule.** Write a rule with the same name, for example `fsd/public-api`. Your rule
+  replaces the rule of the preset.
+- **A typing error stops the check.** A name in `off`, and the name of a replacement rule, must
+  match a rule of the preset. If it does not, archangel stops and shows the nearest correct name.
+
+## More than one front end
+
+To use the preset two times, give the second use its own `name`, for example
+`fsd({ root: 'apps/admin/src', name: 'fsd-admin' })`. Each name in a preset starts with the
+preset's name, so the rules of the second use are `fsd-admin/forbidden-imports` and so on.
+
+## What changes from Steiger
+
+- Archangel finds a slice by its folder. Each folder in a sliced layer is a slice. Steiger finds
+  slices by the segments in them.
+- Each rule has examples, and `archangel test` runs them.
+- If all parts of the preset find no file, the `root` is probably wrong. Archangel shows
+  `preset-empty`.
+
+Read [Migrate from Steiger](/archangel/guides/from-steiger/) to move an existing Steiger setup.
+
+## Next steps
+
+- [Presets](/archangel/reference/presets/) lists the options of `fsd` and `nextjs`.
+- [Exceptions and baselines](/archangel/guides/exceptions-and-baselines/), to start on code that
+  already breaks the rules.

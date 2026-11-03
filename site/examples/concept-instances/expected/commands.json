@@ -1,0 +1,5 @@
+[
+  { "args": ["check"], "output": "check.txt", "status": 1 },
+  { "args": ["explain", "src/billing/invoices/invoice.ts"], "output": "explain-file.txt", "status": 0 },
+  { "args": ["test"], "output": "test.txt", "status": 0 }
+]
