@@ -318,6 +318,21 @@ fn a_folder_that_must_not_exist_is_one_violation() {
 }
 
 #[test]
+fn a_folder_that_must_not_exist_passes_when_no_folder_matches() {
+    let repo = FixtureRepo::new().file("src/app/main.ts", "");
+    let config = one_rule(
+        &json!({ "src": "src/**" }),
+        &json!({ "name": "no-utils", "folders": "src/**/utils", "mustNotExist": true }),
+    );
+    let report = report(&config, &repo);
+    assert!(
+        report.diagnostics.is_empty(),
+        "no folder is how the rule passes, so it is not selector-empty: {:?}",
+        report.diagnostics
+    );
+}
+
+#[test]
 fn must_contain_accepts_any_of_several_patterns() {
     let repo = FixtureRepo::new()
         .file("src/features/a/model.ts", "")
