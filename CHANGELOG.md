@@ -5,6 +5,14 @@ and archangel follows [semantic versioning](https://semver.org/) for its command
 its JSON output (`schemaVersion`) and its language server. The library crates have no stability
 guarantee.
 
+## 0.3.3 - 2026-11-04
+
+### Fixed
+
+- A `mustNotExist` rule on `folders` passes when no folder matches, as a `mustNotExist` rule on
+  `files` already did. Before, it gave `selector-empty`, so `{ folders: 'src/**/utils',
+  mustNotExist: true }` failed in a repository with no `utils` folder.
+
 ## 0.3.2 - 2026-11-03
 
 ### Fixed
