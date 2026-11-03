@@ -5,6 +5,15 @@ and archangel follows [semantic versioning](https://semver.org/) for its command
 its JSON output (`schemaVersion`) and its language server. The library crates have no stability
 guarantee.
 
+## 0.3.1 - 2026-11-03
+
+### Fixed
+
+- The npm types declare the rule builders `rule`, `mayImport`, `layers`, `isolate` and `entry` as
+  function properties, not methods. A config can destructure them, as in
+  `rules: ({ mayImport, rule }) => [...]`, and typescript-eslint's `unbound-method` rule no longer
+  reports them.
+
 ## 0.3.0 - 2026-11-03
 
 A rule can now say which of several names a file may have. Each 0.2 config still loads and gives the
