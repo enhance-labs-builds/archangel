@@ -4,10 +4,8 @@
 
 Haziq Nordin, archangel's author, asked for this change on 2026-11-01. His top requirement: a config
 written with archangel reads as clean and delightful, and a developer can know what their rules are
-and reason about them with confidence. Today enhance3, a 9,800-file monorepo, passes its check, but
-its config is an 828-line builder that produces about 380 rules with computed names. (enhance3 is
-the Enhance product monorepo, https://github.com/enhance-labs-builds/enhance3, which the owner can
-open; every `packages/architecture/` path in this change is there, not in archangel.) Two cold
+and reason about them with confidence. Today a private 9,800-file reference monorepo passes its check, but its
+config is an 828-line builder that produces about 380 rules with computed names. Two cold
 readers tested a proposal for a better interface. Both liked the direction and rated it 2 of 5, because its
 own examples broke its own meaning. So this change writes every meaning down as a tested scenario,
 and makes every config example in the docs a fixture that archangel checks.
@@ -44,7 +42,7 @@ default, so that tables and rules agree), and type imports under `verbatimModule
 An item of a rule's `examples` may also be one line, such as `'src/a.ts imports src/b.ts'`, in place
 of a file set.
 
-Out of scope: the rewrite of enhance3's config (estimated at 900 to 1,100 lines),
+Out of scope: the rewrite of the reference monorepo's config (estimated at 900 to 1,100 lines),
 `mayOnlyImportTypesFrom`, layers and isolate over groups, an explicit word to replace a preset
 rule, a map printed by `archangel init`, and a new capture syntax.
 

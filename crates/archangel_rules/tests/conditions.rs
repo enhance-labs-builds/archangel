@@ -674,11 +674,11 @@ fn entity_config(rule: &Value) -> Value {
 fn may_only_import_within_rejects_an_import_into_the_area_outside_its_list() {
     let repo = FixtureRepo::new()
         .file(
-            "apps/api/src/canvas/domain/a.entity.ts",
+            "apps/api/src/ledger/domain/a.entity.ts",
             "import '../application/save.use-case';\n",
         )
-        .file("apps/api/src/canvas/application/save.use-case.ts", "")
-        .file("apps/api/src/canvas/values/v.ts", "");
+        .file("apps/api/src/ledger/application/save.use-case.ts", "")
+        .file("apps/api/src/ledger/values/v.ts", "");
     let config = entity_config(&json!({
         "name": "entities", "files": "entity", "mayOnlyImport": ["value-object"], "within": "apps/api/src/**",
     }));
@@ -686,7 +686,7 @@ fn may_only_import_within_rejects_an_import_into_the_area_outside_its_list() {
     assert_eq!(
         sites(&found),
         [site(
-            "apps/api/src/canvas/domain/a.entity.ts",
+            "apps/api/src/ledger/domain/a.entity.ts",
             "../application/save.use-case"
         )],
         "{found:?}"
@@ -701,11 +701,11 @@ fn may_only_import_within_does_not_judge_an_import_outside_the_area() {
     let repo = installed(
         FixtureRepo::new()
             .file(
-                "apps/api/src/canvas/domain/a.entity.ts",
+                "apps/api/src/ledger/domain/a.entity.ts",
                 "import 'zod';\nimport '../../../../web/src/shared/lib/format';\n",
             )
             .file("apps/web/src/shared/lib/format.ts", "")
-            .file("apps/api/src/canvas/values/v.ts", ""),
+            .file("apps/api/src/ledger/values/v.ts", ""),
         "zod",
     );
     let config = entity_config(&json!({
@@ -720,10 +720,10 @@ fn may_only_import_within_judges_the_packages_in_its_area() {
         installed(
             FixtureRepo::new()
                 .file(
-                    "apps/api/src/canvas/domain/a.entity.ts",
+                    "apps/api/src/ledger/domain/a.entity.ts",
                     "import 'zod';\nimport 'lodash';\n",
                 )
-                .file("apps/api/src/canvas/values/v.ts", ""),
+                .file("apps/api/src/ledger/values/v.ts", ""),
             "zod",
         ),
         "lodash",
@@ -735,7 +735,7 @@ fn may_only_import_within_judges_the_packages_in_its_area() {
     }));
     assert_eq!(
         sites(&report_with(&config, &repo)),
-        [site("apps/api/src/canvas/domain/a.entity.ts", "lodash")],
+        [site("apps/api/src/ledger/domain/a.entity.ts", "lodash")],
         "the area holds every package, and the list holds zod"
     );
 }
@@ -744,11 +744,11 @@ fn may_only_import_within_judges_the_packages_in_its_area() {
 fn may_only_import_within_permits_its_own_files() {
     let repo = FixtureRepo::new()
         .file(
-            "apps/api/src/canvas/domain/a.entity.ts",
+            "apps/api/src/ledger/domain/a.entity.ts",
             "import './b.entity';\n",
         )
-        .file("apps/api/src/canvas/domain/b.entity.ts", "")
-        .file("apps/api/src/canvas/values/v.ts", "");
+        .file("apps/api/src/ledger/domain/b.entity.ts", "")
+        .file("apps/api/src/ledger/values/v.ts", "");
     let config = entity_config(&json!({
         "files": "entity", "mayOnlyImport": ["value-object"], "within": "apps/api/src/**",
     }));
@@ -760,22 +760,22 @@ fn may_only_import_within_combines_with_the_import_limits() {
     let repo = FixtureRepo::new()
         .file(
             "tsconfig.json",
-            r#"{ "compilerOptions": { "baseUrl": ".", "paths": { "@api/*": ["apps/api/src/canvas/*"] } } }"#,
+            r#"{ "compilerOptions": { "baseUrl": ".", "paths": { "@api/*": ["apps/api/src/ledger/*"] } } }"#,
         )
         .file(
-            "apps/api/src/canvas/domain/a.entity.ts",
+            "apps/api/src/ledger/domain/a.entity.ts",
             "import '../application/save.use-case';\nimport '@api/application/load.use-case';\n",
         )
-        .file("apps/api/src/canvas/application/save.use-case.ts", "")
-        .file("apps/api/src/canvas/application/load.use-case.ts", "")
-        .file("apps/api/src/canvas/values/v.ts", "");
+        .file("apps/api/src/ledger/application/save.use-case.ts", "")
+        .file("apps/api/src/ledger/application/load.use-case.ts", "")
+        .file("apps/api/src/ledger/values/v.ts", "");
     let config = entity_config(&json!({
         "files": "entity", "mayOnlyImport": ["value-object"], "within": "apps/api/src/**", "specifier": "parent",
     }));
     assert_eq!(
         sites(&report_with(&config, &repo)),
         [site(
-            "apps/api/src/canvas/domain/a.entity.ts",
+            "apps/api/src/ledger/domain/a.entity.ts",
             "../application/save.use-case"
         )],
         "only the import that starts with ../"
@@ -786,10 +786,10 @@ fn may_only_import_within_combines_with_the_import_limits() {
 fn an_unresolved_import_is_not_a_violation_of_a_rule_with_an_area() {
     let repo = FixtureRepo::new()
         .file(
-            "apps/api/src/canvas/domain/a.entity.ts",
+            "apps/api/src/ledger/domain/a.entity.ts",
             "import './missing';\n",
         )
-        .file("apps/api/src/canvas/values/v.ts", "");
+        .file("apps/api/src/ledger/values/v.ts", "");
     let config = entity_config(&json!({
         "files": "entity", "mayOnlyImport": ["value-object"], "within": "apps/api/src/**",
     }));

@@ -106,7 +106,7 @@ enum Command {
     Watch,
     /// Serve the language server protocol on standard input and output, for editors.
     Lsp,
-    /// Write a starter config, with one element for each folder of source files.
+    /// Write a starter config, with one part for each folder of source files.
     Init {
         /// Write `archangel.config.ts`, with `defineConfig`, instead of `archangel.config.json`.
         #[arg(long)]

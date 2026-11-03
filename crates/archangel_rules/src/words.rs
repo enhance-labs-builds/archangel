@@ -261,6 +261,22 @@ pub(crate) fn either(patterns: &[Pattern]) -> String {
 
 /// The limits of an import condition, in words.
 fn limits_text(options: &ImportOptions, text: &mut String) {
+    text.push_str(&import_limits(options));
+    match options.dependency {
+        Some(DependencyKind::Dev) => {
+            text.push_str(" that the nearest package.json lists only for development");
+        }
+        Some(DependencyKind::Undeclared) => {
+            text.push_str(" that the nearest package.json does not list");
+        }
+        None => {}
+    }
+}
+
+/// Which imports an import condition judges, in words: the instance, the names and the form of the
+/// specifier. A message names the manifest itself, so the dependency is not here.
+pub(crate) fn import_limits(options: &ImportOptions) -> String {
+    let mut text = String::new();
     match options.instance {
         Some(InstanceMatch::Different) => text.push_str(" in a different instance"),
         Some(InstanceMatch::Same) => text.push_str(" in the same instance"),
@@ -278,13 +294,5 @@ fn limits_text(options: &ImportOptions, text: &mut String) {
         };
         let _ = write!(text, " through a {form} specifier");
     }
-    match options.dependency {
-        Some(DependencyKind::Dev) => {
-            text.push_str(" that the nearest package.json lists only for development");
-        }
-        Some(DependencyKind::Undeclared) => {
-            text.push_str(" that the nearest package.json does not list");
-        }
-        None => {}
-    }
+    text
 }

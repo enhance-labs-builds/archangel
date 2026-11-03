@@ -1,5 +1,5 @@
 {
-  "name": "enhance3-slice",
+  "name": "monorepo-slice",
   "private": true,
   "type": "module",
   "dependencies": {

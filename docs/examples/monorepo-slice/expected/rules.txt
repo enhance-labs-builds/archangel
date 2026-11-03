@@ -1,47 +1,47 @@
 workspace  16 rows  archangel.config.ts:31
   because: Apps share code only through packages, and a package never reaches into an app.
 
-  workspace.web: web may import only contract, ui, canvas-document, artwork-paint, capture-browser, figma-import, api, and itself
+  workspace.web: web may import only contract, ui, ledger-document, image-editing, report-renderer, file-uploads, api, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.extension: extension may import only contract, ui, capture-browser, and itself
+  workspace.extension: extension may import only contract, ui, report-renderer, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
   workspace.storybook: storybook may import only ui, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.cli: cli may import only contract, canvas-document, sdk, api, and itself
+  workspace.cli: cli may import only contract, ledger-document, sdk, api, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
   workspace.desktop: desktop may import only contract, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.api: api may import only contract, artwork-paint, canvas-format, and itself
+  workspace.api: api may import only contract, image-editing, ledger-format, and itself
     7 files · 5 imports judged · 0 problems · 0 exceptions
   workspace.docs: docs may import only cli, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.contract: contract may import only artwork-paint, canvas-format, ui, and itself
+  workspace.contract: contract may import only image-editing, ledger-format, ui, and itself
     1 file · 1 import judged · 1 problem · 0 exceptions
-  workspace.canvas-document: canvas-document may import only contract, ui, and itself
+  workspace.ledger-document: ledger-document may import only contract, ui, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.figma-import: figma-import may import only canvas-document, contract, and itself
+  workspace.file-uploads: file-uploads may import only ledger-document, contract, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.sdk: sdk may import only capture-browser, contract, and itself
+  workspace.sdk: sdk may import only report-renderer, contract, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.capture-browser: capture-browser may import only contract, and itself
+  workspace.report-renderer: report-renderer may import only contract, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.agent-plugins: agent-plugins may import only cli, and itself
+  workspace.plugin-loader: plugin-loader may import only cli, and itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
   workspace.ui: ui may import only itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.artwork-paint: artwork-paint may import only itself
+  workspace.image-editing: image-editing may import only itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
-  workspace.canvas-format: canvas-format may import only itself
+  workspace.ledger-format: ledger-format may import only itself
     1 file · 0 imports judged · 0 problems · 0 exceptions
   workspace.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
     22 files · 0 problems
 
-web-uses-api-types-only  archangel.config.ts:52
+frontend-api-types-only  archangel.config.ts:52
   because: The web app types its requests from the API router. No API code ships to the browser.
   files in web may not import api, runtime imports only
     1 file · 0 imports judged · 0 problems · 0 exceptions
 
-core-not-to-driver  archangel.config.ts:58
+domain-not-to-pool  archangel.config.ts:58
   because: The domain and application layers never touch an I/O driver. A use case that needs one declares a port.
   files in domain, application may not import driver
     5 files · 5 imports judged · 0 problems · 0 exceptions

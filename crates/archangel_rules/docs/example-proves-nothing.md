@@ -1,6 +1,6 @@
 # example-proves-nothing
 
-An accepted example passed, but its rule never looked at it, so it proves nothing. An import rule looks at imports, a rule about files at files, a folder rule at folders, a `mustContain` rule on an element at its instances, and a plugin rule at the files of its view. The message says which one the rule never looked at.
+An accepted example passed, but its rule never looked at it, so it proves nothing. An import rule looks at imports, a rule about files at files, a folder rule at folders, a `mustContain` rule on a part at its instances, and a plugin rule at the files of its view. The message says which one the rule never looked at.
 
 ## Example
 
@@ -11,4 +11,4 @@ An accepted example passed, but its rule never looked at it, so it proves nothin
 
 ## What to do
 
-Give the example what the rule looks at: an import between the elements the rule names, or a file, folder or instance the rule covers. A `mustNotExist` rule rejects every file or folder it looks at, so no accepted example can prove it; give it only rejected examples.
+Give the example what the rule looks at: an import between the parts the rule names, or a file, folder or instance the rule covers. A `mustNotExist` rule rejects every file or folder it looks at, so no accepted example can prove it; give it only rejected examples.

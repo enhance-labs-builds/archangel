@@ -1,0 +1,16 @@
+---
+// Starlight's page title, with a link to the page as Markdown for a coding agent.
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+import { markdownOf } from '../agent-pages.mjs';
+
+const markdown = markdownOf(Astro.locals.starlightRoute.entry.id);
+---
+
+<Default />
+{
+  markdown && (
+    <a class="agent-markdown" href={`${import.meta.env.BASE_URL}/${markdown}`}>
+      Markdown for agents
+    </a>
+  )
+}

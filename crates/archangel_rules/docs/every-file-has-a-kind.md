@@ -11,7 +11,7 @@ mayImport('domain', { entity: ['value-object'], 'value-object': [] }, {
 })
 ```
 
-The file `apps/api/src/board/domain/board.helper.ts` has the kind `helper`, and the table has no row for it. A file with no kind gives the same problem.
+The file `apps/api/src/order/domain/order.helper.ts` has the kind `helper`, and the table has no row for it. A file with no kind gives the same problem.
 
 ## What to do
 

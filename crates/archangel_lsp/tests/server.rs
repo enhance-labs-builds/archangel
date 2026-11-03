@@ -558,7 +558,7 @@ fn lost_events_make_a_full_check() {
 /// An editor with `src/app/a.ts` open, which has `text` and an entry violation with a fix, and
 /// that violation's diagnostic.
 fn entry_violation(text: &str) -> (FixtureRepo, Editor, Value) {
-    entry_violation_of("canvas", text)
+    entry_violation_of("ledger", text)
 }
 
 /// The same, with the entity in a folder of this name.
@@ -599,7 +599,7 @@ fn code_actions(editor: &mut Editor, range: &Value, diagnostic: &Value) -> Vec<V
     actions.as_array().cloned().unwrap_or_default()
 }
 
-const DEEP_IMPORT: &str = "import { store } from '../entities/canvas/model/store';\n";
+const DEEP_IMPORT: &str = "import { store } from '../entities/ledger/model/store';\n";
 
 #[test]
 fn entry_violation_offers_its_fix_as_a_quick_fix() {
@@ -615,7 +615,7 @@ fn entry_violation_offers_its_fix_as_a_quick_fix() {
         "(kind, preferred): {action}"
     );
     assert_eq!(
-        action["title"], "Import through \"../entities/canvas\"",
+        action["title"], "Import through \"../entities/ledger\"",
         "the title names the new specifier"
     );
     assert_eq!(
@@ -625,7 +625,7 @@ fn entry_violation_offers_its_fix_as_a_quick_fix() {
     );
     let edit = &action["edit"]["changes"][editor.uri("src/app/a.ts")][0];
     assert_eq!(
-        edit["newText"], "../entities/canvas",
+        edit["newText"], "../entities/ledger",
         "the specifier points at the entry file: {edit}"
     );
     let character = |end: &str| {
@@ -633,7 +633,7 @@ fn entry_violation_offers_its_fix_as_a_quick_fix() {
     };
     assert_eq!(
         &text[character("start")..character("end")],
-        "../entities/canvas/model/store",
+        "../entities/ledger/model/store",
         "the range covers the old specifier"
     );
 }
@@ -809,11 +809,11 @@ fn diagnostic_about_no_file_is_shown_on_the_config() {
     let repo = repo();
     let mut editor = Editor::start(&repo, true);
     editor.published("archangel.config.json", |d| codes(d) == ["element-empty"]);
-    repo.write("src/entities/canvas/index.ts", "");
-    editor.files(&[("src/entities/canvas/index.ts", 1)]);
+    repo.write("src/entities/ledger/index.ts", "");
+    editor.files(&[("src/entities/ledger/index.ts", 1)]);
     editor.published("archangel.config.json", <[Value]>::is_empty);
-    repo.remove("src/entities/canvas/index.ts");
-    editor.files(&[("src/entities/canvas/index.ts", 3)]);
+    repo.remove("src/entities/ledger/index.ts");
+    editor.files(&[("src/entities/ledger/index.ts", 3)]);
     editor.published("archangel.config.json", |d| codes(d) == ["element-empty"]);
 }
 

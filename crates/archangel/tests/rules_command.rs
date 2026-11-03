@@ -91,7 +91,7 @@ fn rules_prints_every_rule_with_no_elision() {
 
 #[test]
 fn rules_shows_a_row_with_no_file_as_checking_nothing() {
-    let found = run(&fixture("enhance3-slice"), &["rules"]);
+    let found = run(&fixture("monorepo-slice"), &["rules"]);
     assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
     let row = block(&found.stdout, "domain.aggregate-root");
     assert!(

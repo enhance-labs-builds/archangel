@@ -20,7 +20,7 @@ rebuild of round 4; items 13 to 26 are earlier assumptions that still hold, rena
    files. If kinds applied only inside `files`, that message would read "no row for api".
 4. **A cell must name a row, a declared name or a path pattern.** So a misspelt cell can never pass,
    and the types can check every cell. A cell that names a kind with no row is refused, which means
-   enhance3's stated domain table needs a `specification` row (note A below). The other option is to
+   the reference monorepo's stated domain table needs a `specification` row (note A below). The other option is to
    accept any kind name as a cell and list unused ones in the summary, which lets a misspelt cell
    pass until a file of that kind appears.
 5. **Declared names win over kinds as row keys, with no clash diagnostic.** With rows that mix
@@ -36,8 +36,8 @@ rebuild of round 4; items 13 to 26 are earlier assumptions that still hold, rena
    by both rows. The proposal says one row must say what a file may import; the file is still
    judged by both rows while the error stands, so no import passes in silence.
 8. **`{kind}` holds no dot only where a literal dot follows it, and a declaration file counts
-   `.d.ts` as its extension.** This makes `board.entity.test.ts` the kind `test` and
-   `board.entity.d.ts` an `entity` under a suffix pattern, while a folder `api.v2` under
+   `.d.ts` as its extension.** This makes `order.entity.test.ts` the kind `test` and
+   `order.entity.d.ts` an `entity` under a suffix pattern, while a folder `api.v2` under
    `src/features/*/{kind}/**` is the kind `api.v2`. A suffix kind with a dot in it must be written
    as a group.
 9. **`parts` carries the new meaning and `elements` keeps the old one.** Overlap is an error and
@@ -83,36 +83,35 @@ rebuild of round 4; items 13 to 26 are earlier assumptions that still hold, rena
 24. **Conflict found: a repeated capture name in a kind pattern.** openspec/specs/configuration/spec.md
     makes any capture name two times `pattern-invalid`; the change's MODIFIED copy allows `{kind}`
     to repeat in a kind pattern only, and keeps the existing scenario and test.
-25. **Conflict found: the scheduled benchmark does not check enhance3.** Task 9.1 adds a one-time
-    run on enhance3 instead.
-26. **The length of enhance3's rewritten config is an estimate**, about 1,150 to 1,350 lines, from
+25. **Conflict found: the scheduled benchmark does not check the reference monorepo.** Task 9.1 adds a one-time
+    run on the reference monorepo instead.
+26. **The length of the reference monorepo's rewritten config is an estimate**, about 1,150 to 1,350 lines, from
     counts of tables, rows, cells and the other rules by kind. The rewrite will measure it.
 27. **The fixture names.** The fixtures are `docs/examples/small-app` and
-    `docs/examples/enhance3-slice`. If enhance3 should not be named in archangel's public docs, the
+    `docs/examples/monorepo-slice`. If the reference monorepo should not be named in archangel's public docs, the
     second can be renamed without any other change.
 28. **Line numbers in the design's example output come from the design's own configs.** The
     fixtures' expected output is the source of truth; the README copy is the one under test.
 
-### Notes for enhance3, not for archangel
+### Notes for the reference monorepo, not for archangel
 
 A. **The stated domain table names `specification` as a cell and has no row for it.** With
    the `every-file-has-a-kind` rule, a specification file in the domain folder is refused, and 0.2 refuses a
    cell that names no row. The fixture adds `specification: ['entity', 'value-object',
-   'aggregate-root', 'types', 'consts']`, the row enhance3's builder has today. enhance3's builder
+   'aggregate-root', 'types', 'consts']`, the row the reference monorepo's builder has today. The reference monorepo's builder
    also has `domain-service`, which the stated table leaves out; it needs a row, or its files must
    leave the table's files.
 B. **The table allows a cycle.** `value-object` may import `error`, and `error` may import
    `value-object`. A cycle between those kinds passes the table; only a `noCycles` rule catches it.
 C. **A port may not name an aggregate root.** The row `port` lists `entity` but not
    `aggregate-root`, so a repository port cannot take or return an aggregate root by type. This may
-   be intended; it is recorded so enhance3 can decide.
+   be intended; it is recorded so the reference monorepo can decide.
 
 ## Review log
 
 - 2026-11-01: First draft of proposal, specs (role-matrices new; architecture-rules, rule-examples,
   selectors and distribution modified), design and tasks, written from the brief and from
-  enhance3's main branch (`archangel.config.mjs`, `packages/architecture/archangel.mjs` and
-  `index.mjs`). `openspec validate scoped-imports-and-role-matrices --strict` passes.
+  the reference monorepo's config. `openspec validate scoped-imports-and-role-matrices --strict` passes.
 
 ### Round 1
 
@@ -160,12 +159,12 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 42. standalone: the never-refuse fail point had no name or place. rejected: it belonged to derived examples, which are removed (finding 29)
 43. standalone: the Steiger precedent named no place in the code. fixed (decision 3 names layers and the FSD preset; the path is in "Where in the code")
 44. standalone: the proposal's Impact did not match "Where in the code". rejected: conflicts with finding 8, which removes file paths from the proposal; "Where in the code" now lists `may-only-be-imported-by.md` and `may-not-import.md`
-45. standalone: the scheduled benchmark had no path. fixed (named in "Where in the code"; it does not check enhance3, open question 20)
+45. standalone: the scheduled benchmark had no path. fixed (named in "Where in the code"; it does not check the reference monorepo, open question 20)
 46. standalone: "the brief" refers to a document the reader does not have. fixed
 47. standalone: the explain requirement's title promised roles that the text did not show. fixed
 48. performance: the design said the empty-row list runs only when a count crosses zero, but it runs on every assemble. fixed
 49. performance: derived examples' trial resolutions were not counted. rejected: derived examples are removed (finding 29)
-50. performance: per-file classification grows with the number of sets, and no measurement at enhance3's size was planned. fixed (Cost states it; task 8.2 adds the enhance3 run)
+50. performance: per-file classification grows with the number of sets, and no measurement at the reference monorepo's size was planned. fixed (Cost states it; task 8.2 adds the the reference monorepo run)
 
 ### Round 2
 
@@ -187,7 +186,7 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 16. executable-spec: a matrix with no row had no requirement or scenario. fixed (refused with `config-invalid`)
 17. executable-spec: the default of a matrix's `files` had no scenario. fixed
 18. executable-spec: an unresolved import on a rule with an area had no scenario. fixed
-19. executable-spec: the last task was the enhance3 measurement, not the local test run. fixed (swapped)
+19. executable-spec: the last task was the the reference monorepo measurement, not the local test run. fixed (swapped)
 20. abstractions: matrix-level data (examples, role pattern, area) had no named owner. fixed (`Config.matrices`, referred to by `RuleKind::MatrixRow`)
 21. abstractions: `parse_rule` offered a `Parsed` variant, but `Parsed` is a tuple alias. fixed
 22. abstractions: `MatrixName<N, X>` carried a preset parameter it never uses. fixed (`MatrixName<N>`; it cannot merge into `OwnRuleName`, which allows a slash after a preset prefix)
@@ -200,10 +199,10 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 
 ### Round 3 (interface review)
 
-1. A, every file in a matrix's files has a row: added `everyFileHasARow` (off by default, summary count when off, files left out with `not`, rule `<matrix>.every-file-has-a-row`, message names the roles or rows); 10 enhance3 naming rules named as replaced. fixed
+1. A, every file in a matrix's files has a row: added `everyFileHasARow` (off by default, summary count when off, files left out with `not`, rule `<matrix>.every-file-has-a-row`, message names the roles or rows); 10 the reference monorepo naming rules named as replaced. fixed
 2. A, limits: Limits and "Decisions that need you" item 7 (was 6) claimed that a file with no row could not pass in silence; they now say it is judged by no row as an importer, and how the option and the summary close that. fixed
-3. B, a matrix whose rows are declared elements or selectors: one builder, keys read as declared names when there is no role pattern; names, files, area, cells, types, examples and `matrix-empty` behave as for roles; shown with enhance3's package dependencies, the API layers and `entry`. fixed
-4. C, re-estimate of enhance3's config: about 1,400 to 1,600 lines with a breakdown; the remaining bulk is item 13 of "Decisions that need you". fixed
+3. B, a matrix whose rows are declared elements or selectors: one builder, keys read as declared names when there is no role pattern; names, files, area, cells, types, examples and `matrix-empty` behave as for roles; shown with the reference monorepo's package dependencies, the API layers and `entry`. fixed
+4. C, re-estimate of the reference monorepo's config: about 1,400 to 1,600 lines with a breakdown; the remaining bulk is item 13 of "Decisions that need you". fixed
 5. D1, executable-spec: `{role}` twice conflicted with the configuration spec; added the MODIFIED requirement, the scenario and test for a role pattern that cannot mean what it says, task 1.6, and open question 24. fixed
 6. D2, executable-spec: a file in two roles had no specified outcome; it is judged by both rows, with a scenario, test and task 1.3, and Decisions item 7 no longer claims one answer per file. fixed
 7. D3, limits: another capture in a role pattern was refused without being asked for; it is now accepted and matches as `*` does. fixed
@@ -212,7 +211,7 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 10. D5, executable-spec (minor): two matrices with one name had no outcome; they give `rule-name-duplicate`. fixed
 11. D5, executable-spec (minor): an empty area had no outcome; it is `config-invalid`. fixed
 12. D5, cold-read: the frontend and ui tables' per-row index-file cells were left out of the claims and the estimate; the design now says how they are written and counts them, and the API example's reason is explained. fixed
-13. D5, cold-read (minor): the proposal said enhance3 has five matrices; it now says 9 tables applied 14 times. fixed
+13. D5, cold-read (minor): the proposal said the reference monorepo has five matrices; it now says 9 tables applied 14 times. fixed
 14. D5, cold-read (minor): `matrix-empty` came after the preset exception to it; the two items are swapped (now 11 and 12) and the references updated. fixed
 15. E, kept: `within`, row names `<matrix>.<row>`, one written rejected example per matrix, a row that permits exactly what it lists, and the types; design.md keeps its template shape and proposal.md stays near one page. fixed
 
@@ -238,10 +237,10 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 18. Added `archangel explain <file>:<line>` with judged and skipped rules and reasons (D). fixed
 19. Stale exceptions and baseline entries for removed rows specified as failures; explicit preset replacement deferred with a reason (D). fixed
 20. Generated proof of each table row from two repository files replaces the one written example per table, as the recommendation of item 5. fixed
-21. Every config example in the docs and README becomes a checked fixture; the small app and the enhance3 slice are the payoff fixtures (E). fixed
-22. Showed the small app's config in full with its error and `archangel rules` output, and re-estimated enhance3 at 1,150 to 1,350 lines (F). fixed
+21. Every config example in the docs and README becomes a checked fixture; the small app and the monorepo slice are the payoff fixtures (E). fixed
+22. Showed the small app's config in full with its error and `archangel rules` output, and re-estimated the reference monorepo at 1,150 to 1,350 lines (F). fixed
 23. "Decisions that need you" rewritten as eleven items, eight from the owner and three found while writing. fixed
-24. Recorded the enhance3 notes: the missing `specification` row, the value-object and error cycle, and a port that cannot name an aggregate root. fixed
+24. Recorded the the reference monorepo notes: the missing `specification` row, the value-object and error cycle, and a port that cannot name an aggregate root. fixed
 25. Split six requirements over 500 characters so that `openspec validate --strict` passes. fixed
 
 ### Round 1 (rebuilt design)
@@ -281,7 +280,7 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 33. standalone: neither the spec nor the design said what area a row gets without `within`. fixed
 34. standalone: `app.shared` was missing from the proof list. rejected: generated proof is removed (finding 20)
 35. standalone: the design and the spec ordered the proof's refused file differently. rejected: generated proof is removed (finding 20)
-36. standalone: Cost named task 8.1 for the enhance3 measurement. fixed
+36. standalone: Cost named task 8.1 for the the reference monorepo measurement. fixed
 37. standalone: sentences relied on earlier versions of the change. fixed (same fix as finding 5)
 38. standalone: "the proposal page" and "one-line examples" were undefined. fixed
 39. standalone: scenarios relied on the two fixture configs without saying where they are. fixed (the documentation spec names the folders and the design sections)
@@ -321,8 +320,8 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 23. abstractions: `everyFileHasAKind: false` duplicated `off` for a user the change cannot name. fixed (option, summary line, count, scenario and test removed; the rule is always made)
 24. abstractions: the new term Instance duplicated the glossary's Element instance. fixed (Element instance renamed to Instance and widened; task 2.1 adds eleven terms)
 25. abstractions: `within` on `mayNotImport` only forwarded to `{ all: [side, area] }`. fixed (refused with that one-line fix; the requirement, two tests and the evaluator case dropped)
-26. standalone: the enhance3-slice config gave its two rules no rejected example, so `archangel test` would fail on the fixture. fixed (examples added, sentence after the block)
-27. standalone: nothing in the repository said what or where enhance3 is. fixed (proposal "Why" and the Precedents row)
+26. standalone: the monorepo-slice config gave its two rules no rejected example, so `archangel test` would fail on the fixture. fixed (examples added, sentence after the block)
+27. standalone: nothing in the repository said what or where the reference monorepo is. fixed (proposal "Why" and the Precedents row)
 28. standalone: "reach" was used in the proposal before its definition. fixed
 29. standalone: "`archangel explain` prints each pattern with its start" was promised and not specified. fixed (sentence removed)
 30. standalone: `E`, `S` and `X` were undeclared in the Types row. fixed
@@ -342,7 +341,7 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 ### After approval: one-line examples
 
 The owner approved the design and chose to add one-line examples (item 11). Added the form, its
-refusals, requirements, tests and tasks; the enhance3 estimate is now 900 to 1,100 lines. A reader
+refusals, requirements, tests and tasks; the the reference monorepo estimate is now 900 to 1,100 lines. A reader
 found earlier that a one-liner cannot express `import type`; it is now refused on such a rule, with a
 file set as the fix.
 

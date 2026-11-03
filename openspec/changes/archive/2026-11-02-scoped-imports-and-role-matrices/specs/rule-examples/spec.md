@@ -8,7 +8,7 @@ A table MAY have written examples. They MUST run once against all its rules. A r
 
 #### Scenario: A written example that one row rejects
 
-- **GIVEN** the enhance3-slice table `domain` with a rejected example in which an entity imports a use case
+- **GIVEN** the monorepo-slice table `domain` with a rejected example in which an entity imports a use case
 - **WHEN** the developer runs `archangel test`
 - **THEN** the example passes, and archangel names `domain.entity` as the row that rejected it
 - **TEST** `crates/archangel_rules/tests/examples.rs` › "a_written_table_example_passes_when_one_row_rejects_it"
@@ -191,7 +191,7 @@ A rule with `names`, `specifier`, `dependency` or `imports: 'types'`, a rule who
 
 #### Scenario: A table without a written example
 
-- **GIVEN** the enhance3-slice fixture, whose tables have no written example, and whose other rules each have one
+- **GIVEN** the monorepo-slice fixture, whose tables have no written example, and whose other rules each have one
 - **WHEN** the developer runs `archangel test`
 - **THEN** archangel gives no `rule-unproven` diagnostic for a row of `workspace` or `domain`, or for `workspace.every-file-has-a-kind` or `domain.every-file-has-a-kind`
 - **AND** archangel exits with status 0

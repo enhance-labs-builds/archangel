@@ -279,8 +279,8 @@ fn the_readme_shows_the_small_app_and_its_error() {
 }
 
 #[test]
-fn the_enhance3_slice_gives_its_documented_output() {
-    let repo = fixture("enhance3-slice");
+fn the_monorepo_slice_gives_its_documented_output() {
+    let repo = fixture("monorepo-slice");
     let check = run(&repo, &["check"]);
     assert_eq!(check.status, 1, "{}{}", check.stdout, check.stderr);
     assert_eq!(
@@ -294,7 +294,7 @@ fn the_enhance3_slice_gives_its_documented_output() {
     }
     let test = run(&repo, &["test"]);
     assert_eq!(test.status, 0, "{}{}", test.stdout, test.stderr);
-    check_fixture("enhance3-slice", &repo);
+    check_fixture("monorepo-slice", &repo);
 }
 
 #[test]

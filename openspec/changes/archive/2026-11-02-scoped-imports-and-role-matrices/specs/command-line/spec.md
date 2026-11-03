@@ -117,7 +117,7 @@ A rule or row with no file MUST say that it checks nothing, and name the name th
 
 #### Scenario: A row that checks nothing
 
-- **GIVEN** the enhance3-slice fixture, with no aggregate-root file
+- **GIVEN** the monorepo-slice fixture, with no aggregate-root file
 - **WHEN** the developer runs `archangel rules`
 - **THEN** the row `domain.aggregate-root` says "checks nothing: no file is in aggregate-root"
 - **TEST** `crates/archangel/tests/rules_command.rs` › "rules_shows_a_row_with_no_file_as_checking_nothing"

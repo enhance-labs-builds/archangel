@@ -52,12 +52,12 @@ fn entry_violation_names_the_entry_file_to_use() {
             "tsconfig.json",
             r#"{ "compilerOptions": { "paths": { "@/*": ["./src/*"] } } }"#,
         )
-        .file("src/entities/canvas/index.ts", "export {};\n")
+        .file("src/entities/ledger/index.ts", "export {};\n")
         .file(
-            "src/entities/canvas/model/store.ts",
+            "src/entities/ledger/model/store.ts",
             "export const store = 1;\n",
         )
-        .file("src/app/a.ts", "import '@/entities/canvas/model/store';\n");
+        .file("src/app/a.ts", "import '@/entities/ledger/model/store';\n");
     let report = support::check(
         &layered(&json!([{ "kind": "entry", "element": "entity", "files": ["index.ts"] }])),
         &repo,
@@ -66,7 +66,7 @@ fn entry_violation_names_the_entry_file_to_use() {
     .0;
     let help = rule_violations(&report)[0].help.clone().unwrap_or_default();
     assert!(
-        help.contains("src/entities/canvas/index.ts"),
+        help.contains("src/entities/ledger/index.ts"),
         "it names the entry file: {help}"
     );
 }
@@ -220,7 +220,7 @@ fn each_shorthand_page_shows_its_sentences() {
         ),
         (
             Code::Entry,
-            "mayOnlyBeImportedBy: { element: 'entity', capture: { entity: 'canvas' } }",
+            "mayOnlyBeImportedBy: { element: 'entity', capture: { entity: 'ledger' } }",
         ),
         (Code::MayImport, "mayOnlyImport: ['models', 'shared'],"),
         (
@@ -282,4 +282,141 @@ fn a_plugin_violation_is_about_a_path_only_when_it_names_no_import() {
         [true, false, false, true],
         "a plugin's violation without a specifier is about its file, as a naming violation is"
     );
+}
+
+#[test]
+fn an_entry_sentence_in_a_rule_of_several_sentences_names_its_entry_files() {
+    let repo = FixtureRepo::new()
+        .file("src/entities/ledger/index.ts", "export {};\n")
+        .file(
+            "src/entities/ledger/model/store.ts",
+            "export const store = 1;\n",
+        )
+        .file("src/app/a.ts", "import '../entities/ledger/model/store';\n");
+    let rules = json!([{
+        "name": "public-api",
+        "sentences": [{ "kind": "entry", "element": "entity", "files": ["index.ts"] }],
+    }]);
+    let report = support::check(&layered(&rules), &repo, None).0;
+    let found = rule_violations(&report);
+    assert_eq!(found.len(), 1, "one violation: {found:?}");
+    assert_eq!(
+        found[0].code,
+        Code::Entry,
+        "the entry code, not may-not-import"
+    );
+    assert!(
+        found[0].message.contains("past its entry files"),
+        "the entry message: {}",
+        found[0].message
+    );
+    let help = found[0].help.clone().unwrap_or_default();
+    assert!(
+        help.contains("src/entities/ledger/index.ts"),
+        "it names the entry file: {help}"
+    );
+}
+
+#[test]
+fn a_may_not_import_message_names_the_limits_of_its_rule() {
+    let repo = FixtureRepo::new()
+        .file("src/app/a.ts", "import { b } from '../shared/b';\n")
+        .file("src/shared/b.ts", "export const b = 1;\n");
+    let rules = json!([{ "name": "aliases", "files": "app", "mayNotImport": "shared", "specifier": "relative" }]);
+    let report = support::check(&layered(&rules), &repo, None).0;
+    let found = rule_violations(&report);
+    assert_eq!(found.len(), 1, "one violation: {found:?}");
+    assert!(
+        found[0]
+            .message
+            .ends_with("may not import \"shared\" through a relative specifier"),
+        "the message says that only a relative import breaks the rule: {}",
+        found[0].message
+    );
+}
+
+#[test]
+fn a_package_pattern_reads_as_words() {
+    let repo = FixtureRepo::new()
+        .file("package.json", r#"{ "name": "app" }"#)
+        .file(
+            "node_modules/zod/package.json",
+            r#"{ "name": "zod", "main": "index.js" }"#,
+        )
+        .file("node_modules/zod/index.js", "")
+        .file(
+            "node_modules/@aws-sdk/s3/package.json",
+            r#"{ "name": "@aws-sdk/s3", "main": "index.js" }"#,
+        )
+        .file("node_modules/@aws-sdk/s3/index.js", "")
+        .file(
+            "node_modules/eslint-plugin-x/package.json",
+            r#"{ "name": "eslint-plugin-x", "main": "index.js" }"#,
+        )
+        .file("node_modules/eslint-plugin-x/index.js", "")
+        .file(
+            "node_modules/react/package.json",
+            r#"{ "name": "react", "main": "index.js" }"#,
+        )
+        .file("node_modules/react/index.js", "")
+        .file("src/app/a.ts", "import 'zod';\n")
+        .file("src/shared/b.ts", "import '@aws-sdk/s3';\n")
+        .file(
+            "src/features/login/c.ts",
+            "import 'eslint-plugin-x';\nimport 'react';\n",
+        );
+    let rules = json!([
+        { "name": "declared", "files": "app", "mayNotImport": { "packages": ["*"] }, "dependency": "undeclared" },
+        { "name": "no-aws", "files": "shared", "mayNotImport": { "packages": ["@aws-sdk/*"] } },
+        { "name": "no-lint", "files": "feature", "mayNotImport": { "packages": ["eslint-plugin-*", "react"] } },
+    ]);
+    let report = support::check(&layered(&rules), &repo, None).0;
+    let found = rule_violations(&report);
+    let messages: Vec<&str> = found.iter().map(|d| d.message.as_str()).collect();
+    assert_eq!(
+        messages,
+        [
+            "src/app/a.ts may not import \"zod\", because files in \"app\" may not import any package that package.json does not list",
+            "src/features/login/c.ts may not import \"eslint-plugin-x\", because files in \"feature\" may not import a package that matches `eslint-plugin-*`, the package `react`",
+            "src/features/login/c.ts may not import \"react\", because files in \"feature\" may not import a package that matches `eslint-plugin-*`, the package `react`",
+            "src/shared/b.ts may not import \"@aws-sdk/s3\", because files in \"shared\" may not import a package in `@aws-sdk`",
+        ],
+        "a pattern of packages reads as words, not as the pattern"
+    );
+}
+
+#[test]
+fn every_page_uses_the_words_of_the_config() {
+    for code in Code::ALL {
+        // Code is quoted between backticks or fenced, and the title is the code's name, such as
+        // `element-empty`, so only the prose counts.
+        let mut fenced = false;
+        for line in code.docs().lines() {
+            if line.starts_with("```") {
+                fenced = !fenced;
+                continue;
+            }
+            if fenced || line.starts_with("# ") {
+                continue;
+            }
+            let mut prose: String = line.split('`').step_by(2).collect::<Vec<_>>().join(" ");
+            // A link's target is a file name, not a word of the page.
+            while let Some(start) = prose.find("](") {
+                let end = prose[start..]
+                    .find(')')
+                    .map_or(prose.len(), |at| start + at + 1);
+                prose.replace_range(start..end, " ");
+            }
+            for word in prose.split(|c: char| !c.is_ascii_alphabetic()) {
+                assert!(
+                    !matches!(
+                        word.to_ascii_lowercase().as_str(),
+                        "element" | "elements" | "selector" | "selectors"
+                    ),
+                    "the page of {} says {word:?}; say part, group or set of files: {line}",
+                    code.as_str()
+                );
+            }
+        }
+    }
 }

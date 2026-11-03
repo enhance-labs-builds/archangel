@@ -11,13 +11,13 @@ export default defineConfig({
     docs: 'apps/docs/**',
     contract: 'packages/contract/**',
     ui: 'packages/ui/**',
-    'canvas-document': 'packages/canvas-document/**',
-    'canvas-format': 'packages/canvas-format/**',
-    'artwork-paint': 'packages/artwork-paint/**',
-    'figma-import': 'packages/figma-import/**',
-    'capture-browser': 'packages/capture-browser/**',
+    'ledger-document': 'packages/ledger-document/**',
+    'ledger-format': 'packages/ledger-format/**',
+    'image-editing': 'packages/image-editing/**',
+    'file-uploads': 'packages/file-uploads/**',
+    'report-renderer': 'packages/report-renderer/**',
     sdk: 'packages/sdk/**',
-    'agent-plugins': 'packages/agent-plugins/**',
+    'plugin-loader': 'packages/plugin-loader/**',
   },
   groups: {
     tests: ['**/*.{test,spec}.{ts,tsx}', '**/__tests__/**'],
@@ -29,36 +29,36 @@ export default defineConfig({
   },
   rules: ({ mayImport, rule }) => [
     mayImport('workspace', {
-      web:               ['contract', 'ui', 'canvas-document', 'artwork-paint', 'capture-browser', 'figma-import', 'api'],
-      extension:         ['contract', 'ui', 'capture-browser'],
+      web:               ['contract', 'ui', 'ledger-document', 'image-editing', 'report-renderer', 'file-uploads', 'api'],
+      extension:         ['contract', 'ui', 'report-renderer'],
       storybook:         ['ui'],
-      cli:               ['contract', 'canvas-document', 'sdk', 'api'],
+      cli:               ['contract', 'ledger-document', 'sdk', 'api'],
       desktop:           ['contract'],
-      api:               ['contract', 'artwork-paint', 'canvas-format'],
+      api:               ['contract', 'image-editing', 'ledger-format'],
       docs:              ['cli'],
-      contract:          ['artwork-paint', 'canvas-format', 'ui'],
-      'canvas-document': ['contract', 'ui'],
-      'figma-import':    ['canvas-document', 'contract'],
-      sdk:               ['capture-browser', 'contract'],
-      'capture-browser': ['contract'],
-      'agent-plugins':   ['cli'],
+      contract:          ['image-editing', 'ledger-format', 'ui'],
+      'ledger-document': ['contract', 'ui'],
+      'file-uploads':    ['ledger-document', 'contract'],
+      sdk:               ['report-renderer', 'contract'],
+      'report-renderer': ['contract'],
+      'plugin-loader':   ['cli'],
       ui:                [],
-      'artwork-paint':   [],
-      'canvas-format':   [],
+      'image-editing':   [],
+      'ledger-format':   [],
     }, {
       because: 'Apps share code only through packages, and a package never reaches into an app.',
     }),
 
-    rule('web-uses-api-types-only', {
+    rule('frontend-api-types-only', {
       files: 'web', mayNotImport: 'api', imports: 'runtime',
       because: 'The web app types its requests from the API router. No API code ships to the browser.',
       examples: { rejected: ['apps/web/src/a.ts imports apps/api/src/app.ts'] },
     }),
 
-    rule('core-not-to-driver', {
+    rule('domain-not-to-pool', {
       files: ['domain', 'application'], mayNotImport: 'driver',
       because: 'The domain and application layers never touch an I/O driver. A use case that needs one declares a port.',
-      examples: { rejected: ['apps/api/src/board/domain/a.entity.ts imports pg'] },
+      examples: { rejected: ['apps/api/src/order/domain/a.entity.ts imports pg'] },
     }),
 
     mayImport('domain', {

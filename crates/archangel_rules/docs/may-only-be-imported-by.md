@@ -1,6 +1,6 @@
 # may-only-be-imported-by
 
-A file imports a file in a `mayOnlyBeImportedBy` rule's selector, and the importing file is neither on the rule's list nor in the selector itself. A file in no element counts as outside the list.
+A file imports a file in the `files` of a `mayOnlyBeImportedBy` rule, and the importing file is neither on the rule's list nor in those files. A file in no part counts as outside the list.
 
 ## Example
 
@@ -21,4 +21,4 @@ Add `within` to judge only importers in an area. The rule does not judge an impo
 
 ## What to do
 
-Go through a file on the list, such as an `api` module, instead of importing the selector's files directly.
+Go through a file on the list, such as an `api` module, instead of importing the rule's files directly.

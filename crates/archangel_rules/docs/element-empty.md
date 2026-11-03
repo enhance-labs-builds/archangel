@@ -1,6 +1,6 @@
 # element-empty
 
-An element matches nothing, so no rule about it can fire. For a file element, no file matches its patterns. For a package element, no import uses its packages and no package manifest lists them.
+A part or an externals set matches nothing, so no rule about it can fire. For a part, no file matches its patterns. For an externals set, no import uses its packages and no package manifest lists them.
 
 ## Example
 
@@ -10,4 +10,4 @@ An element matches nothing, so no rule about it can fire. For a file element, no
 
 ## What to do
 
-Fix the pattern or the package name, or remove the element.
+Fix the pattern or the package name, or remove the part or the externals set.

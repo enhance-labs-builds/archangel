@@ -9,7 +9,7 @@ A `mayOnlyImport` rule MAY have an area, written with `within` and with the valu
 #### Scenario: An entity imports a use case
 
 - **GIVEN** a rule `{ files: 'entity', mayOnlyImport: ['value-object'], within: 'apps/api/src/**' }`
-- **AND** a file in "entity" that imports `apps/api/src/canvas/application/save.use-case.ts`
+- **AND** a file in "entity" that imports `apps/api/src/ledger/application/save.use-case.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation that names "value-object" as what the file may import and `apps/api/src/**` as the area
 - **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_only_import_within_rejects_an_import_into_the_area_outside_its_list"
@@ -247,7 +247,7 @@ Archangel MUST check each import against every rule. When an import breaks more 
 
 #### Scenario: An import that breaks a table row and a rule
 
-- **GIVEN** the enhance3-slice config with one more rule, `rule('domain-not-to-application', { files: 'domain', mayNotImport: 'application' })`
+- **GIVEN** the monorepo-slice config with one more rule, `rule('domain-not-to-application', { files: 'domain', mayNotImport: 'application' })`
 - **AND** a domain entity that imports a use case
 - **WHEN** archangel makes a check
 - **THEN** archangel gives two violations for that import, one of `domain.entity` and one of `domain-not-to-application`, and the summary counts two problems
@@ -269,9 +269,9 @@ Archangel MUST check each import against every rule. When an import breaks more 
 
 #### Scenario: A table that does not name a package
 
-- **GIVEN** the enhance3-slice config, whose table `domain` names no externals set, and a domain entity that imports `pg`
+- **GIVEN** the monorepo-slice config, whose table `domain` names no externals set, and a domain entity that imports `pg`
 - **WHEN** archangel makes a check
-- **THEN** archangel gives one violation, of `core-not-to-driver`, and none of the table
+- **THEN** archangel gives one violation, of `domain-not-to-pool`, and none of the table
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "a_table_that_names_no_externals_set_leaves_a_package_to_other_rules"
 
 #### Scenario: The order of the rules

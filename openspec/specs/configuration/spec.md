@@ -565,11 +565,11 @@ A bare name of a built-in module MUST be refused with `config-invalid` and the f
 
 #### Scenario: Names that could never match
 
-- **GIVEN** the externals sets `a` as `['fs']`, `b` as `['@types/react']`, and `c` as `['@enhance/contract']`, where `@enhance/contract` is a package of the workspace
+- **GIVEN** the externals sets `a` as `['fs']`, `b` as `['@types/react']`, and `c` as `['@example/contract']`, where `@example/contract` is a package of the workspace
 - **WHEN** archangel loads the config
 - **THEN** archangel gives `config-invalid` for `fs` with the fix `node:fs`
 - **AND** archangel gives `config-invalid` for `@types/react`, saying that archangel judges the package that an import names, such as `react`
-- **AND** archangel gives `config-invalid` for `@enhance/contract`, saying that it resolves to a repository file and its part judges it
+- **AND** archangel gives `config-invalid` for `@example/contract`, saying that it resolves to a repository file and its part judges it
 - **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_externals_name_that_could_never_match_is_refused"
 
 ### Requirement: A node name must be a built-in module
@@ -625,8 +625,8 @@ A pattern in parts, groups, files, within, a kind pattern or a cell MUST start a
 
 #### Scenario: An entry on a part without a capture
 
-- **GIVEN** the part `canvas-document` as `packages/canvas-document/**`, and `entry('canvas-document', 'src/*/index.ts')`
-- **AND** a file in `web` that imports `packages/canvas-document/src/flex-grid/index.ts`, and another that imports `packages/canvas-document/src/flex-grid/grid.ts`
+- **GIVEN** the part `ledger-document` as `packages/ledger-document/**`, and `entry('ledger-document', 'src/*/index.ts')`
+- **AND** a file in `web` that imports `packages/ledger-document/src/flex-grid/index.ts`, and another that imports `packages/ledger-document/src/flex-grid/grid.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of the entry rule, for the import of `grid.ts`
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "an_entry_pattern_starts_at_the_root_of_a_part_without_a_capture"

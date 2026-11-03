@@ -969,8 +969,8 @@ fn a_part_overlap_appears_and_goes_with_the_file_in_the_editor() {
 /// A table with an entity row and an aggregate-root row, on a repository with no aggregate root.
 fn table_repo() -> FixtureRepo {
     FixtureRepo::new()
-        .file("apps/api/src/board/application/save.use-case.ts", "")
-        .file("apps/api/src/board/domain/board.entity.ts", "")
+        .file("apps/api/src/order/application/save.use-case.ts", "")
+        .file("apps/api/src/order/domain/order.entity.ts", "")
         .json_config(&json!({
             "parts": { "api": "apps/api/**" },
             "rules": [{
@@ -1005,7 +1005,7 @@ fn a_row_becomes_active_when_its_first_file_is_created() {
         ["domain.aggregate-root"],
         "a row becomes active when its first file is created"
     );
-    let path = "apps/api/src/board/domain/board.aggregate-root.ts";
+    let path = "apps/api/src/order/domain/order.aggregate-root.ts";
     repo.write(path, "import '../application/save.use-case';\n");
     let (found, full) = after_events(
         &repo,
@@ -1034,14 +1034,14 @@ fn a_row_becomes_active_when_its_first_file_is_created() {
 
 #[test]
 fn a_row_is_listed_again_when_its_last_file_is_deleted() {
-    let repo = table_repo().file("apps/api/src/board/domain/board.aggregate-root.ts", "");
+    let repo = table_repo().file("apps/api/src/order/domain/order.aggregate-root.ts", "");
     let mut session = Session::open(repo.path(), None).expect("the session opens");
     assert_eq!(
         rows_with_no_file(session.report()),
         [] as [String; 0],
         "a row is listed again when its last file is deleted"
     );
-    let path = "apps/api/src/board/domain/board.aggregate-root.ts";
+    let path = "apps/api/src/order/domain/order.aggregate-root.ts";
     repo.remove(path);
     let (found, full) = after_events(
         &repo,

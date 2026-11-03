@@ -3,7 +3,7 @@
 ## In short
 
 A config written with archangel should read as the architecture, and a developer should know what
-each rule means without guessing. Archangel 0.1 checks enhance3, a 9,800-file monorepo, with no
+each rule means without guessing. Archangel 0.1 checks the reference monorepo, a 9,800-file monorepo, with no
 problems, but its config is an 828-line builder that reads a 2,896-line vocabulary and produces
 about 380 rules with computed names. Two cold readers tested a proposal for a better interface. A
 junior engineer understood the model and could write a config, and a senior staff engineer who knows
@@ -20,7 +20,7 @@ With 0.2, a developer writes four new things:
   the repository, and an import that its row does not list is refused, with the row named. A row may
   import itself, in the same instance, unless `mayNotImportItself` lists it.
 - **Kinds.** A kind is a name that a table's one pattern with `{kind}` gives a file, such as
-  `**/*.{kind}.ts` (so `board.entity.ts` is an `entity`). A row is a kind, or a declared part or
+  `**/*.{kind}.ts` (so `order.entity.ts` is an `entity`). A row is a kind, or a declared part or
   group; a part or group row is not a kind. Every table also makes the rule
   `<table>.every-file-has-a-kind`, which refuses a file in the table's files that has no row.
 - **New spellings**: `parts` for elements, `groups` for selectors, `externals` for named sets of
@@ -158,7 +158,7 @@ questions the owner listed; items 9 to 12 came up while the change was written.
    shown. The 0.1 package elements keep working in `elements`.
 
 2. **A name means the same files everywhere, and a table's `files` only choose whose imports it
-   judges.** A kind applies in the whole repository: `apps/api/src/board/application/draft.entity.ts`
+   judges.** A kind applies in the whole repository: `apps/api/src/order/application/draft.entity.ts`
    is an `entity` for the domain table even though it is outside the table's files, so the cell
    `entity` permits it. A target in no row of the table is refused with "no row for" and the most
    exact name archangel has for it: its kind if the kind pattern gives it one, else its part, else
@@ -175,17 +175,17 @@ questions the owner listed; items 9 to 12 came up while the change was written.
    kind with no row: in the small app, `src/features/cart/hooks/use-cart.ts` is refused with "no
    row for hooks". Archangel exempts no file by itself: tests, `index.ts`, generated files and tool
    configs that should have no kind are left out of the table's `files` with `not`, for example
-   `files: { all: ['domain', { not: ['tests', '**/index.ts', '**/*.d.ts'] }] }`; the enhance3 slice
+   `files: { all: ['domain', { not: ['tests', '**/index.ts', '**/*.d.ts'] }] }`; the monorepo slice
    leaves out only `tests`, so an `index.ts` in a domain folder would be refused there. When a table
    has no `files`, its files are only those that its kind pattern matches with any kind, so a file
-   with no kind, such as `src/features/cart/index.ts` in the small app or `board.ts` in a domain
+   with no kind, such as `src/features/cart/index.ts` in the small app or `order.ts` in a domain
    folder, is outside the table and judged by no row: the gap where a file escapes a table by
-   dropping its suffix stays open. Writing `files`, as the enhance3 slice does, is what closes it,
+   dropping its suffix stays open. Writing `files`, as the monorepo slice does, is what closes it,
    because then every file in `files` must have a kind with a row. The kind is what `{kind}` matches,
    as for any capture; in `**/*.{kind}.ts` the `*` before it takes the most it can, so the kind is
-   the word just before the extension: `board.entity.test.ts` is the kind `test`, and
-   `board.entity.ts` is `entity`. A declaration file counts `.d.ts` as its extension, so
-   `board.entity.d.ts` is an `entity` and `env.d.ts` has no kind. In `src/features/*/{kind}/**` a
+   the word just before the extension: `order.entity.test.ts` is the kind `test`, and
+   `order.entity.ts` is `entity`. A declaration file counts `.d.ts` as its extension, so
+   `order.entity.d.ts` is an `entity` and `env.d.ts` has no kind. In `src/features/*/{kind}/**` a
    folder `api.v2` is the kind `api.v2`, and it needs a row or gives a violation. The other option
    is an `everyFileHasAKind` option on the table, off by default with a summary count; it is gentler
    on a codebase without suffixes, but it is a second spelling of `off` with a second output form,
@@ -210,7 +210,7 @@ questions the owner listed; items 9 to 12 came up while the change was written.
    row. A written example still runs and names the row that rejected it; authors write one where
    intent is easy to get wrong. Rules that are not table rows keep 0.1's demand for a written
    rejected example, so 0.1 results do not change. The other options: one written rejected example
-   per table, which the senior reader rejects, because enhance3 would need 61 hand-written examples
+   per table, which the senior reader rejects, because the reference monorepo would need 61 hand-written examples
    for its rules and tables, and they will not get written; or a generated proof per row, a rejected
    example that `archangel test` builds from the row's first file and the first repository file the
    row refuses. The proof cannot fail on a correct build of archangel: the second file is chosen
@@ -278,8 +278,8 @@ questions the owner listed; items 9 to 12 came up while the change was written.
     changelog lists it under "Fixed". The other option is to keep the 0.1 answer and document it,
     which leaves a plausible wrong answer.
 
-11. **Examples may be one line, so enhance3's config written by hand is about 900 to 1,100 lines**
-    ("What enhance3 gains"; decided: add them to this change). An item of `accepted` or `rejected`
+11. **Examples may be one line, so the reference monorepo's config written by hand is about 900 to 1,100 lines**
+    ("What the reference monorepo gains"; decided: add them to this change). An item of `accepted` or `rejected`
     may be a string in place of a file set: `'src/a.ts imports src/b.ts'`. "One-line examples" in
     "How it works" gives the form. An earlier estimate of 1,150 to 1,350 lines did not have them;
     they save about 250 lines. The forms that were not chosen are an arrow string
@@ -384,8 +384,8 @@ Every pattern in `parts`, `groups`, `files`, `within`, `kinds` and a cell starts
 config, the repository root in a usual setup, and never gets an implicit `**/`. So
 `src/domain/{kind}/**` matches only the root's `src`, and a monorepo writes `**/domain/{kind}/**`.
 An `entry` pattern starts at the root of the instance, as in 0.1; for a part without a capture, that
-root is the folders before its first wildcard, so `entry('canvas-document', 'src/*/index.ts')` on
-`packages/canvas-document/**` means `packages/canvas-document/src/*/index.ts`.
+root is the folders before its first wildcard, so `entry('ledger-document', 'src/*/index.ts')` on
+`packages/ledger-document/**` means `packages/ledger-document/src/*/index.ts`.
 
 A capture, such as `{feature}`, matches one or more characters of one folder or file name and makes
 an instance. Braces with a comma list alternatives. The capture `{kind}` matches as any capture
@@ -438,12 +438,12 @@ violation. The import is permitted when the target is in one of the row's cells,
 `everyRowMayImport`, or in the row's own name and the same instance, unless `mayNotImportItself`
 lists the row. Otherwise it is refused. The message says what the row may import, and names the
 target: by its row when it has one, and otherwise with "no row for" and its kind, its part or its
-path (item 2 of "Decisions that need you"). In the enhance3 slice of "What enhance3 gains", an
+path (item 2 of "Decisions that need you"). In the monorepo slice of "What the reference monorepo gains", an
 entity that imports a use case gives:
 
 ```
 error[may-import]: entity may not import use-case, through "../application/save.use-case": no row for use-case, and entity may import only value-object, domain-event, specification, policy, error, types, consts, apps/api/src/shared/result.ts, and itself
- --> apps/api/src/board/domain/board.entity.ts:3:22
+ --> apps/api/src/order/domain/order.entity.ts:3:22
   |
 3 | import { save } from '../application/save.use-case';
   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ entity may import only value-object, domain-event, specification, policy, error, types, consts, apps/api/src/shared/result.ts, and itself
@@ -464,7 +464,7 @@ make the config file a problem of the architecture. The message says whether the
 and how to give it one, or has a kind with no row, and which row is closest:
 
 ```
-error[every-file-has-a-kind]: apps/api/src/board/domain/board.spec-helper.ts has the kind spec-helper, and the table domain has no row for it
+error[every-file-has-a-kind]: apps/api/src/order/domain/order.spec-helper.ts has the kind spec-helper, and the table domain has no row for it
   = help: add a row for spec-helper, rename the file, or leave it out of the table's files with not
 ```
 
@@ -517,7 +517,7 @@ A table judges an import of an outside package only when one of its cells names 
 that holds the package. So a table that names `driver` in one row refuses `pg` in every row that
 does not list `driver`, and a table that names no externals set never looks at a package import. An
 import of a workspace package resolves to a repository file, and that file's part and kind decide
-it, as for any file. On a rule, an externals set is a side like any other: `rule('core-not-to-driver',
+it, as for any file. On a rule, an externals set is a side like any other: `rule('domain-not-to-pool',
 { files: ['domain', 'application'], mayNotImport: 'driver' })`. `mayOnlyImport` without `within`
 judges every import, outside packages included, as in 0.1.
 
@@ -646,11 +646,11 @@ source files and the expected output of `archangel check`, `archangel test` and,
 it, `archangel rules`. A test runs archangel on each fixture and compares the output, and a second
 test reads each config block in the docs and the README and checks that it is the text of a fixture,
 so an example that contradicts archangel fails a test. Two fixtures carry the payoff: the small app
-in "In short", and a slice of enhance3's config, below.
+in "In short", and a slice of the reference monorepo's config, below.
 
-### What enhance3 gains
+### What the reference monorepo gains
 
-The slice of enhance3's config is its workspace table of apps and packages and its API domain table,
+The slice of the reference monorepo's config is its workspace table of apps and packages and its API domain table,
 written with 0.2. It is the second checked fixture:
 
 ```ts
@@ -667,13 +667,13 @@ export default defineConfig({
     docs: 'apps/docs/**',
     contract: 'packages/contract/**',
     ui: 'packages/ui/**',
-    'canvas-document': 'packages/canvas-document/**',
-    'canvas-format': 'packages/canvas-format/**',
-    'artwork-paint': 'packages/artwork-paint/**',
-    'figma-import': 'packages/figma-import/**',
-    'capture-browser': 'packages/capture-browser/**',
+    'ledger-document': 'packages/ledger-document/**',
+    'ledger-format': 'packages/ledger-format/**',
+    'image-editing': 'packages/image-editing/**',
+    'file-uploads': 'packages/file-uploads/**',
+    'report-renderer': 'packages/report-renderer/**',
     sdk: 'packages/sdk/**',
-    'agent-plugins': 'packages/agent-plugins/**',
+    'plugin-loader': 'packages/plugin-loader/**',
   },
   groups: {
     tests: ['**/*.{test,spec}.{ts,tsx}', '**/__tests__/**'],
@@ -685,36 +685,36 @@ export default defineConfig({
   },
   rules: ({ mayImport, rule }) => [
     mayImport('workspace', {
-      web:               ['contract', 'ui', 'canvas-document', 'artwork-paint', 'capture-browser', 'figma-import', 'api'],
-      extension:         ['contract', 'ui', 'capture-browser'],
+      web:               ['contract', 'ui', 'ledger-document', 'image-editing', 'report-renderer', 'file-uploads', 'api'],
+      extension:         ['contract', 'ui', 'report-renderer'],
       storybook:         ['ui'],
-      cli:               ['contract', 'canvas-document', 'sdk', 'api'],
+      cli:               ['contract', 'ledger-document', 'sdk', 'api'],
       desktop:           ['contract'],
-      api:               ['contract', 'artwork-paint', 'canvas-format'],
+      api:               ['contract', 'image-editing', 'ledger-format'],
       docs:              ['cli'],
-      contract:          ['artwork-paint', 'canvas-format', 'ui'],
-      'canvas-document': ['contract', 'ui'],
-      'figma-import':    ['canvas-document', 'contract'],
-      sdk:               ['capture-browser', 'contract'],
-      'capture-browser': ['contract'],
-      'agent-plugins':   ['cli'],
+      contract:          ['image-editing', 'ledger-format', 'ui'],
+      'ledger-document': ['contract', 'ui'],
+      'file-uploads':    ['ledger-document', 'contract'],
+      sdk:               ['report-renderer', 'contract'],
+      'report-renderer': ['contract'],
+      'plugin-loader':   ['cli'],
       ui:                [],
-      'artwork-paint':   [],
-      'canvas-format':   [],
+      'image-editing':   [],
+      'ledger-format':   [],
     }, {
       because: 'Apps share code only through packages, and a package never reaches into an app.',
     }),
 
-    rule('web-uses-api-types-only', {
+    rule('frontend-api-types-only', {
       files: 'web', mayNotImport: 'api', imports: 'runtime',
       because: 'The web app types its requests from the API router. No API code ships to the browser.',
       examples: { rejected: ['apps/web/src/a.ts imports apps/api/src/app.ts'] },
     }),
 
-    rule('core-not-to-driver', {
+    rule('domain-not-to-pool', {
       files: ['domain', 'application'], mayNotImport: 'driver',
       because: 'The domain and application layers never touch an I/O driver. A use case that needs one declares a port.',
-      examples: { rejected: ['apps/api/src/board/domain/a.entity.ts imports pg'] },
+      examples: { rejected: ['apps/api/src/order/domain/a.entity.ts imports pg'] },
     }),
 
     mayImport('domain', {
@@ -740,20 +740,20 @@ export default defineConfig({
 ```
 
 The two rules that are not tables carry a one-line rejected example, because 0.1's `rule-unproven`
-still applies to them. The domain table is the one enhance3 states, with one row added:
+still applies to them. The domain table is the one the reference monorepo states, with one row added:
 `specification`. The stated table
 names `specification` as a cell but gives it no row, and 0.2 refuses a cell that is neither a row
 nor a declared name, so that a misspelt cell can never pass and the types can check every cell. The
-added row is the one enhance3's builder has today. review.md records this and two other notes about
-the table for enhance3.
+added row is the one the reference monorepo's builder has today. review.md records this and two other notes about
+the table for the reference monorepo.
 
-What this replaces in enhance3 today: the domain table lives in four places (a table of strings in
+What this replaces in the reference monorepo today: the domain table lives in four places (a table of strings in
 the vocabulary, a builder function per row, a glob at load time that drops rows no file has, and a
 naming rule that repeats the kinds), and each package's dependencies are two rules. The workspace
 table replaces the per-package "may only import" rules and the app-to-app rules, and the domain
 table replaces its 11 generated rules and the naming rule `naming:api:domain`.
 
-**An estimate of enhance3's config written by hand.** enhance3's builder produces about 380 rules:
+**An estimate of the reference monorepo's config written by hand.** the reference monorepo's builder produces about 380 rules:
 about 200 from 9 kind tables (107 rows, 709 cells) applied 14 times, and about 180 others (61
 dependency rules, 5 API layer rules, 107 naming rules and 9 overrides of the Feature-Sliced Design
 preset). With the forms of this change:
@@ -795,12 +795,12 @@ capture value is the kind's name, so one pattern gives every kind, including the
 row and need a "no row for" message. eslint-plugin-boundaries reads element types from captures the
 same way, and its captures are ordinary path segments with no behaviour of their own, so `{kind}`
 matches as every capture does, one name of one or more characters; in `**/*.{kind}.ts` the `*`
-before it takes the most it can, which already makes `board.entity.test.ts` the kind `test` and
-`board.entity.ts` the kind `entity`. The one case that gives a wrong answer is a declaration file,
+before it takes the most it can, which already makes `order.entity.test.ts` the kind `test` and
+`order.entity.ts` the kind `entity`. The one case that gives a wrong answer is a declaration file,
 where `env.d.ts` would be the kind `d`, so `.d.ts`, `.d.mts` and `.d.cts` count as one extension for
 `{kind}`; the repeat allowance is the other difference, because each place takes the same name. Both
 are scoped to `{kind}`, because changing every capture would change what a 0.1 pattern such as
-`src/{feature}.d.ts` matches. This spends a token: one capture name with two rules of its own. A list of patterns per kind is what enhance3's builder computes today, and it cannot name
+`src/{feature}.d.ts` matches. This spends a token: one capture name with two rules of its own. A list of patterns per kind is what the reference monorepo's builder computes today, and it cannot name
 a kind it does not list.
 
 **3. Keep the self permission inside the row's sentence.** The 0.1 `mayOnlyImport` already permits
@@ -894,8 +894,8 @@ re-resolution that it already causes, with no parse.
 classes times rules for the file counts. `archangel explain` of one import evaluates every rule on
 that one import, on demand. Neither is on the path of `archangel check`.
 
-At enhance3's size a fixture cannot show whether the compiled pattern set still compiles as one, so
-before release the enhance3 slice is measured once on enhance3 itself (task 9.1): pattern passes,
+At the reference monorepo's size a fixture cannot show whether the compiled pattern set still compiles as one, so
+before release the monorepo slice is measured once on the reference monorepo itself (task 9.1): pattern passes,
 files classified, rule evaluations and the number of compiled sets from `archangel check --stats`,
 and the times.
 
@@ -908,13 +908,13 @@ and the times.
   passes until a violation or a written example shows it. The property tests show that every cell
   is decided as written, and `archangel rules` shows each row's reach.
 - **The own-instance default costs one rule evaluation per import inside a captured row or part.**
-  Cost states the number and a work-count test holds it; task 9.1 measures it on enhance3.
+  Cost states the number and a work-count test holds it; task 9.1 measures it on the reference monorepo.
 - **`<table>.every-file-has-a-kind` can give many violations on adoption.** The message says how to
   fix each file, and `archangel baseline add` records them, as for any new rule.
 - **Two spellings live until 1.0.** A config cannot mix them, and the docs show one.
 - **A one-word brace is a capture.** `archangel rules` and `explain` show the instance it makes.
 - **A wide table adds sets to each class.** Rows of one table rarely overlap, and an overlap is an
-  error, so classes grow with real combinations. The enhance3 measurement is the evidence at size.
+  error, so classes grow with real combinations. The the reference monorepo measurement is the evidence at size.
 
 ## Compatibility and release
 
@@ -935,7 +935,7 @@ gains `archangel rules` and the `<file>:<line>` form of `explain`.
 - A file in a table's files that has no row is judged by no row as an importer; it is a violation
   of `<table>.every-file-has-a-kind`, unless `off` names that rule, which `archangel rules` then
   shows. A file with no kind is outside a table that has no `files`, so the suffix gap stays open
-  until the author writes `files`, as the enhance3 slice does (item 3 of "Decisions that need
+  until the author writes `files`, as the monorepo slice does (item 3 of "Decisions that need
   you"); `archangel rules` lists such a file when no rule judges it.
 - A table judges an outside package only when it names an externals set that holds it. `archangel
   rules` lists, by package, the outside packages that no rule names.
@@ -1003,9 +1003,9 @@ This section is for whoever builds the change.
 | Fault controls | `crates/archangel_rules/src/architecture.rs`: fail points `rules::area_per_import` and `rules::every_row`, beside `rules::search_every_rule` |
 | Work counts | `crates/archangel_graph/src/work.rs`: no new counter; tests use `rule_evaluations`, `structure_evaluations`, `pattern_passes` and `files_classified` |
 | Reference evaluator | `crates/archangel_rules/tests/rule_properties.rs`: extended with areas, tables of each row form, own-instance permission and externals |
-| Checked examples | `docs/examples/small-app/` and `docs/examples/enhance3-slice/` (config, files, expected output), one folder per other docs example; `crates/archangel/tests/doc_examples.rs` runs each and compares, and checks each config block in `README.md` and `docs/*.md` against a fixture |
+| Checked examples | `docs/examples/small-app/` and `docs/examples/monorepo-slice/` (config, files, expected output), one folder per other docs example; `crates/archangel/tests/doc_examples.rs` runs each and compares, and checks each config block in `README.md` and `docs/*.md` against a fixture |
 | Types | `npm/archangel/index.d.ts`: `parts`, `groups`, `externals`, `because`; `rule(name, body)` overload; `within?: Side` on the `mayOnlyImport` and `mayOnlyBeImportedBy` arms of `Sentence`; `mayImport<const N, const K extends string>(name, rows, options)` with cells typed as `K \| E \| S \| X \| PathPattern`, where `E`, `S` and `X` are the type parameters that hold the config's declared part, group and externals names (`E` and `S` as `index.d.ts` already uses for elements and selectors; `X` is new, for `externals`); `TableName<N>` refuses a colon or a slash |
 | JSON schema | `npm/archangel/archangel.schema.json`: the new keys and the `mayImport` kind |
 | New terms | `openspec/glossary.md`: Part, Group, Externals set, Area, Table, Row, Cell, Kind, Kind pattern, Reach, Unjudged; Element instance renamed to Instance and widened to a kind pattern's other captures and to a name without a capture, with Element instance pointing at it; Element and Selector point to Part and Group; Shorthand kind and Rule builder name four kinds |
 | Docs | `crates/archangel_rules/docs/may-import.md` says that a table without `files` leaves a file with no kind outside the table, and that `files` closes that gap; `docs/rules.md`, `README.md`, `docs/commands.md` (`rules`, `explain <file>:<line>`), `docs/migrating.md` (the new spellings), `CHANGELOG.md` (0.2.0), versions in `Cargo.toml` and `npm/archangel/package.json` |
-| Precedents | `layer_sentences` in `crates/archangel_config/src/rules.rs`; `unproven_rules` in `crates/archangel_rules/src/examples.rs`; enhance3's builder at `packages/architecture/archangel.mjs` and vocabulary at `packages/architecture/index.mjs` on the main branch of https://github.com/enhance-labs-builds/enhance3 |
+| Precedents | `layer_sentences` in `crates/archangel_config/src/rules.rs`; `unproven_rules` in `crates/archangel_rules/src/examples.rs` |

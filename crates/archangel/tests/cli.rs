@@ -71,6 +71,40 @@ fn unknown_command_suggests_the_nearest_and_exits_two() {
 }
 
 #[test]
+fn an_unknown_command_lists_the_commands_in_columns() {
+    let found = run(&clean(), &["chekc"]);
+    assert_eq!(found.status, 2, "an unknown command exits 2");
+    let listed: Vec<&str> = found
+        .stderr
+        .lines()
+        .skip_while(|line| *line != "The commands are:")
+        .skip(1)
+        .collect();
+    assert!(
+        listed
+            .iter()
+            .any(|line| line.starts_with("  completions  Print")),
+        "the longest name has a space after it: {}",
+        found.stderr
+    );
+    let column = listed[0].find("Check").unwrap_or_default();
+    assert!(
+        listed
+            .iter()
+            .all(|line| line.len() > column && line[..column].ends_with("  ")),
+        "each description starts in one column: {}",
+        found.stderr
+    );
+    assert!(
+        !listed
+            .iter()
+            .any(|line| line.trim_start().starts_with("man ")),
+        "a hidden command is not listed: {}",
+        found.stderr
+    );
+}
+
+#[test]
 fn help_and_version_print_to_standard_output_and_exit_zero() {
     let version = run(&clean(), &["--version"]);
     assert_eq!(
@@ -310,15 +344,34 @@ fn explain_prints_the_element_imports_and_broken_rules() {
          element: \"feature\", instance \"login\"\n  \
          selectors: none\n  \
          rules that apply: layers, isolate\n    \
-         layers: files in feature may not import app\n    \
-         layers: files in shared may not import app, feature\n    \
-         isolate: files in feature may not import feature in a different instance\n  \
+         layers: files in feature may not import app (judges its imports)\n    \
+         layers: files in shared may not import app, feature (judges imports of it)\n    \
+         isolate: files in feature may not import feature in a different instance (judges its imports and imports of it)\n  \
          imports:\n    \
          line 1  './b' -> src/features/login/b.ts (\"feature\", instance \"login\")\n    \
          line 2  '../signup/c' -> src/features/signup/c.ts (\"feature\", instance \"signup\")  breaks isolate\n  \
          imported by: src/app/main.ts\n",
         "the element instance, each import with where it resolves and what it breaks, and the importers"
     );
+}
+
+#[test]
+fn explain_says_which_rules_judge_the_files_imports_and_which_judge_imports_of_it() {
+    let repo = FixtureRepo::new()
+        .file("src/features/cart/a.ts", "import '../../shared/money';\n")
+        .file("src/shared/money.ts", "")
+        .json_config(&json!({
+            "parts": { "feature": "src/features/{feature}/**", "shared": "src/shared/**" },
+            "rules": [{ "kind": "mayImport", "name": "app", "rows": { "feature": ["shared"], "shared": [] } }],
+        }));
+    let found = run(&repo, &["explain", "src/shared/money.ts"]);
+    assert_eq!(found.status, 0, "explain answers: {}", found.stderr);
+    for line in [
+        "    app.feature: feature may import only shared, and itself in the same instance (judges imports of it)",
+        "    app.shared: shared may import only itself (judges its imports)",
+    ] {
+        assert!(found.stdout.contains(line), "{line}\nin:\n{}", found.stdout);
+    }
 }
 
 #[test]
@@ -341,7 +394,7 @@ fn explain_lists_selectors_and_rule_sentences() {
     );
     assert!(
         found.stdout.contains(
-            "    isolate(feature): files in feature may not import feature in a different instance\n"
+            "    isolate(feature): files in feature may not import feature in a different instance (judges its imports and imports of it)\n"
         ),
         "the isolate rule as its sentence: {}",
         found.stdout
@@ -620,8 +673,8 @@ fn a_row_with_no_file_is_listed_in_the_summary_as_text_and_json() {
 #[test]
 fn explain_shows_a_table_row_as_its_sentences() {
     let found = run(
-        &fixtures::fixture("enhance3-slice"),
-        &["explain", "apps/api/src/board/domain/board.entity.ts"],
+        &fixtures::fixture("monorepo-slice"),
+        &["explain", "apps/api/src/order/domain/order.entity.ts"],
     );
     assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
     let out = &found.stdout;
@@ -639,16 +692,16 @@ fn explain_shows_a_table_row_as_its_sentences() {
 #[test]
 fn explain_shows_the_second_sentence_of_a_row_that_may_not_import_itself() {
     let found = run(
-        &fixtures::fixture("enhance3-slice"),
+        &fixtures::fixture("monorepo-slice"),
         &[
             "explain",
-            "apps/api/src/board/domain/created.domain-event.ts",
+            "apps/api/src/order/domain/created.domain-event.ts",
         ],
     );
     assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
     let out = &found.stdout;
     assert!(
-        out.contains("domain-event may import only value-object, types, consts, apps/api/src/shared/result.ts\n"),
+        out.contains("domain-event may import only value-object, types, consts, apps/api/src/shared/result.ts (judges its imports)\n"),
         "{out}"
     );
     assert!(out.contains("domain-event may not import itself"), "{out}");
