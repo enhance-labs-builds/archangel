@@ -95,7 +95,8 @@ archangel explain <FILE>:<LINE>
 ```
 
 With a file, it shows the part of the file, its groups, the rules that apply to it, its imports and
-the files that import it:
+the files that import it. After each rule, it says what the rule judges: the imports of the file
+(its imports), the imports of the file by other files (imports of it), or both:
 
 <Output fixture="first-table" output="explain-file.txt" />
 

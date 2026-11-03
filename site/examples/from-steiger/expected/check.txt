@@ -1,4 +1,4 @@
-error[may-not-import]: src/features/login/ui/login-form.ts may not import "../../signup", because files in "features" may not import "all of (fsd/features, not src/features/*/@x/**)"
+error[may-not-import]: src/features/login/ui/login-form.ts may not import "../../signup", because files in "features" may not import "all of (fsd/features, not src/features/*/@x/**)" in a different instance
  --> src/features/login/ui/login-form.ts:1:28
   |
 1 | import { signupLink } from '../../signup';

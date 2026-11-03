@@ -8,7 +8,7 @@ error[may-import]: api may not import ui, through "@acme/ui": api may import onl
   = note: rule: workspace.api
   = note: because: An app uses packages. A package never uses an app, and the contract depends on nothing.
 
-error[may-not-import]: apps/api/src/index.ts may not import "zod", because files in "apps/*/src/**" may not import the package `*` that apps/api/package.json does not list
+error[may-not-import]: apps/api/src/index.ts may not import "zod", because files in "apps/*/src/**" may not import any package that apps/api/package.json does not list
  --> apps/api/src/index.ts:3:19
   |
 3 | import { z } from 'zod';
