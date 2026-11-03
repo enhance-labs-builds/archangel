@@ -428,46 +428,52 @@ export interface RuleBuilders<
   X extends string = string,
 > {
   /** Each listed element may import only itself and later listed elements. */
-  layers<const N extends string = string>(
+  readonly layers: <const N extends string = string>(
     order: readonly NoInfer<ElementName<E>>[],
     options?: RuleOptions & Named<N, X>,
-  ): Rule<E, S, P>;
+  ) => Rule<E, S, P>;
   /** The instances of the element may not import each other. */
-  isolate<const N extends string = string>(
+  readonly isolate: <const N extends string = string>(
     element: NoInfer<CapturedElement<E>>,
     options?: RuleOptions & Named<N, X>,
-  ): Rule<E, S, P>;
+  ) => Rule<E, S, P>;
   /** Code outside an instance of the element may import it only through these files. */
-  entry<const N extends string = string>(
+  readonly entry: <const N extends string = string>(
     element: NoInfer<ElementName<E>>,
     files: string | readonly string[],
     options?: RuleOptions & Named<N, X>,
-  ): Rule<E, S, P>;
-  /** A table of what each row may import, whose rows are kinds of file, parts or groups. */
-  mayImport<const T extends string, const R extends TableRows>(
-    name: TableName<T>,
-    rows: R & CheckedRows<R, string, DeclaredName<E, S>>,
-    options: TableOptions<E, S, Extract<keyof R, string>> & {
-      /** The pattern that gives a file its kind, such as `**\/*.{kind}.ts`. */
-      readonly kinds: string;
-    },
-  ): Rule<E, S, P>;
-  /** A table whose rows are all parts or groups. */
-  mayImport<const T extends string, const R extends TableRows>(
-    name: TableName<T>,
-    rows: R & CheckedRows<R, RowName<E, S>, DeclaredName<E, S>>,
-    options?: TableOptions<E, S, Extract<keyof R, string>> & { readonly kinds?: never },
-  ): Rule<E, S, P>;
-  /** A rule with its name first: `files`, or `folders`, and exactly one condition. */
-  rule<const N extends string = string>(
-    name: OwnRuleName<N, X>,
-    sentence: Body<Sentence<E, S> | FolderSentence | SeveralSentences<E, S> | PluginRule<E, S, P>>,
-  ): Rule<E, S, P>;
-  /** A rule as a sentence: `files`, or `folders`, and exactly one condition or plugin condition. */
-  rule<const N extends string = string>(
-    sentence: (Sentence<E, S> | FolderSentence | SeveralSentences<E, S> | PluginRule<E, S, P>) &
-      Named<N, X>,
-  ): Rule<E, S, P>;
+  ) => Rule<E, S, P>;
+  /** A table, written in one of two forms. */
+  readonly mayImport: {
+    /** A table of what each row may import, whose rows are kinds of file, parts or groups. */
+    <const T extends string, const R extends TableRows>(
+      name: TableName<T>,
+      rows: R & CheckedRows<R, string, DeclaredName<E, S>>,
+      options: TableOptions<E, S, Extract<keyof R, string>> & {
+        /** The pattern that gives a file its kind, such as `**\/*.{kind}.ts`. */
+        readonly kinds: string;
+      },
+    ): Rule<E, S, P>;
+    /** A table whose rows are all parts or groups. */
+    <const T extends string, const R extends TableRows>(
+      name: TableName<T>,
+      rows: R & CheckedRows<R, RowName<E, S>, DeclaredName<E, S>>,
+      options?: TableOptions<E, S, Extract<keyof R, string>> & { readonly kinds?: never },
+    ): Rule<E, S, P>;
+  };
+  /** A rule, written in one of two forms. */
+  readonly rule: {
+    /** A rule with its name first: `files`, or `folders`, and exactly one condition. */
+    <const N extends string = string>(
+      name: OwnRuleName<N, X>,
+      sentence: Body<Sentence<E, S> | FolderSentence | SeveralSentences<E, S> | PluginRule<E, S, P>>,
+    ): Rule<E, S, P>;
+    /** A rule as a sentence: `files`, or `folders`, and exactly one condition or plugin condition. */
+    <const N extends string = string>(
+      sentence: (Sentence<E, S> | FolderSentence | SeveralSentences<E, S> | PluginRule<E, S, P>) &
+        Named<N, X>,
+    ): Rule<E, S, P>;
+  };
 }
 
 /**
