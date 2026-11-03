@@ -1,0 +1,7 @@
+{
+  "name": "@acme/contract",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {}
+}

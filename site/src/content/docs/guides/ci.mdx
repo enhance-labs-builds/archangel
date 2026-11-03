@@ -1,0 +1,135 @@
+---
+title: Use archangel in CI
+description: Fail a pull request that breaks an architecture test, and show each problem on its line in the pull request.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+import Output from '../../../components/Output.astro';
+
+This guide runs archangel on each pull request. A problem fails the check and shows on its line in
+the diff.
+
+## Before you start
+
+- Your repository has an archangel config, and `@enhance-eng/archangel` is in its
+  `devDependencies`.
+- `npx archangel check` and `npx archangel test` pass on your default branch. If old code breaks a
+  rule, record it first with a [baseline](/archangel/guides/existing-repository/).
+
+## What CI runs
+
+Run two commands:
+
+- `archangel check` checks the code against each rule.
+- `archangel test` checks the examples of each rule. A rule that cannot find a problem fails here.
+
+Each command exits with one of three codes:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | No problems. |
+| `1` | Archangel found one or more problems. |
+| `2` | Archangel could not run: the config, the baseline or the command line has an error. |
+
+So a CI step fails on each problem, without more setup.
+
+## GitHub Actions
+
+<Steps>
+
+1. Add a workflow, or add the two steps to a workflow that you have:
+
+   ```yaml title=".github/workflows/architecture.yml"
+   name: Architecture
+   on: [pull_request]
+   permissions:
+     contents: read
+   jobs:
+     archangel:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v7
+         - uses: actions/setup-node@v7
+           with:
+             node-version: 24
+         - run: npm ci
+         - run: npx archangel check --format github
+         - run: npx archangel test --format github
+   ```
+
+2. Open a pull request.
+
+</Steps>
+
+`--format github` writes each problem as a GitHub Actions annotation. GitHub shows it on its line in
+the **Files changed** tab of the pull request. This is the output for the table in
+[Getting started](/archangel/start/getting-started/):
+
+<Output fixture="first-table" output="check-github.txt" />
+
+<Aside type="tip" title="Pin each action">
+  The example uses tags such as `@v7` to keep it short. To make your workflow safe against a moved
+  tag, pin each action to a full commit SHA.
+</Aside>
+
+## GitHub code scanning
+
+`--format sarif` writes a SARIF 2.1.0 log. GitHub code scanning reads it and keeps each problem as
+an alert. Each result has the identity of its problem, so the alert stays the same when its line
+moves.
+
+```yaml
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      # ... checkout, setup-node and npm ci, as above
+      - run: npx archangel check --format sarif > archangel.sarif
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: archangel.sarif
+```
+
+`archangel check` exits with code 1 when it finds a problem, so the upload step needs
+`if: always()`. Code scanning is free for public repositories. A private repository needs GitHub
+Advanced Security.
+
+## Other CI systems
+
+Use the text format. It shows the line of code under each problem, and the exit codes are the same:
+
+<Tabs>
+  <TabItem label="GitLab CI">
+    ```yaml
+    architecture:
+      image: node:24
+      script:
+        - npm ci
+        - npx archangel check
+        - npx archangel test
+    ```
+  </TabItem>
+  <TabItem label="Any shell">
+    ```sh
+    npm ci
+    npx archangel check --color always
+    npx archangel test --color always
+    ```
+  </TabItem>
+</Tabs>
+
+`--color always` keeps the colors in a CI log that can show them. A tool that reads JSON can use
+`--format json`. [Output formats and exit codes](/archangel/reference/output-and-exit-codes/)
+describes each format.
+
+## Make the check fast
+
+Archangel reads each file one time, so a check of a large repository takes seconds. It does not
+need a cache or a build step. `--stats` adds the work that archangel did and the time of each stage,
+if you want to see where the time goes.
+
+## Next steps
+
+- [Editors and coding agents](/archangel/guides/editors-and-agents/), to see problems before CI.
+- [Commands](/archangel/reference/commands/).

@@ -1,0 +1,7 @@
+{
+  "name": "@acme/web",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {"@acme/contract": "*", "@acme/ui": "*", "react": "19.2.0"}
+}

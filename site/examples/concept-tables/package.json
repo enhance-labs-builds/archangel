@@ -1,0 +1,13 @@
+{
+  "name": "tables",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "date-fns": "4.1.0",
+    "pg": "8.16.3",
+    "react": "19.2.0"
+  },
+  "devDependencies": {
+    "@enhance-eng/archangel": "0.3.1"
+  }
+}

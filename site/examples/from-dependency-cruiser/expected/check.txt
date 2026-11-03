@@ -1,0 +1,24 @@
+error[no-cycles]: 2 files import each other in a cycle: src/api/note.ts → src/api/notes.ts → src/api/note.ts
+--> src/api/note.ts:1:32
+ = help: remove one import of the cycle, or move what both files need into a file that neither of them imports
+ = note: rule: no-circular
+
+error[may-not-import]: src/ui/note-list.ts may not import "../db/client", because files in "ui" may not import "db"
+ --> src/ui/note-list.ts:2:22
+  |
+2 | import { pool } from '../db/client';
+  |                      ^^^^^^^^^^^^^^ remove the import, or move the code to files that may import it
+  |
+  = note: rule: ui-not-to-db
+  = note: because: The UI reads data through the api folder.
+
+error[may-not-import]: src/ui/note-list.ts may not import "vitest", because files in "all of (src/**, not tests)" may not import the package `*` that package.json lists only under devDependencies
+ --> src/ui/note-list.ts:3:20
+  |
+3 | import { vi } from 'vitest';
+  |                    ^^^^^^^^ remove the import, or move the code to files that may import it
+  |
+  = note: rule: not-to-dev-dep
+
+checked 6 files and 10 imports: 3 problems
+For what a code means, run `archangel docs no-cycles` or `archangel docs may-not-import`.

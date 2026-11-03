@@ -1,0 +1,83 @@
+---
+title: What a rule judges
+description: A rule judges an import when it decides to permit or refuse it. archangel rules and archangel explain show what each rule judged, and what no rule judges.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Output from '../../../components/Output.astro';
+
+"No problems" is true only for the code that your rules look at. This page tells you how to see
+what each rule looks at, so that you know what your tests cover.
+
+## Judge and skip
+
+A rule **judges** an import when it decides to permit or refuse that import. A rule **skips** an
+import when the import is not its business. For example:
+
+- the importing file is not in the rule's `files`;
+- the target is a package that no cell of the table names;
+- a narrowing option leaves the import out, such as `names`, `specifier`, `instance` or
+  `dependency`;
+- the import is outside the rule's `within` area;
+- the rule counts runtime imports only, and the import is a type import.
+
+A skipped import is not a problem, and it is not permitted either. It is outside the test.
+
+## Ask about one import
+
+Give `archangel explain` a file and a line. It shows each rule that judged the import, with its
+result, and each rule that skipped it, with the reason:
+
+<Output fixture="first-table" output="explain-line.txt" />
+
+Here is an import of a package that no cell names. Each row of the table skipped it:
+
+<Output fixture="concept-tables" output="explain-date-fns.txt" />
+
+## Ask about one file
+
+Without a line, `archangel explain` shows the file's part, instance, kind and groups, the rules that
+apply to it, its imports, and the files that import it:
+
+<Output fixture="first-table" output="explain-file.txt" />
+
+## Ask about the whole config
+
+`archangel rules` shows each rule as a sentence, with counts of what it judged:
+
+<Output fixture="first-table" output="rules.txt" />
+
+Read each line as a fact about your tests:
+
+| The output says | It means |
+| --- | --- |
+| `3 files · 3 imports judged` | The rule judged the imports of 3 files. |
+| `1 problem · 0 exceptions` | One judged import broke the rule. No exception comment permits a problem. |
+| `checks nothing: no file is in ...` | The rule found no file. For most rules, this is an error. |
+| `a file in no row is not checked here; add files to check it` | The table has no `files`, so a file with no row is not an error. |
+| `Not judged by any rule: 0 files, 0 imports` | Each file and each import between repository files has a rule. |
+| `Outside packages that no rule names: none.` | Each package that the code imports is in a rule. |
+
+When some files or imports have no rule, `archangel rules` lists each one. That list is the gap in
+your tests. A file in that list can import anything, and no test fails.
+
+<Aside title="Why the counts differ by one">
+  The count in `archangel check` includes the config file. The counts in `archangel rules` do not.
+  So `archangel check` can show one more file.
+</Aside>
+
+## Ask how one file reaches another
+
+`archangel why` shows the shortest chain of imports from a file to another file or a package:
+
+<Output fixture="first-table" output="why.txt" />
+
+`why` shows a chain. It does not judge it. A rule with `transitively: true` judges chains, and its
+report shows the chain that broke it.
+
+## Use it to trust your rules
+
+1. Run `archangel rules` after each change to the config.
+2. Read the rules that check nothing, and the files and imports that no rule judges.
+3. For each item, decide: add a rule, add the file to a row, or accept the gap.
+4. Run `archangel explain` on a file when a result surprises you.

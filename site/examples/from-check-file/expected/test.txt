@@ -1,0 +1,5 @@
+pass  filename-naming-convention  rejected #1  src/lib/formatDate.ts
+pass  folder-naming-convention  rejected #1  src/userProfile/index.ts
+pass  filename-blocklist  rejected #1  src/lib/date.util.ts
+pass  folder-match-with-fex  rejected #1  src/lib/date.test.ts
+4 examples, none failed; 0 rules without a rejected example

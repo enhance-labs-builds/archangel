@@ -12,6 +12,8 @@ entitty = "entitty"
 entiy = "entiy"
 elemnts = "elemnts"
 lyers = "lyers"
+# The exceptions guide of the site shows the error for a rule name with a typo.
+featur = "featur"
 
 # The fuzz corpus is arbitrary input, not prose.
 [files]

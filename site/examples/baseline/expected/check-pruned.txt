@@ -1,0 +1,2 @@
+checked 7 files and 4 imports: no problems
+  app.feature: 0 permitted by exceptions, 2 by the baseline

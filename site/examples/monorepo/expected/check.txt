@@ -1,0 +1,21 @@
+error[may-import]: api may not import ui, through "@acme/ui": api may import only contract, and itself
+ --> apps/api/src/index.ts:2:23
+  |
+2 | import { Price } from '@acme/ui';
+  |                       ^^^^^^^^^^ api may import only contract, and itself
+  |
+  = help: remove the import, or move the code to a file whose row permits the import
+  = note: rule: workspace.api
+  = note: because: An app uses packages. A package never uses an app, and the contract depends on nothing.
+
+error[may-not-import]: apps/api/src/index.ts may not import "zod", because files in "apps/*/src/**" may not import the package `*` that apps/api/package.json does not list
+ --> apps/api/src/index.ts:3:19
+  |
+3 | import { z } from 'zod';
+  |                   ^^^^^ remove the import, or move the code to files that may import it
+  |
+  = note: rule: declared-packages
+  = note: because: Each app lists what it uses in its own package.json, so it builds alone.
+
+checked 5 files and 7 imports: 2 problems
+For what a code means, run `archangel docs may-import` or `archangel docs may-not-import`.

@@ -1,0 +1,115 @@
+---
+title: Tables, rows and cells
+description: How a table decides. Each row is a set of files, and its cells are what those files may import. The table refuses each other import into the repository.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+A table is the main form of an architecture test. It says, for each set of files, what those files
+may import. You can read the whole import architecture of an app in one table.
+
+<Example fixture="concept-tables" file="archangel.config.ts" mark={{ range: '15-23' }} />
+
+## The words
+
+- **Table:** one `mayImport(...)` call. Its name, here `app`, is the first word of each rule that
+  it makes.
+- **Row:** one key of the table, such as `ui`. A row is a set of files: a part, a group, or a
+  [kind](/archangel/concepts/kinds/). Each row is a rule with the name `<table>.<row>`, here
+  `app.ui`. Use this name in an exception, in the baseline and in `off`.
+- **Cell:** one name in the list of a row, such as `'domain'` in `ui: ['domain', 'view']`. A cell
+  is a row, a part, a group, an externals set or a path pattern. Archangel refuses a cell that is
+  none of these.
+
+## How a row decides
+
+Archangel takes each import of each file, one at a time:
+
+<Steps>
+
+1. **Find the row of the importing file.** If the file has no row, no row of this table judges the
+   import.
+
+2. **Find what the import goes to.** For a file in the repository, this is the file. For a
+   package, this is the package name.
+
+3. **Skip the packages that no cell names.** A table judges an import of a package only if a cell
+   of the table, or `everyRowMayImport`, names an externals set that holds the package. Otherwise
+   no row judges the import.
+
+4. **Permit the import if the row permits it.** A row permits only:
+   - the names in its list;
+   - its own name, in the same [instance](/archangel/concepts/captures-and-instances/). Use
+     `mayNotImportItself` to remove this;
+   - the names in `everyRowMayImport`.
+
+5. **Refuse all other imports.** The error names the row, the target and what the row permits. If
+   the target has no row in the table, the message says "no row for" the target.
+
+</Steps>
+
+Here is the result for the table above:
+
+<Output fixture="concept-tables" output="check.txt" />
+
+The file `order-store.ts` is in `domain`. It imports `pg`. The externals set `driver` holds `pg`,
+and the cell `driver` is on the row `db`, so the table judges this import. The row `domain` does not
+list `driver`, so it refuses the import.
+
+The row `domain` permits `log`, because `everyRowMayImport` adds `log` to each row.
+
+## A package that no cell names
+
+`order-row.ts` imports `date-fns`. No externals set holds `date-fns`, so the table does not judge
+the import. `archangel explain` shows that each row skipped it:
+
+<Output fixture="concept-tables" output="explain-date-fns.txt" />
+
+`archangel rules` also lists it at the end, as a package that no rule names:
+
+<Output fixture="concept-tables" output="rules.txt" />
+
+<Aside type="caution" title="A row with an empty list can still import each package">
+  `domain: []` refuses each import into the repository. But it refuses a package only when a cell
+  somewhere in the table names that package. To refuse all packages that a row does not list, put
+  each package that your code uses in an externals set, and name the sets in the cells. You can
+  also write a separate rule, for example with `mayNotImport: { packages: ['react'] }`.
+</Aside>
+
+## Each file has a row
+
+Each table makes one more rule: `<table>.every-file-has-a-kind`. It refuses a file in the table's
+`files` that has no row.
+
+- Without `files`, the table has no set of files to check, so this rule checks nothing.
+  `archangel rules` says this on the rule's line: "a file in no row is not checked here; add
+  `files` to check it".
+- With `files`, each file in that set must have a row. A new file with no row is then an error,
+  not a file that no rule judges. [Kinds](/archangel/concepts/kinds/) shows this.
+- Only source files count. The config file is in no table.
+
+## Problems with a table itself
+
+| Error | Cause |
+| --- | --- |
+| [`table-row-overlap`](/archangel/reference/diagnostics/table-row-overlap/) | Two rows find one file. |
+| [`table-empty`](/archangel/reference/diagnostics/table-empty/) | The table has no row, or its rows find no file. |
+
+A single row with no file is not an error, because you can write a row before its first file
+exists. `archangel check` and `archangel rules` list that row.
+
+## Tables need no written example
+
+A rule that is not a table row must have a rejected example. A table row does not need one:
+
+- `archangel rules` shows what each row judged;
+- a table whose rows find no file is the error `table-empty`;
+- a cell that names nothing is a config error.
+
+You can still write examples for a table. They run against all its rows.
+[Examples prove rules](/archangel/concepts/examples/) tells you how.
+
+[The table reference](/archangel/reference/tables/) lists each option: `kinds`, `files`, `within`,
+`everyRowMayImport`, `mayNotImportItself` and the import options.

@@ -1,0 +1,19 @@
+error[must-not-exist]: src/lib/money.util.ts must not exist, because it is in **/*.util.ts
+--> src/lib/money.util.ts
+ = help: move the file to where the architecture puts it, or delete it
+ = note: rule: filename-blocklist
+ = note: because: Name it *.helpers.ts.
+
+error[must-not-exist]: src/lib/parse-price.test.ts must not exist, because it is in all of (**/*.test.ts, not **/__tests__/**)
+--> src/lib/parse-price.test.ts
+ = help: move the file to where the architecture puts it, or delete it
+ = note: rule: folder-match-with-fex
+ = note: because: A test file goes in a __tests__ folder.
+
+error[must-be-named]: the name of parsePrice.ts is parsePrice, which is not kebab-case; in kebab-case the file is parse-price.ts
+--> src/lib/parsePrice.ts
+ = help: name it parse-price.ts
+ = note: rule: filename-naming-convention
+
+checked 6 files and 4 imports: 3 problems
+For what a code means, run `archangel docs must-not-exist` or `archangel docs must-be-named`.

@@ -1,0 +1,32 @@
+folder-names  archangel.config.ts:5
+  because: One style for folders, so an import path is easy to guess.
+  folders in src/** must have names in kebab-case
+    6 folders · 1 problem
+
+component-names  archangel.config.ts:12
+  because: A component file has the name of the component.
+  files in src/components/**/*.tsx must have names in PascalCase
+    2 files · 1 problem
+
+component-exports  archangel.config.ts:19
+  because: Code imports a component by the name of its file.
+  files in src/components/**/*.tsx must export a name that matches {FileName}
+    2 files · 0 problems
+
+ui-file-names  archangel.config.ts:28
+  because: A view only shows data. A container gets the data.
+  files in src/features/*/ui/**/*.tsx must have full names that match *.view or *.container
+    4 files · 1 problem
+
+feature-entry  archangel.config.ts:35
+  because: Other code imports a feature through its index file.
+  each folder in src/features/* must have a file that matches index.ts
+    2 folders · 1 problem
+
+Files that no rule judges: 1
+  src/features/cart/index.ts
+Imports between repository files that no rule judges: 3
+  src/features/cart/index.ts:1 imports src/features/cart/ui/cart.container.tsx
+  src/features/cart/ui/cart.container.tsx:1 imports src/features/cart/ui/cart.view.tsx
+  src/features/cart/ui/cart.view.tsx:1 imports src/features/cart/ui/cart-row.tsx
+Outside packages that no rule names: none.

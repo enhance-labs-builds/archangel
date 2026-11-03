@@ -1,0 +1,152 @@
+---
+title: Write a plugin
+description: Write your own condition in TypeScript, use it in a rule, prove it with examples, and publish it.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+This guide writes a plugin with two conditions, uses them in rules, and proves them with examples.
+Use a plugin when the [built-in conditions](/archangel/reference/conditions/) cannot say what you
+want.
+
+## Before you start
+
+- Read [Getting started](/archangel/start/getting-started/).
+- Your config is `archangel.config.ts`. A JSON config cannot load a plugin, because a plugin is
+  code.
+
+## How a plugin works
+
+1. Archangel makes a map of your code. For each file, the map has its path, its part, its groups,
+   what it imports, what imports it, and what it exports.
+2. A rule names a condition and some files.
+3. Archangel calls the condition's `check` function with the part of the map that the rule's files
+   cover. `check` gives back a list of problems.
+
+The plugin runs in the Node process that loads your config, not in archangel's own process.
+
+## Write the plugin
+
+<Steps>
+
+1. Write the conditions in `plugins/team.ts`:
+
+   <Example fixture="plugin" file="plugins/team.ts" />
+
+   A condition has these fields:
+
+   | Field | What it is |
+   | --- | --- |
+   | `name` | The name that a rule uses after the plugin name, for example `team/max-imports`. |
+   | `description` | One sentence that says what the condition requires. |
+   | `reads` | The facts that `check` needs: `'imports'`, `'importers'` or `'exports'`. Archangel sends only these. |
+   | `optionsSchema` | A JSON Schema for the `options` of a rule. Archangel refuses a rule whose options do not match it. It is optional. |
+   | `check` | The function. Archangel calls it as `check(view, options)`. |
+
+   `max-imports` reads `imports`, and refuses a file that imports more than `max` other files. `no-orphans`
+   reads `importers`, and refuses a file that no other file imports.
+
+2. Load the plugin in the config, and use each condition in a rule:
+
+   <Example fixture="plugin" file="archangel.config.ts" />
+
+   - `plugins: { team }` loads the plugin with the name `team`.
+   - `plugin: 'team/max-imports'` names the condition.
+   - `options` goes to `check` without changes.
+
+</Steps>
+
+## Prove and run the plugin
+
+<Steps>
+
+1. Run the examples:
+
+   <Output fixture="plugin" output="test.txt" />
+
+   A one-line example does not work for a plugin condition, because archangel cannot know which
+   text of a file the condition reads. Write the files of each example yourself, as in the config
+   above.
+
+2. Check the repository:
+
+   <Output fixture="plugin" output="check.txt" />
+
+   `src/features/cart/index.ts` has four imports. `src/shared/dates.ts` is a file that nothing
+   imports.
+
+3. See what the rules judged:
+
+   <Output fixture="plugin" output="rules.txt" />
+
+   A plugin rule judges files, not imports. So `archangel rules` lists the imports of the cart as
+   not judged. The plugin file itself is a source file, and no rule judges it.
+
+</Steps>
+
+## What `check` receives
+
+`view.files` has one entry for each file of the rule's `files`, sorted by path. Each entry has
+these fields:
+
+| Field | What it is |
+| --- | --- |
+| `path` | The path from the config folder. |
+| `element` | The part of the file, or `null`. |
+| `captures` | The values of the part's captures, for example `{ "feature": "cart" }`. |
+| `selectors` | The groups that hold the file. |
+| `imports` | Only when the condition reads `'imports'`. Each import has `specifier`, `occurrence`, `line`, `column`, `kind` (`'runtime'` or `'type'`), `names`, `file` and `package`. |
+| `importers` | Only when the condition reads `'importers'`. The paths of the files that import this file. |
+| `exports` | Only when the condition reads `'exports'`. It has `names`, `default` and `star`. |
+
+The TypeScript types are in `@enhance-eng/archangel`: `View`, `FileRecord`, `ImportRecord`,
+`ExportsRecord` and `Violation`. [Plugin API](/archangel/reference/plugin-api/) lists each field.
+
+## What a problem can say
+
+A problem names a file of the view, or a folder that holds a file of the view:
+
+```ts
+{ file: 'src/features/cart/index.ts', message: 'src/features/cart/index.ts imports 4 files, and the limit is 2' }
+```
+
+A problem can also name an import. Then an exception comment above that import can permit it:
+
+```ts
+{ file: 'src/a.ts', import: { specifier: './b', occurrence: 0 }, message: 'a.ts may not import b.ts' }
+```
+
+`check` can also give back a promise of a list.
+
+## When a plugin fails
+
+A plugin rule never passes because its code did not run. Archangel shows `plugin-failed`, and the
+check fails, when:
+
+- a condition throws an error;
+- a condition reports a file that is not in its view;
+- the plugin process stops.
+
+Each line that a plugin prints goes to standard error, or to the editor's log, with the name of the
+plugin.
+
+<Aside title="In the editor">
+  The language server shows archangel's own problems at once. It shows the problems of a plugin
+  when the plugin answers.
+</Aside>
+
+## Publish a plugin
+
+- Name the package `archangel-plugin-<name>` or `@scope/archangel-plugin`.
+- A new field in the view does not change `schemaVersion`. A plugin reads only the fields that it
+  knows, so a new release of archangel does not break it.
+- To give a set of rules with the plugin, publish a preset next to it. A preset is a function that
+  returns part of a config. Read [Presets](/archangel/reference/presets/).
+
+## Next steps
+
+- [Plugin API](/archangel/reference/plugin-api/).
+- [Migrate from dependency-cruiser](/archangel/guides/from-dependency-cruiser/). The condition
+  `no-orphans` on this page does the work of the dependency-cruiser rule of the same name.

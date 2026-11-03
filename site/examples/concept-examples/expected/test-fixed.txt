@@ -1,0 +1,5 @@
+pass  feature-entry  accepted #1  src/features/search/index.ts, src/features/search/query.ts
+pass  feature-entry  rejected #1  src/features/search/query.ts
+pass  no-react-in-shared  accepted #1  src/shared/format.ts, src/shared/money.ts
+pass  no-react-in-shared  rejected #1  src/shared/format.ts
+4 examples, none failed; 0 rules without a rejected example

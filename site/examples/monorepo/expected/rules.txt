@@ -1,0 +1,21 @@
+workspace  4 rows  archangel.config.ts:11
+  because: An app uses packages. A package never uses an app, and the contract depends on nothing.
+
+  workspace.web: web may import only ui, contract, and itself
+    1 file · 2 imports judged · 0 problems · 0 exceptions
+  workspace.api: api may import only contract, and itself
+    1 file · 2 imports judged · 1 problem · 0 exceptions
+  workspace.ui: ui may import only itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.contract: contract may import only itself
+    1 file · 0 imports judged · 0 problems · 0 exceptions
+  workspace.every-file-has-a-kind: a file in no row is not checked here; add `files` to check it
+    4 files · 0 problems
+
+declared-packages  archangel.config.ts:20
+  because: Each app lists what it uses in its own package.json, so it builds alone.
+  files in apps/*/src/** may not import * that the nearest package.json does not list
+    2 files · 1 import judged · 1 problem · 0 exceptions
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: none.

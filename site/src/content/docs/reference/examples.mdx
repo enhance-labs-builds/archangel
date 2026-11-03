@@ -1,0 +1,141 @@
+---
+title: Examples
+description: How to write the examples that prove a rule, the one-line form and its limits, and what archangel test checks.
+---
+
+import Output from '../../../components/Output.astro';
+
+An example is code that a rule must accept or must reject. `archangel test` checks each example.
+A rule that cannot reject its example is wrong, for example because a path in it has a typing
+error. For why, read [Examples prove rules](/archangel/concepts/examples/).
+
+```ts
+rule('no-react-in-shared', {
+  files: 'shared',
+  mayNotImport: { packages: ['react'] },
+  examples: {
+    accepted: ['src/shared/price.ts imports src/shared/money.ts'],
+    rejected: ['src/shared/price.ts imports react'],
+  },
+})
+```
+
+| Key | Type | What it holds |
+| --- | --- | --- |
+| `accepted` | list of examples | code that the rule must accept |
+| `rejected` | list of examples | code that the rule must reject |
+
+An example is one line, or an object of files.
+
+## Each rule needs a rejected example
+
+`archangel test` fails for a rule that has no rejected example, with
+[`rule-unproven`](/archangel/reference/diagnostics/rule-unproven/). Only a rejected example shows
+that the rule can find a problem.
+
+A table row needs no written example. `archangel rules` shows what each row judged, and a table
+that finds no file is the error `table-empty`. The rule `<table>.every-file-has-a-kind` needs no
+example either.
+
+## One line
+
+Write an example on one line. Archangel makes the files for you.
+
+| One line | The files that archangel makes |
+| --- | --- |
+| `'src/a.ts imports src/b.ts'` | Two files. `src/a.ts` imports `src/b.ts`. |
+| `'src/a.ts imports react'` | One file, which imports the package. |
+| `'src/a.ts imports src/b.ts imports src/a.ts'` | Two files that import each other. |
+| `'src/app/ui.ts'` | One empty file. |
+
+Each file holds one runtime import with a relative specifier for each `imports` after its path, and
+nothing else.
+
+A target is a file when it has a `/`, ends in `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`
+or `.cjs`, and does not start with `@` or `node:`. Each other target is a package. So `chart.js` is a
+package. Write a file in the config folder as `./b.ts`. A package path such as `lodash/fp.js` needs
+an object of files.
+
+The package of an example must be installed, because archangel resolves the import as usual. An
+example that imports a package that is not installed fails, and the message says that it proves
+nothing.
+
+### Where one line is refused
+
+A file made from one line holds only runtime imports. So archangel refuses one line when the text
+of the file decides the result:
+
+- a rule with `names`, `specifier`, `dependency` or `imports: 'types'`;
+- a rule whose files, other side or `stopAt` select files by directive;
+- an export condition: `mustExport`, `mayNotExport`, `mustOnlyReExport`;
+- a plugin condition.
+
+The message names the rule and tells you to write the files.
+
+## An object of files
+
+Write each file with its path and its text:
+
+```ts
+isolate('feature', {
+  examples: {
+    accepted: [{ 'src/features/login/a.ts': "import './b';", 'src/features/login/b.ts': '' }],
+    rejected: [{ 'src/features/login/a.ts': "import '../signup/c';", 'src/features/signup/c.ts': '' }],
+  },
+})
+```
+
+- A path starts at the config folder.
+- A `package.json` among the files, outside `node_modules`, is a package manifest for that example.
+  It replaces the manifest of the repository at the same path. Use it to prove a rule with
+  `dependency`.
+- An example cannot add a workspace package.
+- A file of an example that does not parse makes the example fail with `parse-failed`.
+
+## Examples run on top of your repository
+
+Archangel puts the files of an example into a check in memory. It does not write a file.
+
+The example sees the files of your repository too:
+
+- A file of an example can import a file of the repository.
+- A file of an example at the path of a repository file replaces that file, for that example only.
+- Other repository files stay. So a folder of an example can already hold files of the repository.
+
+For example, a rule says that each folder in `src/features/*` must contain `index.ts`. A rejected
+example `'src/features/cart/ui/cart.view.tsx'` fails when your repository already has
+`src/features/cart/index.ts`, because the folder then has its `index.ts`. Use a folder that does not
+exist, such as `src/features/search/ui/search.view.tsx`.
+
+## When an example passes
+
+| Example | It passes when |
+| --- | --- |
+| rejected | its own rule gives a problem that involves a file of the example |
+| accepted | its own rule gives no problem that involves a file of the example, and its rule looked at one of them |
+
+- When only other rules reject a rejected example, it fails, and the message names those rules:
+  [`example-failed`](/archangel/reference/diagnostics/example-failed/).
+- An accepted example that its rule never looked at proves nothing:
+  [`example-proves-nothing`](/archangel/reference/diagnostics/example-proves-nothing/). An import
+  rule looks at imports. A rule about files looks at files. A folder rule looks at folders.
+- A `mustNotExist` rule rejects each file that it looks at, so it can have only rejected examples.
+
+## Examples of a table
+
+A table row needs no example, but you can write examples for a table. They run against all its
+rows. A rejected example passes when one row refuses one of its imports. An accepted example passes
+only when a row judged one of its imports.
+
+## Examples of a preset
+
+Archangel checks the examples of a preset in your repository, under the preset's `root`, with your
+tsconfig.
+
+## The output
+
+`archangel test` prints one line for each example, and a summary:
+
+<Output fixture="first-table" output="test.txt" />
+
+It exits with 0 only when each example passes and each rule has a rejected example.

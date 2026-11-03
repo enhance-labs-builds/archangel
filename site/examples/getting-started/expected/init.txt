@@ -1,0 +1,3 @@
+wrote archangel.config.ts with 2 parts: features, shared
+It imports `@enhance-eng/archangel`, so install the package first: npm install --save-dev @enhance-eng/archangel
+Write what each part may import in a table, then run `archangel check`; `archangel docs may-import` shows how.

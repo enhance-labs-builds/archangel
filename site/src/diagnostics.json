@@ -1,0 +1,27 @@
+[
+  {
+    "group": "Rule violations",
+    "about": "The code broke a rule of the config. The check fails with exit code 1.",
+    "codes": ["may-import", "every-file-has-a-kind", "layers", "isolate", "entry", "may-not-import", "may-only-import", "may-only-be-imported-by", "no-cycles", "must-not-exist", "must-be-named", "must-contain", "must-export", "may-not-export", "must-only-re-export", "plugin"]
+  },
+  {
+    "group": "Config problems",
+    "about": "The config has an error, or a rule in it can never find a problem.",
+    "codes": ["config-missing", "config-needs-node", "config-load-failed", "config-invalid", "pattern-invalid", "rule-unknown-element", "rule-needs-capture", "rule-name-duplicate", "part-overlap", "element-empty", "selector-empty", "preset-empty", "table-empty", "table-row-overlap"]
+  },
+  {
+    "group": "Repository problems",
+    "about": "Archangel could not read a file, an import or a setting of the repository.",
+    "codes": ["file-unreadable", "parse-failed", "import-unresolved", "resolution-file-invalid", "ignore-line-invalid", "exports-unknown"]
+  },
+  {
+    "group": "Exceptions and the baseline",
+    "about": "An exception comment or the baseline file has a problem.",
+    "codes": ["exception-without-reason", "exception-unknown-rule", "exception-unused", "baseline-invalid", "baseline-stale"]
+  },
+  {
+    "group": "Examples and plugins",
+    "about": "A rule is not proved, an example failed, or a plugin did not run.",
+    "codes": ["rule-unproven", "example-proves-nothing", "example-failed", "plugin-failed"]
+  }
+]

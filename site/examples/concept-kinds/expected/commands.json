@@ -1,0 +1,6 @@
+[
+  { "args": ["check"], "output": "check.txt", "status": 1 },
+  { "args": ["explain", "src/orders/place-order.service.ts"], "output": "explain-service.txt", "status": 0 },
+  { "later": { "archangel.config.ts": "archangel.config.ts" }, "args": ["check"], "output": "check-helpers.txt", "status": 0 },
+  { "args": ["rules"], "output": "rules.txt", "status": 0 }
+]

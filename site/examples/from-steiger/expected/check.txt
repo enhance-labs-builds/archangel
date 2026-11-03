@@ -1,0 +1,16 @@
+error[may-not-import]: src/features/login/ui/login-form.ts may not import "../../signup", because files in "features" may not import "all of (fsd/features, not src/features/*/@x/**)"
+ --> src/features/login/ui/login-form.ts:1:28
+  |
+1 | import { signupLink } from '../../signup';
+  |                            ^^^^^^^^^^^^^^ remove the import, or move the code to files that may import it
+  |
+  = note: rule: fsd/forbidden-imports
+  = note: reason: A module may import only from layers below its own, and a slice not from another slice of its layer, except through @x.
+  = note: see: https://feature-sliced.github.io/steiger/rules/forbidden-imports
+
+checked 8 files and 8 imports: 1 problem
+  fsd/shared matches nothing in this repository
+  fsd/entities matches nothing in this repository
+  fsd/widgets matches nothing in this repository
+  fsd/processes matches nothing in this repository
+For what a code means, run `archangel docs may-not-import`.

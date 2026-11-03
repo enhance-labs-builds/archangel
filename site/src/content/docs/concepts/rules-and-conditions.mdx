@@ -1,0 +1,103 @@
+---
+title: Rules and conditions
+description: A rule has a set of files and one condition, and reads as a sentence. Tables, shorthands, folder rules and plugin rules are forms of rules.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+Each test in a config is a **rule**. A rule has a set of files and one **condition**: what those
+files must do, or must not do. You can read each rule as a sentence:
+
+```ts
+rule('no-react-in-shared', { files: 'shared', mayNotImport: { packages: ['react'] } })
+```
+
+"Files in `shared` may not import `react`."
+
+## The forms of a rule
+
+| Form | Write it as | Use it for |
+| --- | --- | --- |
+| Table | `mayImport(name, rows, options)` | What each set of files may import. Each row is a rule. |
+| Rule | `rule(name, { files, condition })` | One decision about a set of files. |
+| Folder rule | `rule(name, { folders, condition })` | Names, contents or presence of folders. |
+| Rule of several sentences | `rule(name, { sentences })` | One decision that needs more than one condition. |
+| Shorthand | `layers(parts)`, `isolate(part)`, `entry(part, files)` | Common import rules, in one line. |
+| Plugin rule | `rule(name, { files, plugin, options })` | A condition that you write in TypeScript. |
+
+This config has a shorthand of each type, a rule that follows chains of imports, and a rule of two
+sentences:
+
+<Example fixture="concept-rules" file="archangel.config.ts" />
+
+`archangel rules` writes each rule as the sentences that it checks. Read this output to see what
+your config says:
+
+<Output fixture="concept-rules" output="rules.txt" />
+
+- `layers(...)` becomes one sentence for each part after the first.
+- A shorthand without a `name` gets a name from the rule itself, such as
+  `layers(app, feature, shared)`.
+- `no-utils` checks nothing in this repository, because no file is in `utils`. That is correct for
+  a rule that says "must not exist". Archangel tells you, so that you can see it.
+
+## The conditions
+
+A rule has exactly one condition. The conditions are in three groups.
+
+| Group | Conditions | A rule reports |
+| --- | --- | --- |
+| Imports | `mayNotImport`, `mayOnlyImport`, `mayOnlyBeImportedBy`, `noCycles` | An import, or a cycle of imports. |
+| Structure | `mustNotExist`, `mustBeNamed`, `mustContain` | A file or folder that exists, has the wrong name, or lacks a file. |
+| Exports | `mustExport`, `mayNotExport`, `mustOnlyReExport` | A file that exports the wrong names, or has code of its own. |
+
+Each condition is in [the conditions reference](/archangel/reference/conditions/), with an example.
+
+### Make an import condition narrower
+
+An import condition can apply to some imports only. Add an option such as `names`,
+`specifier`, `instance`, `dependency` or `within`:
+
+```ts
+rule('no-effects-in-view', {
+  files: 'view',
+  mayNotImport: { packages: ['react'] },
+  names: ['useEffect'],
+  examples: { rejected: [{ 'src/view/a.ts': "import { useEffect } from 'react';" }] },
+})
+```
+
+"Files in `view` may not import `useEffect` from `react`." The
+[import options reference](/archangel/reference/import-options/) lists each option.
+
+### Follow chains of imports
+
+A rule with `transitively: true` refuses a chain of imports, not only a direct import. In the
+config above, `no-react-in-shared` refuses `shared/a.ts → shared/b.ts → react`. The report shows the
+shortest chain. `stopAt` ends a chain at some files. A transitive rule counts only runtime imports,
+because a chain of type imports never runs.
+
+## Options for each rule
+
+| Option | What it does |
+| --- | --- |
+| `name` | The name in each report, exception and baseline entry. Write it first in `rule('name', { ... })`. |
+| `because` | Your reason. Each report shows it. Tell the next reader why the rule exists. |
+| `link` | A link that each report shows. |
+| `imports` | `'all'`, `'runtime'` or `'types'`: which imports the rule counts. |
+| `examples` | Code that the rule must accept, and code that it must reject. |
+
+<Aside type="caution" title="A folder rule with mustNotExist">
+  A `mustNotExist` rule on `files` that finds no file is not an error, because no file is the goal.
+  In archangel 0.3.1, a `mustNotExist` rule on `folders` that finds no folder gives
+  [`selector-empty`](/archangel/reference/diagnostics/selector-empty/). To say that a folder must
+  not exist, select its files, for example `files: 'src/**/utils/**'`, as `no-utils` does above.
+</Aside>
+
+## One rule, one decision
+
+Write one rule for each decision, and give it a `because`. A problem then names the decision that
+the code broke, and the reason for it. A rule with a reason is easy to keep, change or delete. A
+rule without a reason is hard to question.

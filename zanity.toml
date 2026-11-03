@@ -57,3 +57,21 @@ disable = [
   # turn dead_code off; a test crate that uses none of a helper is the normal case.
   "relaxed-check",
 ]
+
+[paths."site/examples/"]
+disable = [
+  # Each fixture is a small repository that one page shows in full, so a reader can copy it alone.
+  # Fixtures repeat names and simple code on purpose, and some hold the mistake that the page fixes.
+  "duplicate-name",
+  "passthrough-wrapper",
+  "structural-twins",
+  "recursion",
+  "parameter-log-message",
+]
+
+[paths."site/test/"]
+disable = [
+  # The site's tests prove that its pages and fixture files agree with archangel, so they read those
+  # files where they are; every file that a test writes goes in a temporary folder.
+  "filesystem-in-test",
+]

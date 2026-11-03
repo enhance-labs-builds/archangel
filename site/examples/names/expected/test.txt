@@ -1,0 +1,6 @@
+pass  folder-names  rejected #1  src/features/UserProfile/index.ts
+pass  component-names  rejected #1  src/components/user-avatar.tsx
+pass  component-exports  rejected #1  src/components/Avatar.tsx
+pass  ui-file-names  rejected #1  src/features/cart/ui/cart-list.tsx
+pass  feature-entry  rejected #1  src/features/search/ui/search.view.tsx
+5 examples, none failed; 0 rules without a rejected example

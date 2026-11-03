@@ -1,0 +1,240 @@
+---
+title: Conditions
+description: Each condition of a rule, for files and for folders, and the rule forms that hold them.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+A rule has some files and one condition. Read it as a sentence: "These files may not import
+React."
+
+```ts
+rule('no-react-in-shared', { files: 'shared', mayNotImport: { packages: ['react'] }, examples: { rejected: ['src/shared/a.ts imports react'] } })
+```
+
+## Rule forms
+
+| Form | What it is |
+| --- | --- |
+| `rule('<name>', { files: ..., <condition>: ... })` | A rule about files, with its name first. |
+| `rule({ name: '<name>', files: ..., <condition>: ... })` | The same rule, with the name as an option. |
+| `rule('<name>', { folders: ..., <condition>: ... })` | A rule about folders. |
+| `rule('<name>', { sentences: [...] })` | One name for a group of conditions. |
+| `rule('<name>', { files: ..., plugin: ..., options: ... })` | A rule with a plugin condition. Read [Plugin API](/archangel/reference/plugin-api/). |
+
+A rule without a name gets a name from its condition, for example `isolate(feature)`. Give each
+rule a name, because you use it in `off`, in exception comments and in the baseline.
+
+A rule's own name cannot have a `/`. Only the names of a preset have a prefix, such as
+`fsd/public-api`. To replace a preset rule, write a rule with the same name.
+
+Each rule that is not a table row needs a rejected example. Read
+[Examples](/archangel/reference/examples/).
+
+## Import conditions
+
+| Condition | Value | Archangel reports |
+| --- | --- | --- |
+| `mayNotImport` | the other side | an import from the files into the other side |
+| `mayOnlyImport` | the other side | an import from the files into something that is not on the other side |
+| `mayOnlyBeImportedBy` | the other side | an import into the files from a file that is not on the other side |
+| `noCycles` | `true` | files that import each other in a cycle |
+
+The other side is a [set of files](/archangel/reference/sets-of-files/), packages, or a list of these.
+
+### `mayNotImport`
+
+```ts
+rule('ui-not-to-db', { files: 'ui', mayNotImport: 'db', examples: { rejected: ['src/ui/a.ts imports src/db/a.ts'] } })
+```
+
+Add `transitively: true` to find chains of imports. Read [Import options](/archangel/reference/import-options/#transitively).
+
+### `mayOnlyImport`
+
+```ts
+rule('views-import-little', { files: 'view', mayOnlyImport: ['shared', { packages: ['react'] }], examples: { rejected: ['src/view/a.ts imports src/db/a.ts'] } })
+```
+
+- The rule always permits its own files. When `files` is one part with a capture, it permits only
+  the files of the same instance. To permit each instance, add the part to the list.
+- Without `within`, the rule judges each import, packages too.
+- An empty list is a config error, unless the rule has `within`. With `within`, an empty list
+  refuses each import into the area, except into the rule's own files.
+
+### `mayOnlyBeImportedBy`
+
+```ts
+rule('db-behind-api', { files: 'db', mayOnlyBeImportedBy: 'api', examples: { rejected: ['src/view/a.ts imports src/db/a.ts'] } })
+```
+
+The rule permits imports from its own files. An import from a file that is in no part is a
+problem too.
+
+### `noCycles`
+
+```ts
+rule('no-cycles', { files: 'src/**', noCycles: true, examples: { rejected: ['src/a.ts imports src/b.ts imports src/a.ts'] } })
+```
+
+- The rule reports each group of files that import each other. The report lists each file of the
+  group and shows the shortest cycle.
+- It counts only runtime imports by default. The compiler removes an `import type`, so a cycle of
+  type imports cannot break when the code runs. To count type imports too, add `imports: 'all'`.
+
+## Structure conditions
+
+| Condition | Value | Archangel reports |
+| --- | --- | --- |
+| `mustNotExist` | `true` | each file, or folder, that the rule finds |
+| `mustBeNamed` | a style, a name pattern, or a list of these | a name that does not match |
+| `mustContain` | a path pattern, or a list of patterns | an instance or a folder that has no matching file |
+
+### `mustNotExist`
+
+```ts
+rule('every-file-in-a-part', { files: { all: ['src/**', { not: { element: '*' } }] }, mustNotExist: true, examples: { rejected: ['src/stray.ts'] } })
+```
+
+This rule reports each file in `src` that is in no part.
+
+### `mustBeNamed`
+
+```ts
+rule('component-names', { files: 'src/view/**/*.tsx', mustBeNamed: 'PascalCase', examples: { rejected: ['src/view/user-avatar.tsx'] } })
+```
+
+```ts
+rule('ui-file-names', { files: 'src/ui/**/*.tsx', mustBeNamed: ['*.view', '*.container'], examples: { rejected: ['src/ui/list.tsx'] } })
+```
+
+A file has two names:
+
+| File | Name | Full name |
+| --- | --- | --- |
+| `button.view.tsx` | `button` | `button.view` |
+| `UserCard.tsx` | `UserCard` | `UserCard` |
+
+The **name** is the text up to the first dot. The **full name** is the text without the last
+extension.
+
+- A **style** checks the name: `kebab-case`, `camelCase`, `PascalCase`, `snake_case` or
+  `SCREAMING_SNAKE_CASE`.
+- A **name pattern** checks the full name. In a name pattern, `*` is any text or no text. `*.view`
+  matches `cart.view.tsx`. It does not match `view.tsx` or `cart.view.extra.tsx`.
+- A name pattern can use the name of the file, or of the folder that holds it, in each style:
+
+| Spelling | Example for `src/user-profile/avatar-image.tsx` |
+| --- | --- |
+| `{FileName}` | `AvatarImage` |
+| `{fileName}` | `avatarImage` |
+| `{file-name}` | `avatar-image` |
+| `{file_name}` | `avatar_image` |
+| `{FILE_NAME}` | `AVATAR_IMAGE` |
+| `{FolderName}`, `{folderName}`, `{folder-name}`, `{folder_name}`, `{FOLDER_NAME}` | `UserProfile`, `userProfile`, `user-profile`, `user_profile`, `USER_PROFILE` |
+
+```ts
+rule('test-names', { files: 'src/**/*.test.ts', mustBeNamed: '{folder-name}.test', examples: { rejected: ['src/cart/total.test.ts'] } })
+```
+
+A list passes when one entry matches. A list with one entry gives the same result and the same
+message as the single value. An empty list is a config error. Each entry follows the rules of a
+single value.
+
+### `mustContain`
+
+```ts
+rule('feature-index', { files: 'feature', mustContain: ['index.ts', 'index.tsx'], examples: { rejected: ['src/features/search/model.ts'] } })
+```
+
+- With `files`, the files must be one part with a capture. The pattern starts at the root of each
+  instance. Other `files` give [`rule-needs-capture`](/archangel/reference/diagnostics/rule-needs-capture/).
+- With `folders`, the pattern starts at each folder.
+- In a list, one match is sufficient.
+
+## Export conditions
+
+| Condition | Value | Archangel reports |
+| --- | --- | --- |
+| `mustExport` | a name pattern | a file that exports no name that matches |
+| `mayNotExport` | `'default'`, `'star'` or a name pattern | each export of that type |
+| `mustOnlyReExport` | `true` | a file with code of its own |
+
+### `mustExport`
+
+```ts
+rule('view-exports', { files: 'src/view/**/*.tsx', mustExport: '{FileName}', examples: { rejected: [{ 'src/view/Avatar.tsx': 'export function Picture() {}' }] } })
+```
+
+Re-exports count, and so do the names that an `export *` chain brings in.
+
+### `mayNotExport`
+
+```ts
+rule('no-default-exports', { files: 'src/**', mayNotExport: 'default', examples: { rejected: [{ 'src/a.ts': 'export default 1;' }] } })
+```
+
+- `'default'` refuses a default export.
+- `'star'` refuses `export *` and `export * as`.
+- A name pattern refuses each named export that matches it.
+
+Archangel reports one problem for each such export, on its line.
+
+### `mustOnlyReExport`
+
+```ts
+rule('index-only-re-exports', { files: 'src/**/index.ts', mustOnlyReExport: true, examples: { rejected: [{ 'src/shared/index.ts': 'export const a = 1;' }] } })
+```
+
+A file passes when each top-level statement is an import, an `export ... from`, a directive, or an
+`export { ... }` of names that the file imported. A type declaration counts as code of the file.
+
+<Aside>
+  An export condition decides from the text of a file. So it needs examples with the text of each
+  file, not [one-line examples](/archangel/reference/examples/).
+</Aside>
+
+## Rules about folders
+
+Write `folders` instead of `files`. A folder rule can use `mustBeNamed`, `mustContain` or
+`mustNotExist`.
+
+```ts
+rule('folder-names', { folders: 'src/**', mustBeNamed: 'kebab-case', examples: { rejected: ['src/UserProfile/a.ts'] } })
+```
+
+```ts
+rule('shared-entry', { folders: ['src/shared/*', '!src/shared/{ui,lib}'], mustContain: ['index.ts', 'index.tsx'], examples: { rejected: ['src/shared/money/format.ts'] } })
+```
+
+- A pattern finds the folders below its fixed part. So `src/**` is each folder inside `src`, not
+  `src` itself.
+- A pattern that starts with `!` removes folders, as in `.gitignore`.
+- Archangel checks each folder one time, however many files it holds.
+- For `mustBeNamed` on folders, an entry cannot use the file name.
+
+## A rule with more than one condition
+
+Use `sentences` to give one name to a group of conditions. The rule fails when one of them fails.
+
+```ts
+rule('no-ui-in-app', {
+  sentences: [
+    { folders: 'src/app/ui', mustNotExist: true },
+    { files: 'src/app/ui.*', mustNotExist: true },
+  ],
+  examples: { rejected: ['src/app/ui.ts'] },
+})
+```
+
+A sentence holds `files` or `folders`, one condition, and the options of that condition. The rule
+holds `name`, `because`, `link`, `examples` and `imports`. A sentence can also be a shorthand,
+written with its `kind`, such as `{ kind: 'isolate', element: 'feature' }`.
+
+## In JSON
+
+In a JSON config, each rule is the object that you give to `rule(...)`, with `name` as a field:
+
+```json
+{ "name": "no-react-in-shared", "files": "shared", "mayNotImport": { "packages": ["react"] } }
+```

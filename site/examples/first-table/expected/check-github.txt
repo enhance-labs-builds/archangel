@@ -1,0 +1,2 @@
+::error file=src/features/checkout/checkout.ts,line=1,col=27,endColumn=41,title=archangel app.feature::feature may not import another instance of feature, through "../cart/cart": feature may import only shared, and itself in the same instance%0Ahelp: feature may import only shared, and itself in the same instance%0Areason: A feature changes alone. Code that two features need goes in shared.
+checked 5 files and 4 imports: 1 problem

@@ -1,0 +1,29 @@
+---
+// Shows a command of a fixture and what archangel printed for it. The command comes from the
+// fixture's steps, so the page shows the command that the test ran.
+import { Code } from '@astrojs/starlight/components';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+interface Props {
+  /** The folder in site/examples. */
+  fixture: string;
+  /** The file in the fixture's expected/ folder. */
+  output: string;
+  /** Text to mark in the output. */
+  mark?: number | string | (number | string)[];
+}
+
+const { fixture, output, mark } = Astro.props;
+const folder = join(process.cwd(), 'examples', fixture, 'expected');
+const listed = join(folder, 'commands.json');
+const steps = existsSync(listed)
+  ? JSON.parse(readFileSync(listed, 'utf8'))
+  : ['check', 'test', 'rules'].map((command) => ({ args: [command], output: `${command}.txt` }));
+const step = steps.find((each: { output?: string }) => each.output === output);
+if (!step) throw new Error(`examples/${fixture}: no step writes ${output}`);
+const text = readFileSync(join(folder, output), 'utf8').replace(/\n$/, '');
+const code = `$ npx archangel ${step.args.join(' ')}\n${text}`;
+---
+
+<Code code={code} lang="ansi" frame="terminal" title="Terminal" mark={mark} />

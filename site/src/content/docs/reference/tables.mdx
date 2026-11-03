@@ -1,0 +1,179 @@
+---
+title: Tables
+description: The mayImport table, its rows, cells and options, and the rules that it makes.
+---
+
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+A table says what each set of files may import. It is the main form of an architecture test. For
+the ideas behind it, read [Tables, rows and cells](/archangel/concepts/tables-rows-and-cells/).
+
+```ts
+mayImport(name, rows, options)
+```
+
+| Argument | Type | What it is |
+| --- | --- | --- |
+| `name` | string | The name of the table. It has no `:` and no `/`. |
+| `rows` | object | One row for each set of files. The value is the list of cells. |
+| `options` | object | Optional, except `kinds` for a table of kinds. |
+
+This table has rows of parts:
+
+```ts
+mayImport('backend', {
+  routes: ['services'],
+  services: ['domain', 'db'],
+  db: ['domain', 'driver'],
+  domain: [],
+}, {
+  because: 'A route calls a service. Only db talks to the database.',
+})
+```
+
+## Rows
+
+A row name means, in this order:
+
+1. the declared part or group with that name;
+2. in a table with `kinds`, the kind with that name.
+
+A row cannot name an externals set. Archangel refuses a row name that means nothing, and shows the
+nearest declared name.
+
+Each row is a rule with the name `<table>.<row>`, for example `backend.routes`. Use this name in
+`off`, in an exception comment and in the baseline.
+
+## Cells
+
+A cell is one name in the list of a row. A cell can be:
+
+- the name of a row of the same table;
+- the name of a part, a group or an externals set;
+- a path pattern, such as `'src/config.ts'` or `'src/generated/**'`.
+
+Archangel refuses a cell that is none of these.
+
+## What a row permits
+
+A row permits only:
+
+1. the cells in its list;
+2. its own name, in the same instance. A row of a part with a capture permits imports inside its
+   own instance, and refuses imports into other instances of that part. Use `mayNotImportItself`
+   to remove this;
+3. the cells in `everyRowMayImport`.
+
+The row refuses each other import into the repository. An import of a file that has no row gives
+the message "no row for ...".
+
+**A table judges a package only when a cell names it.** A table judges an import of an outside
+package only when a cell, or `everyRowMayImport`, names an externals set with that package. So a
+row with an empty list can still import each package that no cell names. To refuse a package, put
+it in an externals set and name the set in the cells of the rows that may use it.
+
+## Options
+
+| Option | Type | Default | What it does |
+| --- | --- | --- | --- |
+| `kinds` | path pattern with `{kind}` | none | The pattern that gives each file its kind. With it, a row name can be a kind. Read [Kinds](/archangel/concepts/kinds/). |
+| `files` | set of files | each file with a row | The importers that the table judges. With `files`, each file in the set must have a row. |
+| `within` | set of files | the repository | The area of the table. The rows judge only imports whose target is in the area. |
+| `everyRowMayImport` | list of cells | `[]` | Cells that each row has, for example a file that all code may use. |
+| `mayNotImportItself` | list of row names | `[]` | Rows that may not import their own name, in the same instance or in a different instance. |
+| `because` | string | none | The reason, which each problem shows. |
+| `link` | string | none | A link, which each problem shows. |
+| `examples` | object | none | Examples for the whole table. A row needs no written example. |
+| `imports` | `'all'`, `'runtime'`, `'types'` | `'all'` | The kinds of import that each row counts. |
+| `names`, `specifier`, `instance`, `dependency` | | none | The same as for an import condition. Each row gets the option. Read [Import options](/archangel/reference/import-options/). |
+
+A row that `everyRowMayImport` names cannot be in `mayNotImportItself`.
+
+### `kinds`
+
+```ts
+mayImport('model', {
+  entity: ['value-object'],
+  event: ['entity', 'value-object'],
+  'value-object': [],
+}, {
+  files: 'domain',
+  kinds: 'src/domain/*.{kind}.ts',
+})
+```
+
+| Pattern | File | Kind |
+| --- | --- | --- |
+| `**/*.{kind}.ts` | `src/order/order.entity.ts` | `entity` |
+| `src/features/*/{kind}/**` | `src/features/cart/views/page.tsx` | `views` |
+| `**/{kind}/**/*.{kind}.ts` | `src/entity/user.entity.ts` | `entity` |
+
+`{kind}` can be two times in a pattern. Then the two places must give the same name. A
+declaration file counts `.d.ts` as one extension, so `env.d.ts` has no kind `d`.
+
+A row name that is a declared part or group means that part or group, also when the kind pattern
+gives the same name.
+
+The `files` option does not change the kind of a file. It only chooses the importers that the
+table judges. A file outside `files` still has its kind when a file in `files` imports it.
+
+### `files`
+
+Without `files`, the table judges each file that has a row. A file that has no row is not
+checked, and `archangel rules` lists it under the files that no rule judges.
+
+With `files`, each file in the set must have a row. A file without a row is a problem of the rule
+`<table>.every-file-has-a-kind`, with the code
+[`every-file-has-a-kind`](/archangel/reference/diagnostics/every-file-has-a-kind/). To let a file
+out, use `not` in `files`, or put `<table>.every-file-has-a-kind` in `off`.
+
+### `within`
+
+```ts
+mayImport('domain-model', {
+  entity: ['value-object'],
+  'value-object': [],
+}, {
+  kinds: 'src/domain/*.{kind}.ts',
+  within: 'domain',
+})
+```
+
+With `within`, the table ignores each import whose target is outside the area. Here, a domain file
+can import a package or a file in `shared`, and the table does not judge it.
+
+## The rules that a table makes
+
+A table with the rows `routes` and `services` makes these rules:
+
+| Rule | It refuses |
+| --- | --- |
+| `<table>.routes` | an import of a file in `routes` that its row does not permit |
+| `<table>.services` | an import of a file in `services` that its row does not permit |
+| `<table>.every-file-has-a-kind` | a file in the table's `files` that has no row |
+
+`archangel rules` shows each one as a sentence:
+
+<Output fixture="backend" output="rules.txt" />
+
+## Errors in a table
+
+| Code | When |
+| --- | --- |
+| [`table-empty`](/archangel/reference/diagnostics/table-empty/) | The table has no row, or its rows find no file, so it checks nothing. |
+| [`table-row-overlap`](/archangel/reference/diagnostics/table-row-overlap/) | Two rows find one file. |
+| [`rule-unknown-element`](/archangel/reference/diagnostics/rule-unknown-element/) | A row or a cell names nothing. |
+| [`config-invalid`](/archangel/reference/diagnostics/config-invalid/) | A name has a `:` or a `/`, or an option has a wrong value. |
+
+One row that finds no file is not an error, because you can write a row before its first file
+exists. `archangel check` and `archangel rules` list that row. A table in a preset that checks
+nothing gives one line in the summary, not an error.
+
+## A table in JSON
+
+In a JSON config, a table is an object with `"kind": "mayImport"`, a `name` and its `rows`:
+
+<Example fixture="ref-formats" file="archangel.config.json" />
+
+The options have the same names. For a table of kinds, add `"kinds": "src/features/*/{kind}/**"`.

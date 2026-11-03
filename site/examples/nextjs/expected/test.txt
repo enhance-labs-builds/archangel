@@ -1,0 +1,3 @@
+pass  nextjs/client-stays-client  accepted #1  app/example-actions.ts, app/example-page.tsx
+pass  nextjs/client-stays-client  rejected #1  app/example-helper.ts, app/example-page.tsx
+2 examples, none failed; 0 rules without a rejected example

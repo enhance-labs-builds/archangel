@@ -1,0 +1,3 @@
+pass  declared-packages  rejected #1  apps/web/package.json, apps/web/src/a.ts
+1 examples, none failed; 0 rules without a rejected example
+4 table rows need no written example; `archangel rules` shows what each covers

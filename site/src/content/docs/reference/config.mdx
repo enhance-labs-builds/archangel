@@ -1,0 +1,274 @@
+---
+title: Config file
+description: Where archangel finds its config, the two formats, and each top-level key.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Example from '../../../components/Example.astro';
+import Output from '../../../components/Output.astro';
+
+The config holds the names of the parts of your code and the rules about them. This page lists
+each top-level key. Each rule form has its own page.
+
+## Where archangel finds the config
+
+Archangel looks in the current folder, and then in each folder above it. In each folder, it looks
+for these names, in this order:
+
+1. `archangel.config.ts`
+2. `archangel.config.mts`
+3. `archangel.config.js`
+4. `archangel.config.mjs`
+5. `archangel.config.json`
+
+It uses the first file that it finds. `--config <file>` replaces this search.
+
+The folder of the config is the **config folder**. Archangel reads the source files below it. Each
+pattern in the config starts at the config folder, and each path in a report is relative to it.
+Archangel does not add `**/` before a pattern.
+
+When archangel finds no config, it stops with [`config-missing`](/archangel/reference/diagnostics/config-missing/) and exit
+code 2.
+
+## TypeScript or JSON
+
+| | `archangel.config.ts` (and `.mts`, `.js`, `.mjs`) | `archangel.config.json` |
+| --- | --- | --- |
+| Needs Node | Yes, 22.18 or later. Node runs it without a build step. | No. |
+| Type checks as you write | Yes, with `defineConfig`. | Completion and checks from the JSON schema. |
+| `rules` | A list, or a function that gets the rule builders. | A list of rule objects. |
+| Presets and plugins | Yes. | No, because they are code. |
+
+Archangel runs a TypeScript or JavaScript config one time for each load. It uses the default
+export. When `rules` is a function, archangel calls it one time with the rule builders: `rule`,
+`mayImport`, `layers`, `isolate` and `entry`.
+
+`defineConfig` changes nothing when the config runs. It gives the types. With it, the TypeScript
+compiler finds some errors before archangel runs. For example, it finds a rule that names a part
+that does not exist, and a table cell that names nothing.
+
+A JSON config holds the same content. Each rule is the object that you give to `rule(...)`, and a
+table or a shorthand has a `kind`. Add `$schema` to get completion in your editor:
+
+<Example fixture="ref-formats" file="archangel.config.json" />
+
+<Aside>
+  The count of files in `archangel check` includes a TypeScript config, because it is a source
+  file. A JSON config is not a source file. So one repository can show one more file with a
+  TypeScript config.
+</Aside>
+
+## The keys
+
+| Key | Type | What it does |
+| --- | --- | --- |
+| [`parts`](#parts) | object | Named areas of your code. Each file is in one part at most. |
+| [`groups`](#groups) | object | Named sets of files. A file can be in many groups. |
+| [`externals`](#externals) | object | Named sets of outside packages. |
+| [`rules`](#rules) | list or function | The tables and the rules. |
+| [`extends`](#extends) | list | Presets, such as `fsd(...)` and `nextjs(...)`. |
+| [`off`](#off) | list of names | Rules and table rows to turn off. |
+| [`plugins`](#plugins) | object | Plugins, by the name that rules use. |
+| [`ignore`](#ignore) | list of lines | Files that archangel does not read. |
+| [`allowUnresolved`](#allowunresolved) | object | Imports that may stay unresolved, each with a reason. |
+| `$schema` | string | JSON only. The path of the JSON schema. |
+
+Archangel refuses a key that it does not know, with
+[`config-invalid`](/archangel/reference/diagnostics/config-invalid/). The message names the nearest
+correct key.
+
+A config needs at least one part, one rule or one preset. A config with none of these checks
+nothing, so archangel refuses it.
+
+### `parts`
+
+A part is a named area of your code. Its value is a path pattern or a list of path patterns.
+
+```ts
+parts: {
+  feature: 'src/features/{feature}/**',
+  shared: 'src/shared/**',
+  app: ['src/app/**', 'src/main.ts'],
+},
+```
+
+- A name in braces, such as `{feature}`, is a **capture**. It makes each folder one **instance** of
+  the part. Read [Captures and instances](/archangel/concepts/captures-and-instances/).
+- Each file is in one of your parts at most. When two parts find one file, archangel shows
+  [`part-overlap`](/archangel/reference/diagnostics/part-overlap/).
+- A part that finds no file is the error
+  [`element-empty`](/archangel/reference/diagnostics/element-empty/).
+- A part holds files, not packages. Write packages in `externals`.
+
+### `groups`
+
+A group is a named set of files. A file can be in many groups, so a group can cut across parts.
+Its value is any [set of files](/archangel/reference/sets-of-files/).
+
+```ts
+groups: {
+  test: '**/*.test.ts',
+  client: { directive: 'use client' },
+},
+```
+
+A group that finds no file is the error
+[`selector-empty`](/archangel/reference/diagnostics/selector-empty/).
+
+### `externals`
+
+An externals set is a named list of outside packages.
+
+```ts
+externals: {
+  driver: ['pg', '@aws-sdk/*', 'node:fs'],
+},
+```
+
+| You write | It matches |
+| --- | --- |
+| `pg` | the package `pg` and each of its subpaths, such as `pg/lib/client` |
+| `@aws-sdk/*` | each package in the scope `@aws-sdk` |
+| `*` | each package |
+| `node:fs` | the Node built-in module `fs` |
+
+Archangel refuses these names, because they can never match:
+
+- a Node built-in module without `node:`, such as `fs`. Write `node:fs`.
+- a name with a subpath, such as `pg/lib`.
+- a name that starts with `@types/`.
+- the name of a package in your repository. An import of a workspace package resolves to its
+  files, so use a part.
+
+An import counts as the package that it resolves to. Use an externals set in a table cell, or on
+the other side of a rule. On the other side of a rule, you can also write the packages directly:
+`{ packages: ['react'] }`.
+
+### `rules`
+
+The tables and the rules. In TypeScript, write a function that gets the rule builders:
+
+```ts
+rules: ({ mayImport, rule, layers, isolate, entry }) => [
+  isolate('feature'),
+  rule('no-react-in-shared', {
+    files: 'shared',
+    mayNotImport: { packages: ['react'] },
+    examples: { rejected: ['src/shared/a.ts imports react'] },
+  }),
+],
+```
+
+You can also write a list of rule objects, as in JSON. Each rule has a name, and two rules cannot
+have one name ([`rule-name-duplicate`](/archangel/reference/diagnostics/rule-name-duplicate/)).
+
+| Form | Page |
+| --- | --- |
+| `mayImport(name, rows, options)` | [Tables](/archangel/reference/tables/) |
+| `rule(name, { files, <condition> })` | [Conditions](/archangel/reference/conditions/) |
+| `rule(name, { folders, <condition> })` | [Conditions](/archangel/reference/conditions/) |
+| `rule(name, { sentences: [...] })` | [Conditions](/archangel/reference/conditions/) |
+| `rule(name, { files, plugin, options })` | [Plugin API](/archangel/reference/plugin-api/) |
+| `layers`, `isolate`, `entry` | [Shorthands](/archangel/reference/shorthands/) |
+
+### `extends`
+
+A list of presets. Each preset adds parts, groups, rules and plugins, with its name as a prefix.
+
+```ts
+extends: [fsd({ root: 'src' }), nextjs()],
+```
+
+Read [Presets](/archangel/reference/presets/).
+
+### `off`
+
+A list of rule names and table row names to turn off. Archangel applies `off` after it merges the
+presets.
+
+```ts
+off: ['fsd/insignificant-slice', 'app.every-file-has-a-kind'],
+```
+
+A name in `off` must be the name of a rule. When it is not, archangel stops and shows the nearest
+correct name. `archangel rules` lists the rules that `off` removes.
+
+### `plugins`
+
+The plugins that the config loads, by the name that rules use:
+
+```ts
+plugins: { team },
+```
+
+A rule then uses a condition of the plugin as `plugin: 'team/max-imports'`. Read
+[Plugin API](/archangel/reference/plugin-api/).
+
+### `ignore`
+
+Lines in `.gitignore` syntax. Archangel does not read a file that a line matches.
+
+```ts
+ignore: ['src/generated/', '**/*.stories.tsx'],
+```
+
+Archangel already skips each file that a `.gitignore` file in the repository ignores. It uses only
+the `.gitignore` files of the repository. It does not use your global Git ignore file,
+`.git/info/exclude` or `.ignore` files, so each machine gets the same files. A line that is not
+valid is [`ignore-line-invalid`](/archangel/reference/diagnostics/ignore-line-invalid/).
+
+Archangel reads each file below the config folder with the extension `.ts`, `.tsx`, `.mts`, `.cts`,
+`.js`, `.jsx`, `.mjs` or `.cjs`, in hidden folders too. Declaration files (`.d.ts`) are source files.
+
+### `allowUnresolved`
+
+Specifiers that may stay unresolved, each with a reason. A specifier can end in `*`.
+
+```ts
+allowUnresolved: {
+  'virtual:*': 'Vite makes these modules when it builds.',
+  './generated/routes': 'The build writes this file before it compiles.',
+},
+```
+
+An import that archangel cannot resolve is the error
+[`import-unresolved`](/archangel/reference/diagnostics/import-unresolved/), because archangel cannot
+judge it. A specifier in `allowUnresolved` gives no error, and the summary counts these imports.
+
+## How archangel resolves imports
+
+Archangel resolves each import as TypeScript does:
+
+- It uses the nearest `tsconfig.json` of the importing file, with its `extends`, `baseUrl` and
+  `paths`.
+- It uses the `exports` and `imports` fields of `package.json`.
+- For a specifier that ends in `.js`, `.jsx`, `.mjs` or `.cjs`, it looks for the TypeScript file,
+  then the declaration file, then the JavaScript file.
+- It follows a symbolic link to the real file. So an import of a workspace package resolves to the
+  files of that package.
+
+Archangel finds import statements, `export ... from`, dynamic `import()` and `require()` with a
+literal specifier, `import x = require()`, import types such as `import('./x').T`, and triple-slash
+references.
+
+An `import type` is a type import. With `verbatimModuleSyntax` in your tsconfig,
+`import { type A } from './a'` stays in the compiled code, so it is a runtime import.
+
+## Older spellings
+
+A config from archangel 0.1 still loads. A config uses one spelling of each key. Archangel refuses
+two spellings in one config. These spellings stop at 1.0.
+
+| Spelling | Older spelling |
+| --- | --- |
+| `parts` | `elements` |
+| `groups` | `selectors` |
+| `because` | `reason` |
+| `rule('<name>', { ... })` | `rule({ name: '<name>', ... })` |
+
+In 0.1, `elements` could hold a package set, `{ packages: [...] }`. Write it as an entry in
+`externals` now. On the other side of a rule, `{ packages: [...] }` is not an older spelling, and it
+stays.
+
+The words in some messages still come from 0.1. For example, a message can say "element" for a
+part, and "selector" for a group.

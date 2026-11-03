@@ -1,0 +1,72 @@
+checked 4 files and 5 imports: no problems
+[dump] {
+[dump]   "options": {
+[dump]     "max": 2
+[dump]   },
+[dump]   "view": {
+[dump]     "schemaVersion": 1,
+[dump]     "files": [
+[dump]       {
+[dump]         "path": "src/features/cart/cart.ts",
+[dump]         "element": "feature",
+[dump]         "captures": {
+[dump]           "feature": "cart"
+[dump]         },
+[dump]         "selectors": [],
+[dump]         "imports": [
+[dump]           {
+[dump]             "specifier": "react",
+[dump]             "occurrence": 0,
+[dump]             "line": 1,
+[dump]             "column": 26,
+[dump]             "kind": "runtime",
+[dump]             "names": [
+[dump]               "useState"
+[dump]             ],
+[dump]             "file": null,
+[dump]             "package": "react"
+[dump]           },
+[dump]           {
+[dump]             "specifier": "../login",
+[dump]             "occurrence": 0,
+[dump]             "line": 2,
+[dump]             "column": 25,
+[dump]             "kind": "runtime",
+[dump]             "names": [
+[dump]               "session"
+[dump]             ],
+[dump]             "file": "src/features/login/index.ts",
+[dump]             "package": null
+[dump]           }
+[dump]         ],
+[dump]         "importers": [],
+[dump]         "exports": {
+[dump]           "names": [
+[dump]             "cart"
+[dump]           ],
+[dump]           "default": false,
+[dump]           "star": false
+[dump]         }
+[dump]       },
+[dump]       {
+[dump]         "path": "src/features/login/index.ts",
+[dump]         "element": "feature",
+[dump]         "captures": {
+[dump]           "feature": "login"
+[dump]         },
+[dump]         "selectors": [],
+[dump]         "imports": [],
+[dump]         "importers": [
+[dump]           "src/features/cart/cart.ts"
+[dump]         ],
+[dump]         "exports": {
+[dump]           "names": [
+[dump]             "session"
+[dump]           ],
+[dump]           "default": false,
+[dump]           "star": false
+[dump]         }
+[dump]       }
+[dump]     ]
+[dump]   }
+[dump] }

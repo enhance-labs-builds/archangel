@@ -1,0 +1,26 @@
+error[must-be-named]: the name of priceTag.tsx is priceTag, which is not PascalCase; in PascalCase the file is PriceTag.tsx
+--> src/components/priceTag.tsx
+ = help: name it PriceTag.tsx
+ = note: rule: component-names
+ = note: because: A component file has the name of the component.
+
+error[must-be-named]: the full name of cart-row.tsx is cart-row, and it must be *.view or *.container
+--> src/features/cart/ui/cart-row.tsx
+ = help: rename the file so that its name without the extension is *.view or *.container
+ = note: rule: ui-file-names
+ = note: because: A view only shows data. A container gets the data.
+
+error[must-contain]: the folder src/features/orderHistory has no file that matches index.ts
+--> src/features/orderHistory
+ = help: add src/features/orderHistory/index.ts
+ = note: rule: feature-entry
+ = note: because: Other code imports a feature through its index file.
+
+error[must-be-named]: the folder src/features/orderHistory is not kebab-case; in kebab-case it is src/features/order-history
+--> src/features/orderHistory
+ = help: name it src/features/order-history
+ = note: rule: folder-names
+ = note: because: One style for folders, so an import path is easy to guess.
+
+checked 8 files and 4 imports: 4 problems
+For what a code means, run `archangel docs must-be-named` or `archangel docs must-contain`.

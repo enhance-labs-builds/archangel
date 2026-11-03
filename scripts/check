@@ -20,6 +20,9 @@ run node --test 'npm/archangel/test/*.test.mjs'
 run node --test 'scripts/*.test.mjs'
 run node scripts/release-version.mjs
 run npx --no-install tsd npm/archangel --files test/types.test-d.ts
+# The site builds, its links resolve, and each example on it runs on the published package.
+run npm --prefix site run build
+run npm --prefix site test
 # archangel checks the TypeScript of its own npm package, and proves its rules with their examples.
 run cargo run --quiet --locked -p archangel -- check --config npm/archangel.config.json
 run cargo run --quiet --locked -p archangel -- test --config npm/archangel.config.json

@@ -1,0 +1,18 @@
+error[every-file-has-a-kind]: src/orders/order.helpers.ts has the kind helpers, and the table "orders" has no row for it: no row for helpers. To fix this, add a row, rename the file, or leave it out of the table's files with `not`
+--> src/orders/order.helpers.ts
+ = help: add a row, rename the file, or leave it out of the table's files with `not`
+ = note: rule: orders.every-file-has-a-kind
+ = note: because: A service uses repositories. A repository stores entities. An entity knows only itself.
+
+error[may-import]: service may not import helpers, through "./order.helpers": no row for helpers, and service may import only repository, entity, shared, and itself
+ --> src/orders/place-order.service.ts:3:28
+  |
+3 | import { orderTotal } from './order.helpers';
+  |                            ^^^^^^^^^^^^^^^^^ service may import only repository, entity, shared, and itself
+  |
+  = help: remove the import, or move the code to a file whose row permits the import
+  = note: rule: orders.service
+  = note: because: A service uses repositories. A repository stores entities. An entity knows only itself.
+
+checked 6 files and 7 imports: 2 problems
+For what a code means, run `archangel docs every-file-has-a-kind` or `archangel docs may-import`.

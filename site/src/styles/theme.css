@@ -1,0 +1,234 @@
+/* Archangel's look follows the Enhance product: a white ground, neutral greys, near-black ink,
+   the Enhance orange for marks, links and buttons, Inter, and 8 to 12 pixel radii. Code sits on a
+   neutral dark panel in both themes. */
+:root {
+  --sl-font: 'Inter Variable', Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --sl-font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+  --sl-content-width: 48rem;
+  --anchor: #fc622d;
+  --code-panel: #171717;
+  --code-edge: #2a2a2a;
+  --code-ink: #fafafa;
+
+  /* Dark: the neutral 950 to 50 scale of the Enhance design system. */
+  --sl-color-accent-low: #3a1609;
+  --sl-color-accent: #fc622d;
+  --sl-color-accent-high: #ffb59c;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #fafafa;
+  --sl-color-gray-2: #dcdcdc;
+  --sl-color-gray-3: #9b9b9b;
+  --sl-color-gray-4: #606060;
+  --sl-color-gray-5: #333333;
+  --sl-color-gray-6: #1f1f1f;
+  --sl-color-black: #0a0a0a;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #ffe8df;
+  --sl-color-accent: #fc622d;
+  --sl-color-accent-high: #8a2c05;
+  --sl-color-white: #0a0a0a;
+  --sl-color-gray-1: #2a2a2a;
+  --sl-color-gray-2: #3a3a3a;
+  --sl-color-gray-3: #606060;
+  --sl-color-gray-4: #8c8c8c;
+  --sl-color-gray-5: #dcdcdc;
+  --sl-color-gray-6: #f2f2f2;
+  --sl-color-gray-7: #fafafa;
+  --sl-color-black: #ffffff;
+  --sl-color-bg-nav: color-mix(in srgb, #ffffff 92%, transparent);
+  --sl-color-bg-sidebar: #fafafa;
+  --sl-color-hairline-light: #ebebeb;
+  --sl-color-hairline: #ebebeb;
+}
+
+/* Buttons on the accent carry white text, in both themes. */
+:root .sl-link-button.primary,
+:root .action.primary {
+  background: var(--anchor);
+  border-color: var(--anchor);
+  color: #ffffff;
+  border-radius: 10px;
+}
+
+.site-title {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+h1#_top {
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+
+/* Links read in the dark orange on white and in a light orange on ink, with a quiet underline. */
+.sl-markdown-content a:not(:where(.not-content *)) {
+  color: var(--sl-color-accent-high);
+  text-decoration-color: color-mix(in srgb, var(--sl-color-accent-high) 35%, transparent);
+  text-underline-offset: 0.2em;
+}
+
+/* Inline code is a soft neutral chip. */
+.sl-markdown-content :not(pre) > code {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.35rem;
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-gray-1);
+  padding: 0.1em 0.35em;
+}
+
+/* The current page in the sidebar is the orange wash that the Enhance product uses for a selection. */
+:root[data-theme='light'] .sidebar-content a[aria-current='page'] {
+  background: #fc622d1f;
+  color: #8a2c05;
+  font-weight: 600;
+}
+
+:root[data-theme='dark'] .sidebar-content a[aria-current='page'] {
+  background: #fc622d2e;
+  color: #ffb59c;
+  font-weight: 600;
+}
+
+.sidebar-content .group-label .large {
+  font-size: 0.7rem;
+  font-weight: 720;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-3);
+}
+
+/* Asides: an orange rule on a pale orange wash. */
+:root[data-theme='light'] .starlight-aside--tip,
+:root[data-theme='light'] .starlight-aside--note {
+  border-inline-start-color: var(--anchor);
+  background: #fff6f2;
+}
+
+/* Tables of options and conditions read better with code that does not wrap in the first column. */
+.sl-markdown-content table td:first-child code {
+  white-space: nowrap;
+}
+
+/* The first line of a terminal frame is the command; the rest is what archangel printed. */
+.expressive-code .frame.is-terminal .ec-line:first-child .code {
+  color: var(--anchor);
+  font-weight: 600;
+}
+
+/* The splash page. */
+.hero {
+  padding-block: 3rem 1rem;
+}
+
+.hero h1 {
+  font-size: clamp(2.6rem, 5vw, 3.9rem);
+  letter-spacing: -0.035em;
+  font-weight: 700;
+}
+
+.hero .tagline {
+  max-width: 34rem;
+}
+
+:root[data-theme='light'] [data-has-hero] .page {
+  background:
+    radial-gradient(55rem 26rem at 88% -12%, color-mix(in srgb, var(--anchor) 14%, transparent), transparent 70%),
+    var(--sl-color-black);
+}
+
+:root[data-theme='dark'] [data-has-hero] .page {
+  background:
+    radial-gradient(55rem 26rem at 88% -12%, color-mix(in srgb, var(--anchor) 16%, transparent), transparent 70%),
+    var(--sl-color-black);
+}
+
+.speed-chart {
+  width: 100%;
+  height: auto;
+  margin-block: 1rem;
+}
+
+:root[data-theme='light'] .speed-chart.dark,
+:root[data-theme='dark'] .speed-chart.light {
+  display: none;
+}
+
+.diagnostic-group {
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-sm);
+}
+
+/* The card on the splash page is a code panel, as code is everywhere on this site. */
+.hero-card {
+  width: min(28rem, 100%);
+  border: 1px solid var(--code-edge);
+  border-radius: 12px;
+  background: var(--code-panel);
+  box-shadow: 0 1.5rem 4rem -1.8rem rgb(20 20 18 / 45%);
+  overflow: hidden;
+  text-align: start;
+}
+
+.hero-card-bar {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--code-edge);
+  font-size: var(--sl-text-xs);
+  color: #9b9b9b;
+}
+
+.hero-card-bar span {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: #333333;
+}
+
+.hero-card-bar b {
+  margin-inline-start: 0.5rem;
+  font-weight: 500;
+}
+
+.hero-card pre {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  font-family: var(--sl-font-mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--code-ink);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.hero-card i {
+  font-style: normal;
+  color: var(--anchor);
+}
+
+.hero-card s {
+  text-decoration: none;
+  color: #a5d6ff;
+}
+
+.hero-card em {
+  font-style: normal;
+  font-weight: 600;
+  color: #ff8b7e;
+}
+
+/* The header keeps ink text; the bright orange is for marks and buttons. */
+.site-title {
+  color: var(--sl-color-white);
+}
+
+:root[data-theme='light'] .social-icons a,
+:root[data-theme='light'] header .sl-flex a[href*='github'] {
+  color: var(--sl-color-gray-2);
+}

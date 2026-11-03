@@ -1,0 +1,4 @@
+[
+  { "args": ["test"], "output": "test.txt", "status": 1 },
+  { "later": { "archangel.config.ts": "archangel.config.ts" }, "args": ["test"], "output": "test-fixed.txt", "status": 0 }
+]
