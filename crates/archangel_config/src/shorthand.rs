@@ -79,7 +79,9 @@ pub(crate) fn element_names(ids: &[ElementId], elements: &[Element]) -> Vec<Stri
         .collect()
 }
 
-pub(crate) fn or_list(items: &[String]) -> String {
+/// The items in words: `a, b or c`.
+#[must_use]
+pub fn or_list(items: &[String]) -> String {
     match items.split_last() {
         Some((last, rest)) if !rest.is_empty() => format!("{} or {last}", rest.join(", ")),
         _ => items.concat(),

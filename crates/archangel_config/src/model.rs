@@ -550,7 +550,7 @@ pub enum Condition {
     /// No file in the selector.
     MustNotExist,
     /// Each file's or folder's name matches.
-    MustBeNamed(NameRule),
+    MustBeNamed(Vec<NameRule>),
     /// Each instance of the element, or each folder, has a file that matches one of the
     /// patterns, relative to the instance root or the folder.
     MustContain(Vec<Pattern>),

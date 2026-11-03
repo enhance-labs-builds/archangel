@@ -105,6 +105,8 @@ const good = defineConfig({
     rule({ files: 'src/**/*.tsx', mustBeNamed: 'PascalCase' }),
     rule({ files: 'test', mustBeNamed: '{folder-name}.test' }),
     rule({ folders: 'src/**', mustBeNamed: 'kebab-case' }),
+    rule({ files: 'src/ui/**', mustBeNamed: ['*.view', '*.container', 'PascalCase'] }),
+    rule('folder-names', { folders: 'src/*', mustBeNamed: ['*-kit', 'kebab-case'] }),
     rule({ files: 'feature', mustContain: 'index.ts' }),
     rule({ folders: ['src/features/*'], mustContain: 'README.md' }),
     rule({ files: 'view', mustExport: '{FileName}' }),
@@ -442,3 +444,17 @@ expectError(
 // "the configs of the checked fixtures type-check with literal names"
 import '../../../docs/examples/small-app/archangel.config.js';
 import '../../../docs/examples/enhance3-slice/archangel.config.js';
+
+// A `mustBeNamed` list with no entry permits no name.
+expectError(
+  defineConfig({
+    rules: ({ rule }) => [rule('names', { files: 'src/**', mustBeNamed: [] })],
+  }),
+);
+
+// A `mustBeNamed` entry is a style or a name pattern.
+expectError(
+  defineConfig({
+    rules: ({ rule }) => [rule('names', { files: 'src/**', mustBeNamed: ['*.view', 3] })],
+  }),
+);

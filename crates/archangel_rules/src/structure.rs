@@ -5,7 +5,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use archangel_config::{Classification, Condition, ElementId, NameRule, Rule, RuleKind, TableId};
+use archangel_config::{
+    Classification, Condition, ElementId, NameRule, Rule, RuleKind, TableId, or_list,
+};
 use archangel_graph::{ImportGraph, OverlayFiles, Work};
 
 use crate::architecture::{Architecture, Compiled};
@@ -733,62 +735,88 @@ fn instances_in(class: &Classification, elements: &BTreeSet<u32>) -> Vec<(u32, S
         .collect()
 }
 
+/// Whether a name rule permits a file or folder: a style reads `name`, a pattern reads `full`.
+fn permits(entry: &NameRule, names: &FileName<'_>, name: &str, full: &str) -> bool {
+    match entry {
+        NameRule::Style(style) => is_named(name, *style),
+        NameRule::Pattern(pattern) => matches(&expand(pattern, names), full),
+    }
+}
+
+/// Each entry of a list in words, with this text after a style, in the order the config wrote them.
+fn entries_in_words(entries: &[NameRule], names: &FileName<'_>, after_style: &str) -> String {
+    let words: Vec<String> = entries
+        .iter()
+        .map(|entry| match entry {
+            NameRule::Style(style) => format!("in {style}{after_style}"),
+            NameRule::Pattern(pattern) => spelled(&expand(pattern, names)),
+        })
+        .collect();
+    or_list(&words)
+}
+
 /// The violation of a naming rule by a file, if it breaks it.
-fn file_name(rule: &Rule, name: &NameRule, path: &str) -> Option<Diagnostic> {
+fn file_name(rule: &Rule, entries: &[NameRule], path: &str) -> Option<Diagnostic> {
     let names = FileName::of(path);
-    match name {
-        NameRule::Style(style) => (!is_named(names.name, *style)).then(|| {
+    if entries
+        .iter()
+        .any(|entry| permits(entry, &names, names.name, names.full))
+    {
+        return None;
+    }
+    let (message, fix) = match entries {
+        [NameRule::Style(style)] => {
             let renamed = names.renamed(*style);
-            About { rule, path }.violation(
-                Code::MustBeNamed,
+            (
                 format!(
                     "the name of {} is {}, which is not {style}; in {style} the file is {renamed}",
                     names.base, names.name
                 ),
-                &format!("name it {renamed}"),
+                format!("name it {renamed}"),
             )
-        }),
-        NameRule::Pattern(pattern) => {
-            let pieces = expand(pattern, &names);
-            (!matches(&pieces, names.full)).then(|| {
-                let wanted = spelled(&pieces);
-                About { rule, path }.violation(
-                    Code::MustBeNamed,
-                    format!(
-                        "the full name of {} is {}, and it must be {wanted}",
-                        names.base, names.full
-                    ),
-                    &format!("rename the file so that its name without the extension is {wanted}"),
-                )
-            })
         }
-    }
+        _ => {
+            let wanted = entries_in_words(entries, &names, " up to the first dot");
+            (
+                format!(
+                    "the full name of {} is {}, and it must be {wanted}",
+                    names.base, names.full
+                ),
+                format!("rename the file so that its name without the extension is {wanted}"),
+            )
+        }
+    };
+    Some(About { rule, path }.violation(Code::MustBeNamed, message, &fix))
 }
 
 /// The violation of a naming rule by a folder, if it breaks it. A folder's name is all of its
 /// last part.
-fn folder_name(rule: &Rule, name: &NameRule, folder: &str) -> Option<Diagnostic> {
+fn folder_name(rule: &Rule, entries: &[NameRule], folder: &str) -> Option<Diagnostic> {
     let names = FileName::of(folder);
-    let parent = &folder[..folder.len() - names.base.len()];
-    match name {
-        NameRule::Style(style) => (!is_named(names.base, *style)).then(|| {
-            let renamed = convert(names.base, *style);
-            About { rule, path: folder }.violation(
-                Code::MustBeNamed,
-                format!("the folder {folder} is not {style}; in {style} it is {parent}{renamed}"),
-                &format!("name it {parent}{renamed}"),
-            )
-        }),
-        NameRule::Pattern(pattern) => {
-            let pieces = expand(pattern, &names);
-            (!matches(&pieces, names.base)).then(|| {
-                let wanted = spelled(&pieces);
-                About { rule, path: folder }.violation(
-                    Code::MustBeNamed,
-                    format!("the folder {folder} must be named {wanted}"),
-                    &format!("name it {parent}{wanted}"),
-                )
-            })
-        }
+    if entries
+        .iter()
+        .any(|entry| permits(entry, &names, names.base, names.base))
+    {
+        return None;
     }
+    let parent = &folder[..folder.len() - names.base.len()];
+    let wanted = entries_in_words(entries, &names, "");
+    let (message, fix) = match entries {
+        [NameRule::Style(style)] => {
+            let renamed = convert(names.base, *style);
+            (
+                format!("the folder {folder} is not {style}; in {style} it is {parent}{renamed}"),
+                format!("name it {parent}{renamed}"),
+            )
+        }
+        [_] => (
+            format!("the folder {folder} must be named {wanted}"),
+            format!("name it {parent}{wanted}"),
+        ),
+        _ => (
+            format!("the folder {folder} must be named {wanted}"),
+            format!("rename the folder so that its name is {wanted}"),
+        ),
+    };
+    Some(About { rule, path: folder }.violation(Code::MustBeNamed, message, &fix))
 }

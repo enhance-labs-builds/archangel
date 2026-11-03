@@ -49,7 +49,7 @@ dependencies = [
 
 [[package]]
 name = "archangel_config"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "jsonschema",
  "nodejs-built-in-modules",
@@ -60,7 +60,7 @@ dependencies = [
 
 [[package]]
 name = "archangel_graph"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dunce",
  "fail",
@@ -81,7 +81,7 @@ dependencies = [
 
 [[package]]
 name = "archangel_rules"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "archangel_config",
  "archangel_graph",

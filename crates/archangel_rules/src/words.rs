@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 
 use archangel_config::{
     Condition, DependencyKind, ExportKind, FileSet, ImportOptions, InstanceMatch, NameRule,
-    Pattern, Rule, RuleKind, SpecifierForm, Term,
+    Pattern, Rule, RuleKind, SpecifierForm, Term, or_list,
 };
 
 use crate::architecture::Architecture;
@@ -173,16 +173,34 @@ fn condition_text(files: &str, condition: &Condition) -> String {
     }
 }
 
+/// The names that a naming rule permits: `patterned` is what a name pattern reads.
+fn names_text(rules: &[NameRule], patterned: &str) -> String {
+    let mut styles = Vec::new();
+    let mut patterns = Vec::new();
+    for rule in rules {
+        match rule {
+            NameRule::Style(_) => styles.push(rule.source().to_owned()),
+            NameRule::Pattern(_) => patterns.push(rule.source().to_owned()),
+        }
+    }
+    match (styles.is_empty(), patterns.is_empty()) {
+        (false, true) => format!("names in {}", or_list(&styles)),
+        (true, _) => format!("{patterned} that match {}", or_list(&patterns)),
+        (false, false) => format!(
+            "names in {}, or {patterned} that match {}",
+            or_list(&styles),
+            or_list(&patterns)
+        ),
+    }
+}
+
 /// The words of a condition whose value is a name, a pattern or a kind of export.
 fn valued_text(files: &str, condition: &Condition) -> String {
     match condition {
-        Condition::MustBeNamed(NameRule::Style(style)) => {
-            format!("files in {files} must have names in {style}")
-        }
-        Condition::MustBeNamed(NameRule::Pattern(pattern)) => {
+        Condition::MustBeNamed(rules) => {
             format!(
-                "files in {files} must have full names that match {}",
-                pattern.source()
+                "files in {files} must have {}",
+                names_text(rules, "full names")
             )
         }
         Condition::MustContain(patterns) => {
@@ -215,13 +233,10 @@ fn valued_text(files: &str, condition: &Condition) -> String {
 
 fn folder_text(folders: &str, condition: &Condition) -> String {
     match condition {
-        Condition::MustBeNamed(NameRule::Style(style)) => {
-            format!("folders in {folders} must have names in {style}")
-        }
-        Condition::MustBeNamed(NameRule::Pattern(pattern)) => {
+        Condition::MustBeNamed(rules) => {
             format!(
-                "folders in {folders} must have names that match {}",
-                pattern.source()
+                "folders in {folders} must have {}",
+                names_text(rules, "names")
             )
         }
         Condition::MustContain(patterns) => {

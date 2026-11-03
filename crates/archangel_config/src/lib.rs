@@ -43,4 +43,5 @@ pub use parse::{from_value, nearest, parse_json};
 pub use pattern::{Pattern, PatternError, PatternMatch, normalize_path};
 pub use plugins::VIEW_SCHEMA_VERSION;
 pub use problem::{ConfigProblem, ProblemCode};
+pub use shorthand::or_list;
 pub use tables::EVERY_FILE_HAS_A_KIND;

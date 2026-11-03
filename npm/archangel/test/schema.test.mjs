@@ -69,6 +69,8 @@ test('a config with every structure and export condition is valid', () => {
       { files: 'src/**/*.tsx', mustBeNamed: 'PascalCase' },
       { files: 'test', mustBeNamed: '{folder-name}.test' },
       { folders: 'src/**', mustBeNamed: 'kebab-case' },
+      { files: 'src/ui/**', mustBeNamed: ['*.view', 'PascalCase'] },
+      { folders: 'src/*', mustBeNamed: ['*-kit', 'kebab-case'] },
       { files: 'feature', mustContain: 'index.ts' },
       { folders: ['src/features/*'], mustContain: 'README.md' },
       { files: 'view', mustExport: '{FileName}' },
@@ -116,6 +118,13 @@ test('what archangel refuses, the schema refuses', () => {
   ]) {
     assert.equal(validate(config), false, JSON.stringify(config));
   }
+});
+
+test('a mustBeNamed list has at least one entry, and each entry is text', () => {
+  const config = (mustBeNamed) => ({ rules: [{ files: 'src/**', mustBeNamed }] });
+  assert.ok(validate(config(['*.view'])), JSON.stringify(validate.errors));
+  assert.ok(!validate(config([])), 'an empty list permits no name');
+  assert.ok(!validate(config(['*.view', 3])), 'an entry is a style or a name pattern');
 });
 
 test('an area is valid on mayOnlyImport and mayOnlyBeImportedBy, and on no other condition', () => {

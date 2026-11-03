@@ -5,6 +5,23 @@ and archangel follows [semantic versioning](https://semver.org/) for its command
 its JSON output (`schemaVersion`) and its language server. The library crates have no stability
 guarantee.
 
+## 0.3.0 - 2026-11-03
+
+A rule can now say which of several names a file may have. Each 0.2 config still loads and gives the
+same result.
+
+### Added
+
+- `mustBeNamed` takes a list of styles and name patterns, such as
+  `mustBeNamed: ['*.view', '*.container', '*.styles']`. A file or folder passes when one entry
+  matches. The message of a failing file gives its full name and each entry.
+- An empty `mustBeNamed` list and an entry that is not a string are config errors. The npm types
+  refuse both.
+
+### Changed
+
+- In the library crates, `Condition::MustBeNamed` holds a list of `NameRule`.
+
 ## 0.2.0 - 2026-11-01
 
 A config can now read as your architecture, and `archangel rules` shows what it does. Each 0.1

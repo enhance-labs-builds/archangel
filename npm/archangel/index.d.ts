@@ -177,11 +177,14 @@ export interface ImportLimits {
 export type NameStyle = 'kebab-case' | 'camelCase' | 'PascalCase' | 'snake_case' | 'SCREAMING_SNAKE_CASE';
 
 /**
- * A name: text, `*` for any text, and `{FileName}`, `{fileName}`, `{file-name}`, `{file_name}` or
+ * A name: text, `*` for any text or no text, and `{FileName}`, `{fileName}`, `{file-name}`, `{file_name}` or
  * `{FILE_NAME}` for the file's name in each style, or the same spellings of `{FolderName}` for the
  * name of the folder that holds it.
  */
 export type NamePattern = string;
+
+/** One name that a `mustBeNamed` rule permits: a style or a name pattern. */
+export type NameEntry = NameStyle | (NamePattern & {});
 
 type Conditions<Other> = {
   /** The files may not import the other side. */
@@ -192,9 +195,9 @@ type Conditions<Other> = {
   readonly mayOnlyBeImportedBy: Other;
   /**
    * The name, up to the first dot, is in a style, or the full name, without the last extension,
-   * matches a name pattern.
+   * matches a name pattern. In a list, one entry must match.
    */
-  readonly mustBeNamed: NameStyle | (NamePattern & {});
+  readonly mustBeNamed: NameEntry | readonly [NameEntry, ...NameEntry[]];
   /**
    * Each instance of `files`, an element with a capture, has a file that matches the pattern, or
    * one of the patterns.

@@ -1,14 +1,17 @@
 # must-be-named
 
-A file or folder in a `mustBeNamed` rule has a name that is not in the rule's style, or a full name that does not match the rule's name pattern.
+A file or folder in a `mustBeNamed` rule has a name that is not in the rule's style, or a full name that does not match the rule's name pattern. For a rule with a list, the name matches no entry in the list.
 
 ## Example
 
 ```ts
 // rule({ files: 'src/components/**/*.tsx', mustBeNamed: 'PascalCase' })
 // src/components/icon-button.tsx, whose name icon-button is not PascalCase
+
+// rule({ files: 'src/ui/*', mustBeNamed: ['*.view', '*.container'] })
+// src/ui/cart.tsx, whose full name cart matches neither entry
 ```
 
 ## What to do
 
-Rename the file or folder to the name the message suggests. The styles are `kebab-case`, `camelCase`, `PascalCase`, `snake_case` and `SCREAMING_SNAKE_CASE`. A style checks the name up to the first dot, so `Card.stories.tsx` is named `Card`. A name pattern checks the full name, the name without its last extension, and can use `{FileName}` or `{folder-name}` in any of the five styles.
+Rename the file or folder to the name the message suggests. The styles are `kebab-case`, `camelCase`, `PascalCase`, `snake_case` and `SCREAMING_SNAKE_CASE`. A style checks the name up to the first dot, so `Card.stories.tsx` is named `Card`. A name pattern checks the full name, the name without its last extension, and can use `{FileName}` or `{folder-name}` in any of the five styles. In a name pattern, `*` is any text or no text. In a list, one match is sufficient.
