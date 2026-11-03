@@ -2,8 +2,8 @@ src/features/cart/cart-button.tsx
   part: "feature", instance "cart"
   groups: client
   rules that apply: app.feature, tests-stay-out
-    app.feature: feature may import only shared, browser, and itself in the same instance
-    tests-stay-out: files in not tests may not import tests
+    app.feature: feature may import only shared, browser, and itself in the same instance (judges its imports)
+    tests-stay-out: files in not tests may not import tests (judges its imports)
   imports:
     line 2  'react' -> package react ("browser")
     line 3  '../../shared/money' -> src/shared/money.ts ("shared")

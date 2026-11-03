@@ -4,7 +4,7 @@ src/orders/place-order.service.ts
   kind: service in orders
   groups: none
   rules that apply: orders.service
-    orders.service: service may import only repository, entity, shared, and itself
+    orders.service: service may import only repository, entity, shared, and itself (judges its imports)
   imports:
     line 1  './order.entity' -> src/orders/order.entity.ts
     line 2  './order.repository' -> src/orders/order.repository.ts

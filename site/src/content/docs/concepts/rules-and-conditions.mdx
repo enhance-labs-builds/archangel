@@ -91,7 +91,7 @@ because a chain of type imports never runs.
 
 <Aside type="caution" title="A folder rule with mustNotExist">
   A `mustNotExist` rule on `files` that finds no file is not an error, because no file is the goal.
-  In archangel 0.3.1, a `mustNotExist` rule on `folders` that finds no folder gives
+  In archangel 0.3.2, a `mustNotExist` rule on `folders` that finds no folder gives
   [`selector-empty`](/archangel/reference/diagnostics/selector-empty/). To say that a folder must
   not exist, select its files, for example `files: 'src/**/utils/**'`, as `no-utils` does above.
 </Aside>

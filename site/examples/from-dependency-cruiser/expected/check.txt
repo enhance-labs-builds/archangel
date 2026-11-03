@@ -12,7 +12,7 @@ error[may-not-import]: src/ui/note-list.ts may not import "../db/client", becaus
   = note: rule: ui-not-to-db
   = note: because: The UI reads data through the api folder.
 
-error[may-not-import]: src/ui/note-list.ts may not import "vitest", because files in "all of (src/**, not tests)" may not import the package `*` that package.json lists only under devDependencies
+error[may-not-import]: src/ui/note-list.ts may not import "vitest", because files in "all of (src/**, not tests)" may not import any package that package.json lists only under devDependencies
  --> src/ui/note-list.ts:3:20
   |
 3 | import { vi } from 'vitest';
