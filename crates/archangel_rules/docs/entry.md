@@ -1,6 +1,6 @@
 # entry
 
-Code outside an element instance imports a file inside it that is not one of the instance's entry files. A sibling instance counts as outside.
+Code outside an instance of a part imports a file inside it that is not one of the instance's entry files. A sibling instance counts as outside.
 
 ## Example
 

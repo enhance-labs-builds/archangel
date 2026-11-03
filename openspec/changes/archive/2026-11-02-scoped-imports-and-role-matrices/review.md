@@ -98,7 +98,7 @@ rebuild of round 4; items 13 to 26 are earlier assumptions that still hold, rena
 A. **The stated domain table names `specification` as a cell and has no row for it.** With
    the `every-file-has-a-kind` rule, a specification file in the domain folder is refused, and 0.2 refuses a
    cell that names no row. The fixture adds `specification: ['entity', 'value-object',
-   'aggregate-root', 'types', 'consts']`, the row the reference monorepo's builder has today. the reference monorepo's builder
+   'aggregate-root', 'types', 'consts']`, the row the reference monorepo's builder has today. The reference monorepo's builder
    also has `domain-service`, which the stated table leaves out; it needs a row, or its files must
    leave the table's files.
 B. **The table allows a cycle.** `value-object` may import `error`, and `error` may import
@@ -111,8 +111,7 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 
 - 2026-11-01: First draft of proposal, specs (role-matrices new; architecture-rules, rule-examples,
   selectors and distribution modified), design and tasks, written from the brief and from
-  the reference monorepo's main branch (`archangel.config.mjs`, `packages/rules-builder/archangel.mjs` and
-  `index.mjs`). `openspec validate scoped-imports-and-role-matrices --strict` passes.
+  the reference monorepo's config. `openspec validate scoped-imports-and-role-matrices --strict` passes.
 
 ### Round 1
 
@@ -165,7 +164,7 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 47. standalone: the explain requirement's title promised roles that the text did not show. fixed
 48. performance: the design said the empty-row list runs only when a count crosses zero, but it runs on every assemble. fixed
 49. performance: derived examples' trial resolutions were not counted. rejected: derived examples are removed (finding 29)
-50. performance: per-file classification grows with the number of sets, and no measurement at the reference monorepo's size was planned. fixed (Cost states it; task 8.2 adds the reference monorepo run)
+50. performance: per-file classification grows with the number of sets, and no measurement at the reference monorepo's size was planned. fixed (Cost states it; task 8.2 adds the the reference monorepo run)
 
 ### Round 2
 
@@ -187,7 +186,7 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 16. executable-spec: a matrix with no row had no requirement or scenario. fixed (refused with `config-invalid`)
 17. executable-spec: the default of a matrix's `files` had no scenario. fixed
 18. executable-spec: an unresolved import on a rule with an area had no scenario. fixed
-19. executable-spec: the last task was the reference monorepo measurement, not the local test run. fixed (swapped)
+19. executable-spec: the last task was the the reference monorepo measurement, not the local test run. fixed (swapped)
 20. abstractions: matrix-level data (examples, role pattern, area) had no named owner. fixed (`Config.matrices`, referred to by `RuleKind::MatrixRow`)
 21. abstractions: `parse_rule` offered a `Parsed` variant, but `Parsed` is a tuple alias. fixed
 22. abstractions: `MatrixName<N, X>` carried a preset parameter it never uses. fixed (`MatrixName<N>`; it cannot merge into `OwnRuleName`, which allows a slash after a preset prefix)
@@ -241,7 +240,7 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 21. Every config example in the docs and README becomes a checked fixture; the small app and the monorepo slice are the payoff fixtures (E). fixed
 22. Showed the small app's config in full with its error and `archangel rules` output, and re-estimated the reference monorepo at 1,150 to 1,350 lines (F). fixed
 23. "Decisions that need you" rewritten as eleven items, eight from the owner and three found while writing. fixed
-24. Recorded the reference monorepo notes: the missing `specification` row, the value-object and error cycle, and a port that cannot name an aggregate root. fixed
+24. Recorded the the reference monorepo notes: the missing `specification` row, the value-object and error cycle, and a port that cannot name an aggregate root. fixed
 25. Split six requirements over 500 characters so that `openspec validate --strict` passes. fixed
 
 ### Round 1 (rebuilt design)
@@ -281,7 +280,7 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 33. standalone: neither the spec nor the design said what area a row gets without `within`. fixed
 34. standalone: `app.shared` was missing from the proof list. rejected: generated proof is removed (finding 20)
 35. standalone: the design and the spec ordered the proof's refused file differently. rejected: generated proof is removed (finding 20)
-36. standalone: Cost named task 8.1 for the reference monorepo measurement. fixed
+36. standalone: Cost named task 8.1 for the the reference monorepo measurement. fixed
 37. standalone: sentences relied on earlier versions of the change. fixed (same fix as finding 5)
 38. standalone: "the proposal page" and "one-line examples" were undefined. fixed
 39. standalone: scenarios relied on the two fixture configs without saying where they are. fixed (the documentation spec names the folders and the design sections)
@@ -342,7 +341,7 @@ C. **A port may not name an aggregate root.** The row `port` lists `entity` but 
 ### After approval: one-line examples
 
 The owner approved the design and chose to add one-line examples (item 11). Added the form, its
-refusals, requirements, tests and tasks; the reference monorepo estimate is now 900 to 1,100 lines. A reader
+refusals, requirements, tests and tasks; the the reference monorepo estimate is now 900 to 1,100 lines. A reader
 found earlier that a one-liner cannot express `import type`; it is now refused on such a rule, with a
 file set as the fix.
 

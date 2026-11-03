@@ -358,12 +358,22 @@ pub(crate) fn usage_error(error: &clap::Error) -> Answer {
     match error.kind() {
         ErrorKind::DisplayHelp | ErrorKind::DisplayVersion => Answer::out(rendered, Outcome::Clean),
         ErrorKind::InvalidSubcommand => {
-            let mut command = <crate::Cli as clap::CommandFactory>::command();
-            let commands: Vec<String> = command
-                .get_subcommands_mut()
+            let command = <crate::Cli as clap::CommandFactory>::command();
+            let shown: Vec<&clap::Command> = command
+                .get_subcommands()
+                .filter(|sub| !sub.is_hide_set())
+                .collect();
+            let width = shown
+                .iter()
+                .map(|sub| sub.get_name().len())
+                .max()
+                .unwrap_or(0)
+                + 2;
+            let commands: Vec<String> = shown
+                .iter()
                 .map(|sub| {
                     format!(
-                        "  {:<10}{}",
+                        "  {:<width$}{}",
                         sub.get_name(),
                         sub.get_about().map(ToString::to_string).unwrap_or_default()
                     )

@@ -1,6 +1,6 @@
 # must-contain
 
-An instance of an element, or a folder, in a `mustContain` rule has no file that matches the rule's pattern.
+An instance of a part, or a folder, in a `mustContain` rule has no file that matches the rule's pattern.
 
 ## Example
 

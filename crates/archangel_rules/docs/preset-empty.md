@@ -1,6 +1,6 @@
 # preset-empty
 
-A preset the config extends matches no file with any of its elements, so none of its rules can fire.
+A preset the config extends matches no file with any of its parts, so none of its rules can fire.
 
 ## Example
 
@@ -9,7 +9,7 @@ A preset the config extends matches no file with any of its elements, so none of
 export default defineConfig({ extends: [fsd({ root: 'scr' })] });
 ```
 
-The message names the preset and its root. A preset declares every part of its architecture, and most repositories have only some of them, so a preset's elements and selectors that match nothing on their own, such as a `widgets` layer the code does not have yet, are not an error: the summary lists them, such as `fsd/widgets` and `fsd/processes`. Only a preset whose file elements together match no file at all is `preset-empty`, because that is most likely a wrong root.
+The message names the preset and its root. A preset declares every part of its architecture, and most repositories have only some of them, so a preset's parts and groups that match nothing on their own, such as a `widgets` layer the code does not have yet, are not an error: the summary lists them, such as `fsd/widgets` and `fsd/processes`. Only a preset whose parts together match no file at all is `preset-empty`, because that is most likely a wrong root.
 
 ## What to do
 

@@ -2,6 +2,7 @@ import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
 import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
+import { agentSets } from './src/agent-pages.mjs';
 
 // The site lives at enhancelabs.ai/archangel. CloudFront sends that path to GitHub Pages, which
 // serves the same build at enhance-labs-builds.github.io/archangel, so the base is the same in both.
@@ -56,8 +57,31 @@ export default defineConfig({
           }),
         },
       ],
-      // llms.txt gives a coding agent the whole site as plain text.
-      plugins: [starlightLinksValidator({ errorOnLocalLinks: true }), starlightLlmsTxt()],
+      // A page's head links to its Markdown, and its title shows the same link.
+      routeMiddleware: './src/route-data.ts',
+      components: { PageTitle: './src/components/PageTitle.astro' },
+      plugins: [
+        starlightLinksValidator({ errorOnLocalLinks: true }),
+        // llms.txt lists a Markdown file for each section and each page, so a coding agent reads
+        // only what it needs.
+        starlightLlmsTxt({
+          details: [
+            'Archangel tests the structure of TypeScript code: which code may import which code, cycles, file and folder names, and exports. Its config is `archangel.config.ts`.',
+            '',
+            'To answer a question, read one page below, not the complete documentation. Start with "Start: Getting started" for a first config, "Concepts" for what the words of a config mean, and "Reference" for every key and option. For a diagnostic code such as `may-import`, read "Diagnostic codes: may-import", or run `npx archangel docs may-import`, which prints the same text with no network.',
+            '',
+            'Every config and command output in these pages comes from a small repository that a test runs on the published package `@enhance-eng/archangel`, so the outputs are what archangel prints.',
+          ].join('\n'),
+          // Keep the prose, file trees and asides whole: a page for an agent is short already.
+          minify: { whitespace: false, details: false, note: false, tip: false },
+          customSelectors: { all: ['.sl-anchor-link'] },
+          customSets: agentSets().map(({ label, description, paths }) => ({ label, description, paths })),
+          optionalLinks: [
+            { label: 'Source', url: 'https://github.com/enhance-labs-builds/archangel', description: 'the Rust core, the npm package and the editor extension' },
+            { label: 'npm package', url: 'https://www.npmjs.com/package/@enhance-eng/archangel' },
+          ],
+        }),
+      ],
       sidebar: [
         {
           label: 'Start',
@@ -75,6 +99,7 @@ export default defineConfig({
             'guides/plugins',
             'guides/ci',
             'guides/editors-and-agents',
+            'guides/docs-for-agents',
             'guides/exceptions-and-baselines',
             {
               label: 'Migrate from other tools',

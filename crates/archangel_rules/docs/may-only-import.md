@@ -1,6 +1,6 @@
 # may-only-import
 
-A file in a `mayOnlyImport` rule's selector imports a file or package that is neither on the rule's list nor in the selector itself. When the selector is a part with a capture, only the files of the same instance count as the selector itself.
+A file in the `files` of a `mayOnlyImport` rule imports a file or package that is neither on the rule's list nor in those files. When `files` is a part with a capture, only the files of the same instance count as those files.
 
 ## Example
 

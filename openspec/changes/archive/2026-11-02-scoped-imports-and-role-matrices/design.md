@@ -914,7 +914,7 @@ and the times.
 - **Two spellings live until 1.0.** A config cannot mix them, and the docs show one.
 - **A one-word brace is a capture.** `archangel rules` and `explain` show the instance it makes.
 - **A wide table adds sets to each class.** Rows of one table rarely overlap, and an overlap is an
-  error, so classes grow with real combinations. the reference monorepo measurement is the evidence at size.
+  error, so classes grow with real combinations. The the reference monorepo measurement is the evidence at size.
 
 ## Compatibility and release
 
@@ -1008,4 +1008,4 @@ This section is for whoever builds the change.
 | JSON schema | `npm/archangel/archangel.schema.json`: the new keys and the `mayImport` kind |
 | New terms | `openspec/glossary.md`: Part, Group, Externals set, Area, Table, Row, Cell, Kind, Kind pattern, Reach, Unjudged; Element instance renamed to Instance and widened to a kind pattern's other captures and to a name without a capture, with Element instance pointing at it; Element and Selector point to Part and Group; Shorthand kind and Rule builder name four kinds |
 | Docs | `crates/archangel_rules/docs/may-import.md` says that a table without `files` leaves a file with no kind outside the table, and that `files` closes that gap; `docs/rules.md`, `README.md`, `docs/commands.md` (`rules`, `explain <file>:<line>`), `docs/migrating.md` (the new spellings), `CHANGELOG.md` (0.2.0), versions in `Cargo.toml` and `npm/archangel/package.json` |
-| Precedents | `layer_sentences` in `crates/archangel_config/src/rules.rs`; `unproven_rules` in `crates/archangel_rules/src/examples.rs`; the reference monorepo's builder at `packages/rules-builder/archangel.mjs` and vocabulary at `packages/rules-builder/index.mjs` on the main branch of https://github.com/example/monorepo |
+| Precedents | `layer_sentences` in `crates/archangel_config/src/rules.rs`; `unproven_rules` in `crates/archangel_rules/src/examples.rs` |

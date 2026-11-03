@@ -22,7 +22,8 @@ A plugin has one or more **conditions**. A condition is an object with these fie
 | `name` | The name that a rule uses, for example `max-imports`. |
 | `description` | One sentence that says what the condition requires. |
 | `reads` | The facts that your function needs: `'imports'`, `'importers'` or `'exports'`. Archangel sends only these facts. |
-| `optionsSchema` | Optional. A JSON Schema for the settings that a rule can give. Archangel refuses a rule whose settings do not match it. |
+| `optionsSchema` | Optional. A JSON Schema for the settings that a rule can give. Archangel refuses a rule whose settings do not match it. Without it, the condition takes no settings, and archangel refuses a rule that gives `options`. |
+| `docs` | Optional. A link to the condition's documentation. |
 | `check` | Your function. Archangel calls it as `check(view, options)`. |
 
 `check(view, options)` gets two arguments:

@@ -70,12 +70,13 @@ pub(crate) fn run_explain(options: &Options, file: &Path) -> Answer {
     let _ = writeln!(out, "  {group}s: {}", list(&selectors));
     let names = rules_that_apply(&session, &path);
     let _ = writeln!(out, "  rules that apply: {}", list(&names));
-    for (rule, sentence) in architecture.sentences_about(session.graph(), &path) {
+    for about in architecture.sentence_roles(session.graph(), &path) {
         let _ = writeln!(
             out,
-            "    {}: {}",
-            architecture.config().rules[rule].name,
-            architecture.sentence_text(rule, sentence)
+            "    {}: {} (judges {})",
+            architecture.config().rules[about.rule].name,
+            architecture.sentence_text(about.rule, about.sentence),
+            about.judges()
         );
     }
     out.push_str(&imports(&session, &path));
@@ -112,11 +113,12 @@ fn json_document(session: &Session, path: &str, class: Option<&Classification>) 
         "rules": rules_that_apply(session, path),
         "sentences": session
             .architecture()
-            .sentences_about(graph, path)
+            .sentence_roles(graph, path)
             .into_iter()
-            .map(|(rule, sentence)| json!({
-                "rule": session.architecture().config().rules[rule].name,
-                "sentence": session.architecture().sentence_text(rule, sentence),
+            .map(|about| json!({
+                "rule": session.architecture().config().rules[about.rule].name,
+                "sentence": session.architecture().sentence_text(about.rule, about.sentence),
+                "judges": about.judges(),
             }))
             .collect::<Vec<Value>>(),
         "imports": imports,

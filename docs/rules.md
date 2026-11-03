@@ -269,14 +269,15 @@ Add one of these options to an import condition. The condition then applies only
 | `specifier: 'parent'` | imports that start with `../` |
 | `specifier: 'alias'` | imports through a tsconfig path or a package `imports` field |
 | `specifier: 'package'` | imports of packages |
-| `instance: 'same'` | imports in one instance of `files` (`files` must be an element with a capture) |
+| `instance: 'same'` | imports in one instance of `files` (`files` must be a part with a capture) |
 | `instance: 'different'` | imports from one instance to a different instance |
 | `dependency: 'dev'` | packages that the nearest `package.json` lists only in `devDependencies` |
 | `dependency: 'undeclared'` | packages that the nearest `package.json` does not list |
-| `within: 'apps/api/src/**'` | imports into this area. It works on `mayOnlyImport` and `mayOnlyBeImportedBy`. |
+| `within: 'apps/api/src/**'` | on `mayOnlyImport`, imports into this area; on `mayOnlyBeImportedBy`, imports by files in this area |
 
-`within` limits a rule to one area. The rule permits each import outside the area. Use it to say that
-a file may import only some of the files in an area:
+`within` limits a rule to one area. On `mayOnlyImport`, the rule permits each import of a file or package
+outside the area. On `mayOnlyBeImportedBy`, the rule permits each import by a file outside the area.
+Use it to say that a file may import only some of the files in an area:
 
 ```ts
 rule('entity-imports', {
@@ -367,11 +368,15 @@ Use `sentences` to give one name to a group of conditions. The rule fails when o
 ```ts
 rule('no-ui-in-app', {
   sentences: [
-    { folders: 'src/app/ui', mustNotExist: true },
+    { files: 'src/app/ui/**', mustNotExist: true },
     { files: 'src/app/ui.*', mustNotExist: true },
   ],
 })
 ```
+
+The files of a `mustNotExist` rule may match nothing, because that is how the rule passes. A
+`folders` sentence is different: a folder pattern that matches no folder is `selector-empty`. So write
+a rule about a folder that must not exist with `files`, as above.
 
 ## Options for every rule
 

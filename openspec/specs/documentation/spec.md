@@ -62,9 +62,9 @@ The fixture is `docs/examples/small-app/`, and its config is the one in design.m
 - **THEN** it holds one config block whose text is the config of `docs/examples/small-app/`, and one output block whose text is the fixture's expected output of `archangel check`
 - **TEST** `crates/archangel/tests/doc_examples.rs` › "the_readme_shows_the_small_app_and_its_error"
 
-### Requirement: The monorepo slice fixture checks a real architecture
+### Requirement: The monorepo slice fixture checks a monorepo architecture
 
-The fixture is `docs/examples/monorepo-slice/`, and its config is the one in design.md, "What the reference monorepo gains". It MUST hold the workspace table of the reference monorepo's apps and packages, its API domain table, and the rules `frontend-api-types-only` and `domain-not-to-pool`, with a small set of files. Its files MUST include one import that each table refuses.
+The fixture is `docs/examples/monorepo-slice/`. It is a small monorepo of apps and packages. It MUST hold a workspace table of its apps and packages, an API domain table, and the rules `frontend-api-types-only` and `domain-not-to-pool`, with a small set of files. Its files MUST include one import that each table refuses.
 
 #### Scenario: The monorepo slice
 

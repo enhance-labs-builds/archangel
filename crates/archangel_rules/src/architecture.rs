@@ -297,12 +297,27 @@ impl Architecture {
     /// files or whose side it is in.
     #[must_use]
     pub fn sentences_about(&self, graph: &ImportGraph, path: &str) -> Vec<(usize, usize)> {
+        self.sentence_roles(graph, path)
+            .into_iter()
+            .map(|about| (about.rule, about.sentence))
+            .collect()
+    }
+
+    /// The sentences that are about a repository file, each with whether it judges the file's own
+    /// imports, imports of the file, or both.
+    #[must_use]
+    pub fn sentence_roles(&self, graph: &ImportGraph, path: &str) -> Vec<SentenceAbout> {
         let bits = self.bits_of(graph, path);
         let set = |index: usize| bits.get(index) == Some(&true);
         self.sentences
             .iter()
-            .filter(|c| set(c.files) || c.side.files.iter().any(|&s| set(s)))
-            .map(|c| (c.rule, c.sentence))
+            .map(|c| SentenceAbout {
+                rule: c.rule,
+                sentence: c.sentence,
+                its_imports: set(c.files),
+                imports_of_it: c.side.files.iter().any(|&s| set(s)),
+            })
+            .filter(|about| about.its_imports || about.imports_of_it)
             .collect()
     }
 
@@ -712,4 +727,29 @@ fn area_per_import() -> bool {
 fn every_row() -> bool {
     fail::fail_point!("rules::every_row", |_| true);
     false
+}
+
+/// A sentence about one file, and how it is about the file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SentenceAbout {
+    /// The rule's index in the config.
+    pub rule: usize,
+    /// The sentence's index in the rule.
+    pub sentence: usize,
+    /// The file is in the sentence's files, so the sentence judges the file's own imports.
+    pub its_imports: bool,
+    /// The file is on the sentence's other side, so the sentence judges imports of the file.
+    pub imports_of_it: bool,
+}
+
+impl SentenceAbout {
+    /// What the sentence judges, in words.
+    #[must_use]
+    pub const fn judges(&self) -> &'static str {
+        match (self.its_imports, self.imports_of_it) {
+            (true, true) => "its imports and imports of it",
+            (true, false) => "its imports",
+            _ => "imports of it",
+        }
+    }
 }

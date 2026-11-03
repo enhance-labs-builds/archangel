@@ -599,8 +599,8 @@ fn listed_only_for_development(manifest: &str) -> Vec<(String, String)> {
     vec![(
         "dev".to_owned(),
         format!(
-            "src/a.ts may not import \"vitest\", because files in \"src\" may not import the \
-             package `*` that {manifest} lists only under devDependencies"
+            "src/a.ts may not import \"vitest\", because files in \"src\" may not import any \
+             package that {manifest} lists only under devDependencies"
         ),
     )]
 }
@@ -657,8 +657,8 @@ fn an_example_manifest_replaces_the_repository_manifest_at_its_path_and_the_near
         dependency_violations(&repo, &nearer),
         [(
             "undeclared".to_owned(),
-            "src/a.ts may not import \"vitest\", because files in \"src\" may not import the \
-             package `*` that src/package.json does not list"
+            "src/a.ts may not import \"vitest\", because files in \"src\" may not import any \
+             package that src/package.json does not list"
                 .to_owned()
         )],
         "the example's src/package.json is nearer than the repository's package.json"

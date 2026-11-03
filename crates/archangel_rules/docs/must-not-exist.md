@@ -1,6 +1,6 @@
 # must-not-exist
 
-A file is in the selector of a `mustNotExist` rule, such as a file in no element or in a reserved folder.
+A file is in the `files` of a `mustNotExist` rule, such as a file in no part or in a reserved folder.
 
 ## Example
 
@@ -17,4 +17,4 @@ rule({ folders: 'src/processes', mustNotExist: true })
 
 ## What to do
 
-Move the file to where the architecture puts it, or delete it. A selector of a `mustNotExist` rule may match nothing, because that is how the rule passes.
+Move the file to where the architecture puts it, or delete it. The `files` of a `mustNotExist` rule may match nothing, because that is how the rule passes.
