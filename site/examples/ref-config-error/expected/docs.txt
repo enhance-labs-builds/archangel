@@ -1,6 +1,6 @@
 # rule-unknown-element
 
-A rule or a selector names an element or selector that the config does not declare. A string without a `/` or a `*` is a name, not a path pattern. The message lists the declared names.
+A rule or a group names a part, a group or an externals set that the config does not declare. A string without a `/` or a `*` is a name, not a path pattern. The message lists the declared names.
 
 ## Example
 

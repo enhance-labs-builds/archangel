@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "@enhance-eng/archangel": "0.3.1"
+    "@enhance-eng/archangel": "0.3.2"
   }
 }
