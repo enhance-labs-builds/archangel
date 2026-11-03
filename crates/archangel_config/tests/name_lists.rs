@@ -1,12 +1,14 @@
 //! Scenarios from the structure-rules spec: how a `mustBeNamed` list loads, and what it refuses.
 #![cfg(test)]
 
-#[path = "support/elements.rs"]
-mod elements;
-
 use archangel_config::{Condition, ConfigProblem, NameRule, ProblemCode, Style, parse_json};
-use elements::only_problem;
 use serde_json::{Value, json};
+
+fn only_problem(config: &Value) -> ConfigProblem {
+    let mut found = parse_json(&config.to_string()).expect_err("the config has a problem");
+    assert_eq!(found.len(), 1, "one problem, found {found:?}");
+    found.remove(0)
+}
 
 fn config_of(rule: &Value) -> Value {
     json!({ "elements": { "src": "src/**" }, "rules": [rule] })

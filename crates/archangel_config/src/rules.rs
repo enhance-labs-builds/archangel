@@ -8,7 +8,8 @@ use crate::model::{
     ImportKinds, ImportOptions, InstanceMatch, NameRule, Rule, RuleKind, Sentence, Side,
     SpecifierForm, Term,
 };
-use crate::names::{NamePattern, Owner, Style};
+use crate::must_be_named::must_be_named;
+use crate::names::NamePattern;
 use crate::parse::{
     nearest, one_spelling, optional_string, parse_examples, patterns, string_list, unknown_fields,
 };
@@ -586,88 +587,20 @@ impl Input<'_> {
             return self.contained(&field, problems);
         }
         if name == "mustBeNamed" {
-            return self.must_be_named(&field, folder_rule, problems);
+            return must_be_named(self.object.get(name), &field, folder_rule, problems);
         }
         let text = self.text(name, problems)?;
-        match name {
-            "mustExport" => self
+        if name == "mustExport" {
+            return self
                 .name_pattern(name, text, problems)
-                .map(Condition::MustExport),
-            _ => {
-                let kind = match text {
-                    "default" => ExportKind::Default,
-                    "star" => ExportKind::Star,
-                    _ => ExportKind::Names(self.name_pattern(name, text, problems)?),
-                };
-                Some(Condition::MayNotExport(kind))
-            }
+                .map(Condition::MustExport);
         }
-    }
-
-    /// The value of `mustBeNamed`: one style or name pattern, or a list of them.
-    fn must_be_named(
-        &self,
-        field: &str,
-        folder_rule: bool,
-        problems: &mut Vec<ConfigProblem>,
-    ) -> Option<Condition> {
-        let before = problems.len();
-        let mut rules = Vec::new();
-        match self.object.get("mustBeNamed") {
-            Some(Value::String(text)) => {
-                rules.extend(self.name_rule("mustBeNamed", text, folder_rule, problems));
-            }
-            Some(Value::Array(entries)) if entries.is_empty() => problems.push(invalid(
-                field,
-                "lists no names; list at least one style or name pattern, such as `kebab-case` or \
-                 `*.view`",
-            )),
-            Some(Value::Array(entries)) => {
-                for (index, entry) in entries.iter().enumerate() {
-                    let key = format!("mustBeNamed[{index}]");
-                    match entry.as_str() {
-                        Some(text) => {
-                            rules.extend(self.name_rule(&key, text, folder_rule, problems));
-                        }
-                        None => problems.push(invalid(
-                            &self.at(&key),
-                            "must be a style or a name pattern, such as `kebab-case` or `*.view`",
-                        )),
-                    }
-                }
-            }
-            _ => problems.push(invalid(
-                field,
-                "must be a style, a name pattern or a list of them, such as `kebab-case` or \
-                 [`*.view`, `*.styles`]",
-            )),
-        }
-        (problems.len() == before).then_some(Condition::MustBeNamed(rules))
-    }
-
-    /// One style or name pattern of `mustBeNamed`, at this key of the rule.
-    fn name_rule(
-        &self,
-        key: &str,
-        text: &str,
-        folder_rule: bool,
-        problems: &mut Vec<ConfigProblem>,
-    ) -> Option<NameRule> {
-        let rule = match Style::from_name(text) {
-            Some(style) => NameRule::Style(style),
-            None => NameRule::Pattern(self.name_pattern(key, text, problems)?),
+        let kind = match text {
+            "default" => ExportKind::Default,
+            "star" => ExportKind::Star,
+            _ => ExportKind::Names(self.name_pattern(name, text, problems)?),
         };
-        if let (true, NameRule::Pattern(pattern)) = (folder_rule, &rule)
-            && pattern.uses(Owner::File)
-        {
-            problems.push(invalid(
-                &self.at(key),
-                "a folder has no file name; a rule about folders can use the spellings of \
-                 `{FolderName}`, the name of the folder that holds it",
-            ));
-            return None;
-        }
-        Some(rule)
+        Some(Condition::MayNotExport(kind))
     }
 
     /// The patterns of `folders`: those with a leading `!` leave folders out.

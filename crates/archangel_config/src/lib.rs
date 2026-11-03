@@ -16,6 +16,7 @@ mod locate;
 mod matcher;
 mod merge;
 mod model;
+mod must_be_named;
 mod names;
 mod parse;
 mod pattern;

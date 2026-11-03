@@ -764,27 +764,24 @@ fn file_name(rule: &Rule, entries: &[NameRule], path: &str) -> Option<Diagnostic
     {
         return None;
     }
-    let (message, fix) = match entries {
-        [NameRule::Style(style)] => {
-            let renamed = names.renamed(*style);
-            (
-                format!(
-                    "the name of {} is {}, which is not {style}; in {style} the file is {renamed}",
-                    names.base, names.name
-                ),
-                format!("name it {renamed}"),
-            )
-        }
-        _ => {
-            let wanted = entries_in_words(entries, &names, " up to the first dot");
-            (
-                format!(
-                    "the full name of {} is {}, and it must be {wanted}",
-                    names.base, names.full
-                ),
-                format!("rename the file so that its name without the extension is {wanted}"),
-            )
-        }
+    let (message, fix) = if let [NameRule::Style(style)] = entries {
+        let renamed = names.renamed(*style);
+        (
+            format!(
+                "the name of {} is {}, which is not {style}; in {style} the file is {renamed}",
+                names.base, names.name
+            ),
+            format!("name it {renamed}"),
+        )
+    } else {
+        let wanted = entries_in_words(entries, &names, " up to the first dot");
+        (
+            format!(
+                "the full name of {} is {}, and it must be {wanted}",
+                names.base, names.full
+            ),
+            format!("rename the file so that its name without the extension is {wanted}"),
+        )
     };
     Some(About { rule, path }.violation(Code::MustBeNamed, message, &fix))
 }
