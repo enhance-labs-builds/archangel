@@ -24,13 +24,13 @@ fn config(extra_elements: &Value, extra_rules: &[Value]) -> Value {
 fn repo(index: &str, import: &str) -> FixtureRepo {
     FixtureRepo::new()
         .file("tsconfig.json", TSCONFIG)
-        .file("src/entities/canvas/index.ts", index)
+        .file("src/entities/ledger/index.ts", index)
         .file(
-            "src/entities/canvas/model/store.ts",
+            "src/entities/ledger/model/store.ts",
             "export const store = 1;\n",
         )
         .file(
-            "src/entities/canvas/model/index.ts",
+            "src/entities/ledger/model/index.ts",
             "export const store = 1;\n",
         )
         .file("src/features/login/a.ts", import)
@@ -55,7 +55,7 @@ fn fix_of(repo: &FixtureRepo) -> (Option<String>, String) {
     )
 }
 
-const DEEP: &str = "import { store } from '@/entities/canvas/model/store';\n";
+const DEEP: &str = "import { store } from '@/entities/ledger/model/store';\n";
 
 #[test]
 fn entry_fix_points_the_specifier_at_the_entry_file() {
@@ -63,7 +63,7 @@ fn entry_fix_points_the_specifier_at_the_entry_file() {
     let session = Session::open(repo.path(), None).expect("the session opens");
     let found = entry(&session);
     let fix = found.fix.as_ref().expect("a fix");
-    assert_eq!(fix.specifier, "@/entities/canvas", "the shorter specifier");
+    assert_eq!(fix.specifier, "@/entities/ledger", "the shorter specifier");
     let (start, end) = found.span.expect("the span");
     assert_eq!(
         fix.span,
@@ -86,11 +86,11 @@ fn entry_fix_is_not_offered_when_the_entry_does_not_export_the_name() {
 fn entry_fix_follows_export_star_chains() {
     let (fix, help) = fix_of(&repo(
         "export * from './model';\n",
-        "import { store } from '@/entities/canvas/model';\n",
+        "import { store } from '@/entities/ledger/model';\n",
     ));
     assert_eq!(
         fix.as_deref(),
-        Some("@/entities/canvas"),
+        Some("@/entities/ledger"),
         "index.ts re-exports store through model/index.ts: {help}"
     );
 }
@@ -113,25 +113,25 @@ fn entry_fix_is_not_offered_when_it_adds_a_violation() {
 fn entry_fix_is_not_offered_when_no_specifier_resolves() {
     let repo = repo(
         "export { store } from './model/store';\n",
-        "import { store } from '../../entities/canvas/model/store';\n",
+        "import { store } from '../../entities/ledger/model/store';\n",
     )
     .file("tsconfig.json", "{}");
     let shortened = fix_of(&repo);
     assert_eq!(
         shortened.0.as_deref(),
-        Some("../../entities/canvas"),
+        Some("../../entities/ledger"),
         "a relative specifier shortens too"
     );
     let repo = FixtureRepo::new()
-        .file("src/entities/canvas/index.ts", "export { store } from './model/store';\n")
-        .file("src/entities/canvas/model/store.ts", "export const store = 1;\n")
-        .file("src/features/login/a.ts", "import { store } from '#canvas-store';\n")
-        .file("package.json", r##"{ "name": "app", "imports": { "#canvas-store": "./src/entities/canvas/model/store.ts" } }"##)
+        .file("src/entities/ledger/index.ts", "export { store } from './model/store';\n")
+        .file("src/entities/ledger/model/store.ts", "export const store = 1;\n")
+        .file("src/features/login/a.ts", "import { store } from '#ledger-store';\n")
+        .file("package.json", r##"{ "name": "app", "imports": { "#ledger-store": "./src/entities/ledger/model/store.ts" } }"##)
         .json_config(&config(&json!({}), &[]));
     let (fix, help) = fix_of(&repo);
     assert_eq!(fix, None, "no shorter specifier resolves to the entry file");
     assert!(
-        help.contains("src/entities/canvas/index.ts"),
+        help.contains("src/entities/ledger/index.ts"),
         "the help names the entry file: {help}"
     );
 }
@@ -185,7 +185,7 @@ fn fix_work_count_rejects_a_parse_per_fix() {
 fn entry_fix_is_not_offered_through_a_named_reexport_of_other_names() {
     let (fix, help) = fix_of(
         &repo("export { other } from './model/store';\n", DEEP).file(
-            "src/entities/canvas/model/store.ts",
+            "src/entities/ledger/model/store.ts",
             "export const store = 1;\nexport const other = 2;\n",
         ),
     );
@@ -213,29 +213,29 @@ fn entry_fix_is_not_offered_when_the_entry_imports_the_name_without_exporting_it
 fn entry_fix_can_be_a_specifier_of_one_segment() {
     let repo = FixtureRepo::new()
         .file(
-            "src/entities/canvas/index.ts",
+            "src/entities/ledger/index.ts",
             "export { store } from './model/store';\n",
         )
         .file(
-            "src/entities/canvas/model/store.ts",
+            "src/entities/ledger/model/store.ts",
             "export const store = 1;\n",
         )
         .file(
             "src/features/login/a.ts",
-            "import { store } from '#canvas/model/store';\n",
+            "import { store } from '#ledger/model/store';\n",
         )
         .file(
             "package.json",
             r##"{ "name": "app", "imports": {
-                "#canvas": "./src/entities/canvas/index.ts",
-                "#canvas/*": "./src/entities/canvas/*.ts"
+                "#ledger": "./src/entities/ledger/index.ts",
+                "#ledger/*": "./src/entities/ledger/*.ts"
             } }"##,
         )
         .json_config(&config(&json!({}), &[]));
     let (fix, help) = fix_of(&repo);
     assert_eq!(
         fix.as_deref(),
-        Some("#canvas"),
+        Some("#ledger"),
         "the subpath import of the entry: {help}"
     );
 }
@@ -244,11 +244,11 @@ fn entry_fix_can_be_a_specifier_of_one_segment() {
 fn entry_fix_never_imports_a_folder_that_holds_the_importing_file() {
     let repo = repo("export { store } from './model/store';\n", "")
         .file(
-            "src/entities/canvas/ui/a.ts",
+            "src/entities/ledger/ui/a.ts",
             "import { store } from '../model/store';\n",
         )
         .json_config(&config(
-            &json!({ "canvas-ui": "src/entities/*/ui/**" }),
+            &json!({ "ledger-ui": "src/entities/*/ui/**" }),
             &[],
         ));
     let session = Session::open(repo.path(), None).expect("the session opens");
@@ -256,7 +256,7 @@ fn entry_fix_never_imports_a_folder_that_holds_the_importing_file() {
         .report()
         .diagnostics
         .iter()
-        .find(|d| d.code == Code::Entry && d.file.as_deref() == Some("src/entities/canvas/ui/a.ts"))
+        .find(|d| d.code == Code::Entry && d.file.as_deref() == Some("src/entities/ledger/ui/a.ts"))
         .expect("an entry violation in ui/a.ts, which is in another element");
     assert_eq!(
         found.fix.as_ref().map(|fix| fix.specifier.as_str()),

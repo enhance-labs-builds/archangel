@@ -92,9 +92,9 @@ fn a_row_permits_an_import_of_a_name_that_it_lists() {
 #[test]
 fn a_cell_means_its_name_in_the_whole_repository() {
     let repo = slice_repo()
-        .file("apps/api/src/board/application/draft.value-object.ts", "")
+        .file("apps/api/src/order/application/draft.value-object.ts", "")
         .file(
-            "apps/api/src/board/domain/board.entity.ts",
+            "apps/api/src/order/domain/order.entity.ts",
             "import '../application/draft.value-object';\n",
         );
     let report = report_of(&slice(), &repo);
@@ -129,7 +129,7 @@ fn an_unresolved_import_is_not_a_violation_of_a_row() {
 #[test]
 fn a_target_with_a_kind_and_no_row_is_named_by_its_kind() {
     let repo = slice_repo().file(
-        "apps/api/src/board/domain/board.entity.ts",
+        "apps/api/src/order/domain/order.entity.ts",
         "import '../application/save.use-case';\n",
     );
     let report = report_of(&slice(), &repo);
@@ -146,8 +146,8 @@ fn a_target_with_a_kind_and_no_row_is_named_by_its_kind() {
 #[test]
 fn a_target_without_a_kind_is_named_by_its_part() {
     let repo = slice_repo().file(
-        "apps/api/src/board/domain/board.entity.ts",
-        "import '../../../../../packages/contract/src/canvas';\n",
+        "apps/api/src/order/domain/order.entity.ts",
+        "import '../../../../../packages/contract/src/ledger';\n",
     );
     let report = report_of(&slice(), &repo);
     let message = message_of(&report, "domain.entity");
@@ -231,25 +231,25 @@ fn a_workspace_package_is_judged_by_the_part_of_its_file() {
     let repo = slice_repo()
         .file(
             "tsconfig.json",
-            r#"{ "compilerOptions": { "baseUrl": ".", "paths": { "@enhance/contract": ["packages/contract/src/index.ts"] } } }"#,
+            r#"{ "compilerOptions": { "baseUrl": ".", "paths": { "@example/contract": ["packages/contract/src/index.ts"] } } }"#,
         )
-        .file("packages/contract/package.json", r#"{ "name": "@enhance/contract" }"#)
+        .file("packages/contract/package.json", r#"{ "name": "@example/contract" }"#)
         .file("packages/contract/src/index.ts", "")
-        .file("packages/canvas-format/src/format.ts", "import '@enhance/contract';\n");
+        .file("packages/ledger-format/src/format.ts", "import '@example/contract';\n");
     let config = json!({
         "parts": {
             "api": "apps/api/**",
             "contract": "packages/contract/**",
-            "canvas-format": "packages/canvas-format/**",
+            "ledger-format": "packages/ledger-format/**",
         },
         "rules": [table(
             "workspace",
-            &json!({ "api": ["contract"], "contract": [], "canvas-format": [] }),
+            &json!({ "api": ["contract"], "contract": [], "ledger-format": [] }),
             &json!({}),
         )],
     });
     let report = report_of(&config, &repo);
-    let message = message_of(&report, "workspace.canvas-format");
+    let message = message_of(&report, "workspace.ledger-format");
     assert!(message.contains("contract"), "{message}");
 }
 
@@ -293,9 +293,9 @@ fn a_cell_that_names_the_row_permits_every_instance() {
 #[test]
 fn may_not_import_itself_removes_the_permission() {
     let repo = slice_repo()
-        .file("apps/api/src/board/domain/renamed.domain-event.ts", "")
+        .file("apps/api/src/order/domain/renamed.domain-event.ts", "")
         .file(
-            "apps/api/src/board/domain/created.domain-event.ts",
+            "apps/api/src/order/domain/created.domain-event.ts",
             "import './renamed.domain-event';\n",
         );
     let report = report_of(&slice(), &repo);
@@ -330,9 +330,9 @@ fn a_row_with_a_capture_that_may_not_import_itself_gives_one_violation() {
 #[test]
 fn a_kind_may_import_its_own_kind_by_default() {
     let repo = slice_repo()
-        .file("apps/api/src/board/domain/column.entity.ts", "")
+        .file("apps/api/src/order/domain/column.entity.ts", "")
         .file(
-            "apps/api/src/board/domain/board.entity.ts",
+            "apps/api/src/order/domain/order.entity.ts",
             "import './column.entity';\n",
         );
     let report = report_of(&slice(), &repo);
@@ -347,11 +347,11 @@ fn a_kind_may_import_its_own_kind_by_default() {
 #[test]
 fn another_capture_in_a_kind_pattern_makes_an_instance() {
     let repo = FixtureRepo::new()
-        .file("apps/api/src/board/domain/column.entity.ts", "")
-        .file("apps/api/src/canvas/domain/canvas.entity.ts", "")
+        .file("apps/api/src/order/domain/column.entity.ts", "")
+        .file("apps/api/src/ledger/domain/ledger.entity.ts", "")
         .file(
-            "apps/api/src/board/domain/board.entity.ts",
-            "import './column.entity';\nimport '../../canvas/domain/canvas.entity';\n",
+            "apps/api/src/order/domain/order.entity.ts",
+            "import './column.entity';\nimport '../../ledger/domain/ledger.entity';\n",
         );
     let config = json!({
         "parts": { "api": "apps/api/**" },
@@ -366,7 +366,7 @@ fn another_capture_in_a_kind_pattern_makes_an_instance() {
     assert_eq!(found.len(), 1, "{:?}", report.diagnostics);
     assert_eq!(
         found[0].specifier.as_deref(),
-        Some("../../canvas/domain/canvas.entity"),
+        Some("../../ledger/domain/ledger.entity"),
         "another capture in a kind pattern makes an instance"
     );
 }
@@ -374,7 +374,7 @@ fn another_capture_in_a_kind_pattern_makes_an_instance() {
 #[test]
 fn every_row_may_import_what_every_row_may_import_lists() {
     let repo = slice_repo().file(
-        "apps/api/src/board/domain/money.value-object.ts",
+        "apps/api/src/order/domain/money.value-object.ts",
         "import '../../shared/result';\n",
     );
     let report = report_of(&slice(), &repo);
@@ -444,15 +444,15 @@ fn judged(report: &Report) -> Vec<String> {
 #[test]
 fn the_kind_is_the_name_before_the_extension() {
     let report = with_target(
-        &["a/board.entity.ts", "a/board.entity.test.ts", "a/board.ts"],
+        &["a/order.entity.ts", "a/order.entity.test.ts", "a/order.ts"],
         "**/*.{kind}.ts",
         &json!({ "entity": [], "test": [] }),
     );
     assert_eq!(
         judged(&report),
         [
-            "a/board.entity.test.ts t.test",
-            "a/board.entity.ts t.entity"
+            "a/order.entity.test.ts t.test",
+            "a/order.entity.ts t.entity"
         ],
         "{:?}",
         report.diagnostics
@@ -462,13 +462,13 @@ fn the_kind_is_the_name_before_the_extension() {
 #[test]
 fn a_declaration_file_counts_d_ts_as_its_extension() {
     let report = with_target(
-        &["a/board.entity.d.ts", "a/env.d.ts"],
+        &["a/order.entity.d.ts", "a/env.d.ts"],
         "**/*.{kind}.ts",
         &json!({ "entity": [] }),
     );
     assert_eq!(
         judged(&report),
-        ["a/board.entity.d.ts t.entity"],
+        ["a/order.entity.d.ts t.entity"],
         "{:?}",
         report.diagnostics
     );
@@ -478,7 +478,7 @@ fn a_declaration_file_counts_d_ts_as_its_extension() {
 fn a_kind_pattern_by_folder_starts_at_the_config_folder() {
     let report = with_target(
         &[
-            "src/domain/entities/board.ts",
+            "src/domain/entities/order.ts",
             "packages/x/src/domain/entities/a.ts",
         ],
         "src/domain/{kind}/**",
@@ -486,7 +486,7 @@ fn a_kind_pattern_by_folder_starts_at_the_config_folder() {
     );
     assert_eq!(
         judged(&report),
-        ["src/domain/entities/board.ts t.entities"],
+        ["src/domain/entities/order.ts t.entities"],
         "{:?}",
         report.diagnostics
     );
@@ -495,13 +495,13 @@ fn a_kind_pattern_by_folder_starts_at_the_config_folder() {
 #[test]
 fn the_kind_capture_in_two_places_takes_one_name() {
     let report = with_target(
-        &["src/entitys/board.entity.ts", "src/entitys/board.policy.ts"],
+        &["src/entitys/order.entity.ts", "src/entitys/order.policy.ts"],
         "**/{kind}s/*.{kind}.ts",
         &json!({ "entity": [], "policy": [] }),
     );
     assert_eq!(
         judged(&report),
-        ["src/entitys/board.entity.ts t.entity"],
+        ["src/entitys/order.entity.ts t.entity"],
         "{:?}",
         report.diagnostics
     );
@@ -537,7 +537,7 @@ fn a_table_can_mix_groups_and_parts() {
 #[test]
 fn a_file_outside_the_tables_files_is_not_judged() {
     let repo = slice_repo().file(
-        "apps/api/src/board/application/draft.entity.ts",
+        "apps/api/src/order/application/draft.entity.ts",
         "import './save.use-case';\n",
     );
     let report = report_of(&slice(), &repo);
@@ -572,8 +572,8 @@ fn the_default_files_of_a_table_are_the_files_its_kind_pattern_matches() {
 #[test]
 fn a_table_with_an_area_judges_only_targets_in_the_area() {
     let repo = slice_repo().file(
-        "apps/api/src/board/domain/board.entity.ts",
-        "import '../../../../../packages/contract/src/canvas';\nimport '../application/save.use-case';\n",
+        "apps/api/src/order/domain/order.entity.ts",
+        "import '../../../../../packages/contract/src/ledger';\nimport '../application/save.use-case';\n",
     );
     let mut config = slice();
     config["rules"][0] = slice_table(&json!({ "within": "api" }));
@@ -635,11 +635,11 @@ fn a_row_without_within_judges_every_repository_file_and_no_unnamed_package() {
 
 #[test]
 fn a_file_with_no_kind_is_refused_by_default() {
-    let repo = slice_repo().file("apps/api/src/board/domain/board.ts", "");
+    let repo = slice_repo().file("apps/api/src/order/domain/order.ts", "");
     let report = report_of(&slice(), &repo);
     let message = message_of(&report, "domain.every-file-has-a-kind");
     assert!(
-        message.contains("board.ts")
+        message.contains("order.ts")
             && message.contains("no kind")
             && message.contains("**/*.{kind}.ts"),
         "{message}"
@@ -663,8 +663,8 @@ fn a_file_whose_kind_has_no_row_is_refused() {
 #[test]
 fn a_file_whose_kind_has_no_row_names_the_closest_row() {
     let repo = FixtureRepo::new()
-        .file("apps/api/src/board/domain/board.aggregate-root.ts", "")
-        .file("apps/api/src/board/domain/a.aggregate-rot.ts", "");
+        .file("apps/api/src/order/domain/order.aggregate-root.ts", "")
+        .file("apps/api/src/order/domain/a.aggregate-rot.ts", "");
     let config = json!({
         "rules": [table(
             "domain",
@@ -681,10 +681,10 @@ fn a_file_whose_kind_has_no_row_names_the_closest_row() {
 #[test]
 fn files_left_out_of_a_table_need_no_kind() {
     let repo = FixtureRepo::new()
-        .file("apps/api/src/board/domain/index.ts", "")
-        .file("apps/api/src/board/domain/board.entity.test.ts", "")
-        .file("apps/api/src/board/domain/env.d.ts", "")
-        .file("apps/api/src/board/domain/board.entity.ts", "");
+        .file("apps/api/src/order/domain/index.ts", "")
+        .file("apps/api/src/order/domain/order.entity.test.ts", "")
+        .file("apps/api/src/order/domain/env.d.ts", "")
+        .file("apps/api/src/order/domain/order.entity.ts", "");
     let config = json!({
         "parts": { "api": "apps/api/**" },
         "groups": { "tests": "**/*.test.ts" },
@@ -709,10 +709,10 @@ fn files_left_out_of_a_table_need_no_kind() {
 #[test]
 fn a_file_with_no_kind_is_outside_a_table_without_files() {
     let repo = FixtureRepo::new()
-        .file("apps/api/src/board/application/save.use-case.ts", "")
-        .file("apps/api/src/board/domain/a.entity.ts", "")
+        .file("apps/api/src/order/application/save.use-case.ts", "")
+        .file("apps/api/src/order/domain/a.entity.ts", "")
         .file(
-            "apps/api/src/board/domain/board.ts",
+            "apps/api/src/order/domain/order.ts",
             "import '../application/save.use-case';\n",
         );
     let config = json!({
@@ -728,7 +728,7 @@ fn a_file_with_no_kind_is_outside_a_table_without_files() {
     assert!(
         of(&report, "t.every-file-has-a-kind")
             .iter()
-            .all(|d| d.file.as_deref() != Some("apps/api/src/board/domain/board.ts")),
+            .all(|d| d.file.as_deref() != Some("apps/api/src/order/domain/order.ts")),
         "{:?}",
         report.diagnostics
     );
@@ -766,14 +766,14 @@ fn a_file_in_two_rows_of_a_table_is_an_error() {
 fn a_row_key_that_is_a_group_means_the_group() {
     let repo = FixtureRepo::new()
         .file("apps/api/src/shared/types/a.ts", "")
-        .file("apps/api/src/board/domain/id.types.ts", "");
+        .file("apps/api/src/order/domain/id.types.ts", "");
     let config = json!({
         "parts": { "api": "apps/api/**" },
         "groups": { "types": "apps/api/src/shared/types/**" },
         "rules": [table(
             "t",
             &json!({ "types": [] }),
-            &json!({ "files": "apps/api/src/board/domain/**", "kinds": "**/*.{kind}.ts" }),
+            &json!({ "files": "apps/api/src/order/domain/**", "kinds": "**/*.{kind}.ts" }),
         )],
     });
     let report = report_of(&config, &repo);
@@ -861,16 +861,16 @@ fn domain_with_two_rows(off: &[&str]) -> Value {
 
 fn domain_repo() -> FixtureRepo {
     FixtureRepo::new()
-        .file("apps/api/src/board/application/save.use-case.ts", "")
+        .file("apps/api/src/order/application/save.use-case.ts", "")
         .file(
-            "apps/api/src/board/domain/a.entity.ts",
+            "apps/api/src/order/domain/a.entity.ts",
             "import '../application/save.use-case';\n",
         )
         .file(
-            "apps/api/src/board/domain/a.policy.ts",
+            "apps/api/src/order/domain/a.policy.ts",
             "import '../application/save.use-case';\n",
         )
-        .file("apps/api/src/board/domain/plain.ts", "")
+        .file("apps/api/src/order/domain/plain.ts", "")
 }
 
 #[test]
@@ -916,7 +916,7 @@ fn a_table_name_in_off_drops_every_rule_of_the_table() {
 #[test]
 fn an_exception_names_a_row_of_a_table() {
     let repo = slice_repo().file(
-        "apps/api/src/board/domain/board.entity.ts",
+        "apps/api/src/order/domain/order.entity.ts",
         "// archangel-allow domain.entity: migration in progress\nimport '../application/save.use-case';\n",
     );
     let report = report_of(&slice(), &repo);
@@ -936,8 +936,8 @@ fn an_exception_names_a_row_of_a_table() {
 #[test]
 fn a_row_with_no_file_is_listed_in_the_summary() {
     let repo = slice_repo()
-        .file("apps/api/src/board/domain/board.entity.ts", "")
-        .file("apps/api/src/board/domain/board.entity.test.ts", "");
+        .file("apps/api/src/order/domain/order.entity.ts", "")
+        .file("apps/api/src/order/domain/order.entity.test.ts", "");
     let report = report_of(&slice(), &repo);
     assert_eq!(codes(&report), [] as [&str; 0], "{:?}", report.diagnostics);
     let listed = report.summary.rows_with_no_file.clone().unwrap_or_default();
@@ -1006,7 +1006,7 @@ fn a_table_without_a_row_is_table_empty() {
 
 #[test]
 fn files_that_match_nothing_are_selector_empty_not_table_empty() {
-    let repo = FixtureRepo::new().file("apps/api/src/board/domain/a.entity.ts", "");
+    let repo = FixtureRepo::new().file("apps/api/src/order/domain/a.entity.ts", "");
     let config = json!({
         "parts": { "api": "apps/api/**" },
         "rules": [
@@ -1032,7 +1032,7 @@ fn files_that_match_nothing_are_selector_empty_not_table_empty() {
 
 #[test]
 fn an_area_that_matches_nothing_is_selector_empty_not_table_empty() {
-    let repo = FixtureRepo::new().file("apps/api/src/board/domain/a.entity.ts", "");
+    let repo = FixtureRepo::new().file("apps/api/src/order/domain/a.entity.ts", "");
     let config = json!({
         "parts": { "api": "apps/api/**" },
         "rules": [

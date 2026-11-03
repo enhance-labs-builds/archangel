@@ -5,6 +5,24 @@ and archangel follows [semantic versioning](https://semver.org/) for its command
 its JSON output (`schemaVersion`) and its language server. The library crates have no stability
 guarantee.
 
+## 0.3.2 - 2026-11-03
+
+### Fixed
+
+- A rule of several sentences with an `entry` sentence, such as `fsd/no-public-api-sidestep`, says
+  which entry file to import through. Before, its message ended with an empty list.
+- A `mayNotImport` message names the limits of its rule. `fsd/import-locality` now says "through a
+  relative specifier", so it no longer reads as a ban on a whole layer.
+- A package pattern reads as words: `*` is "any package", and `@scope/*` is "a package in
+  `@scope`". Before, an undeclared-package message said "the package `*`".
+- A part that matches only files that another part also matches is no longer `element-empty`.
+  `part-overlap` reports the file.
+- The list of commands after an unknown command is in two columns, and it does not show the hidden
+  `man` command.
+- `archangel explain <file>` says, for each rule, whether it judges the file's own imports, imports
+  of the file, or both. The JSON output gives the same as `judges`.
+- `archangel docs` and the help say "part" and "group", as the config does.
+
 ## 0.3.1 - 2026-11-03
 
 ### Fixed

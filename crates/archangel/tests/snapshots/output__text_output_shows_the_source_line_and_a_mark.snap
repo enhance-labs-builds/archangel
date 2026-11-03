@@ -2,11 +2,11 @@
 source: crates/archangel/tests/output.rs
 expression: found.stdout
 ---
-error[entry]: "../../entities/canvas/model/store" reaches inside "canvas" of "entity" past its entry files
+error[entry]: "../../entities/ledger/model/store" reaches inside "ledger" of "entity" past its entry files
  --> src/features/login/a.ts:1:23
   |
-1 | import { store } from '../../entities/canvas/model/store';
-  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ import it through "../../entities/canvas"
+1 | import { store } from '../../entities/ledger/model/store';
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ import it through "../../entities/ledger"
   |
   = note: rule: entry(entity)
 

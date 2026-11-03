@@ -232,3 +232,20 @@ h1#_top {
 :root[data-theme='light'] header .sl-flex a[href*='github'] {
   color: var(--sl-color-gray-2);
 }
+
+/* The link under each page title to the same page as Markdown, for a coding agent. */
+.agent-markdown {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-gray-3);
+  text-decoration: none;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 8px;
+  padding: 0.15rem 0.55rem;
+}
+
+.agent-markdown:hover {
+  color: var(--sl-color-accent-high);
+  border-color: var(--sl-color-accent);
+}

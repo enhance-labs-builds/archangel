@@ -1,4 +1,4 @@
-//! Shared by the tests of import tables: the enhance3 slice, and what a check gives.
+//! Shared by the tests of import tables: the monorepo slice, and what a check gives.
 #![cfg(test)]
 // @justified intent
 // Each test crate includes this file and uses only some of its helpers.
@@ -11,13 +11,13 @@ use serde_json::{Value, json};
 #[path = "check.rs"]
 mod check;
 
-/// The domain table of the enhance3 slice in the design, with its parts and groups.
+/// The domain table of the monorepo slice in the design, with its parts and groups.
 pub(crate) fn slice() -> Value {
     json!({
         "parts": {
             "api": "apps/api/**",
             "contract": "packages/contract/**",
-            "canvas-format": "packages/canvas-format/**",
+            "ledger-format": "packages/ledger-format/**",
         },
         "groups": {
             "tests": ["**/*.{test,spec}.{ts,tsx}"],
@@ -55,10 +55,10 @@ pub(crate) fn slice_table(extra: &Value) -> Value {
 pub(crate) fn slice_repo() -> FixtureRepo {
     repo_of(&[
         "apps/api/src/shared/result.ts",
-        "apps/api/src/board/application/save.use-case.ts",
-        "packages/contract/src/canvas.ts",
-        "packages/canvas-format/src/format.ts",
-        "apps/api/src/board/domain/keep.value-object.ts",
+        "apps/api/src/order/application/save.use-case.ts",
+        "packages/contract/src/ledger.ts",
+        "packages/ledger-format/src/format.ts",
+        "apps/api/src/order/domain/keep.value-object.ts",
     ])
 }
 

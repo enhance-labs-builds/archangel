@@ -316,3 +316,22 @@ fn a_presets_parts_are_a_separate_set() {
         "both rules judge the file"
     );
 }
+
+#[test]
+fn a_part_that_matches_only_overlapping_files_is_not_empty() {
+    let repo = FixtureRepo::new().file("src/features/login/session.model.ts", "");
+    let config = json!({
+        "parts": { "model": "src/**/*.model.ts", "feature": "src/features/{feature}/**" },
+    });
+    let (report, _) = support::check(&config, &repo, None);
+    assert_eq!(
+        codes::messages(&report, Code::PartOverlap).len(),
+        1,
+        "the overlap is the problem"
+    );
+    assert_eq!(
+        empty_elements(&report),
+        [] as [String; 0],
+        "both patterns match the file, so neither part matches nothing"
+    );
+}

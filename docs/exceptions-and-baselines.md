@@ -11,7 +11,7 @@ An exception is a comment directly above the import, with the rule's name and th
 
 ```ts
 // archangel-allow entry(entity): the migration reads the raw store before the entity exists
-import { rawStore } from '@/entities/canvas/model/store';
+import { rawStore } from '@/entities/ledger/model/store';
 ```
 
 - It permits that one import to break that one rule. The import is still checked against every

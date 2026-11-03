@@ -1,0 +1,72 @@
+---
+title: Give these docs to a coding agent
+description: Point a coding agent at the Markdown of these docs, tell it to use archangel in your repository, and let it read each diagnostic code without a network.
+---
+
+import { Steps } from '@astrojs/starlight/components';
+
+A coding agent works best with archangel when it can read the docs and run the checks itself. This
+page tells you how to give it both.
+
+## The docs as Markdown
+
+Each page of this site is also a Markdown file. An agent reads Markdown with fewer tokens than HTML,
+and it gets the code blocks and the command output exactly.
+
+| What the agent needs | Where it is |
+| --- | --- |
+| An index of every page, with a one-line description of each | [`/archangel/llms.txt`](https://enhancelabs.ai/archangel/llms.txt) |
+| One page | The link **Markdown for agents** under the title of each page. The HTML of each page also names it in a `<link rel="alternate" type="text/markdown">` tag. |
+| One section, such as all of the reference | The section files that `llms.txt` lists, for example `_llms-txt/reference.txt` |
+| Everything, in one file | [`/archangel/llms-full.txt`](https://enhancelabs.ai/archangel/llms-full.txt). It is large, so give it only to an agent with a large context. |
+
+Give the agent the index first. It can then read only the pages that it needs.
+
+## The meaning of a diagnostic code, with no network
+
+`archangel docs <code>` prints the page of a diagnostic code: what it means, an example, and what to
+do. It needs no config and no network, so an agent can run it in a sandbox:
+
+```sh
+npx archangel docs may-import
+```
+
+The output of `archangel check` ends with this command, for each code that it shows. The
+[diagnostic code pages](/archangel/reference/diagnostics/) of this site show the same text.
+
+## Tell the agent to use archangel
+
+Add these lines to the instructions that your agent reads, such as `AGENTS.md` or `CLAUDE.md`:
+
+```md
+## Architecture
+
+This repository's architecture is tested by archangel. The rules are in `archangel.config.ts`.
+
+- After each change, run `npx archangel check`. Fix each problem before you continue.
+- To see what a rule permits, run `npx archangel rules`. To see why an import is refused,
+  run `npx archangel explain <file>:<line>`.
+- To learn what a diagnostic code means, run `npx archangel docs <code>`.
+- Do not add an `archangel-allow` comment or a baseline entry to make a check pass. Ask first.
+- The docs are at https://enhancelabs.ai/archangel/llms.txt.
+```
+
+## Give the agent the result of each change
+
+<Steps>
+
+1. Start watch mode with JSON output beside the agent:
+
+   ```sh
+   npx archangel watch --format json
+   ```
+
+2. The agent reads one JSON line after each edit. The line lists the diagnostics that are new and
+   the diagnostics that are gone.
+
+3. The agent fixes what is new before it moves on.
+
+</Steps>
+
+[Editors and coding agents](/archangel/guides/editors-and-agents/) tells you about the language
+server and about each field of the JSON line.

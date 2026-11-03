@@ -82,7 +82,7 @@ An entry rule MUST name one element and a list of entry file patterns relative t
 #### Scenario: An import past the entry file
 
 - **GIVEN** an entry rule on "entity" with the entry file `index.ts`, and the pattern `src/entities/{entity}/**`
-- **AND** a file outside "entity" that imports `src/entities/canvas/model/store.ts`
+- **AND** a file outside "entity" that imports `src/entities/ledger/model/store.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of the entry rule that names `index.ts` as the entry file
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "entry_rejects_an_import_past_the_entry_file"
@@ -90,7 +90,7 @@ An entry rule MUST name one element and a list of entry file patterns relative t
 #### Scenario: An import through the entry file
 
 - **GIVEN** the same entry rule
-- **AND** a file outside "entity" that imports `src/entities/canvas/index.ts`
+- **AND** a file outside "entity" that imports `src/entities/ledger/index.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of the entry rule
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "entry_permits_an_import_through_the_entry_file"
@@ -98,7 +98,7 @@ An entry rule MUST name one element and a list of entry file patterns relative t
 #### Scenario: One instance imports another past its entry file
 
 - **GIVEN** the same entry rule
-- **AND** the file `src/entities/user/a.ts` that imports `src/entities/canvas/model/store.ts`
+- **AND** the file `src/entities/user/a.ts` that imports `src/entities/ledger/model/store.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of the entry rule, because the two files are in different instances
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "entry_rejects_a_sibling_instance_past_the_entry_file"
@@ -474,7 +474,7 @@ Archangel MUST check each import against every rule. When an import breaks more 
 
 #### Scenario: An import that breaks a table row and a rule
 
-- **GIVEN** the enhance3-slice config with one more rule, `rule('domain-not-to-application', { files: 'domain', mayNotImport: 'application' })`
+- **GIVEN** the monorepo-slice config with one more rule, `rule('domain-not-to-application', { files: 'domain', mayNotImport: 'application' })`
 - **AND** a domain entity that imports a use case
 - **WHEN** archangel makes a check
 - **THEN** archangel gives two violations for that import, one of `domain.entity` and one of `domain-not-to-application`, and the summary counts two problems
@@ -496,9 +496,9 @@ Archangel MUST check each import against every rule. When an import breaks more 
 
 #### Scenario: A table that does not name a package
 
-- **GIVEN** the enhance3-slice config, whose table `domain` names no externals set, and a domain entity that imports `pg`
+- **GIVEN** the monorepo-slice config, whose table `domain` names no externals set, and a domain entity that imports `pg`
 - **WHEN** archangel makes a check
-- **THEN** archangel gives one violation, of `core-not-to-driver`, and none of the table
+- **THEN** archangel gives one violation, of `domain-not-to-pool`, and none of the table
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "a_table_that_names_no_externals_set_leaves_a_package_to_other_rules"
 
 #### Scenario: The order of the rules
@@ -570,7 +570,7 @@ A `mayOnlyImport` rule MAY have an area, written with `within` and with the valu
 #### Scenario: An entity imports a use case
 
 - **GIVEN** a rule `{ files: 'entity', mayOnlyImport: ['value-object'], within: 'apps/api/src/**' }`
-- **AND** a file in "entity" that imports `apps/api/src/canvas/application/save.use-case.ts`
+- **AND** a file in "entity" that imports `apps/api/src/ledger/application/save.use-case.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation that names "value-object" as what the file may import and `apps/api/src/**` as the area
 - **TEST** `crates/archangel_rules/tests/conditions.rs` › "may_only_import_within_rejects_an_import_into_the_area_outside_its_list"

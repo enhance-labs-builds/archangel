@@ -150,7 +150,7 @@ fn row_repo() -> FixtureRepo {
         .file("apps/api/src/b/application/save.use-case.ts", "")
         .file("apps/api/src/b/domain/a.value-object.ts", "")
         .file(
-            "apps/api/src/b/domain/board.entity.ts",
+            "apps/api/src/b/domain/order.entity.ts",
             "import '../application/save.use-case';\n",
         )
         .json_config(&json!({

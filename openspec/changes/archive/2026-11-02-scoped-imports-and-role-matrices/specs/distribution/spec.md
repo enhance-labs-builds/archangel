@@ -52,10 +52,10 @@ The npm package MUST export `defineConfig` and the types of the config. With the
 
 #### Scenario: A row that names nothing in a table without a kind pattern
 
-- **GIVEN** a config that uses `defineConfig`, declares the part "canvas-document", and has a table with no kind pattern and the row `canvas-documents`
+- **GIVEN** a config that uses `defineConfig`, declares the part "ledger-document", and has a table with no kind pattern and the row `ledger-documents`
 - **WHEN** the TypeScript compiler checks the config
-- **THEN** the compiler reports an error on "canvas-documents"
-- **AND** the same table with the row `canvas-document` has no error
+- **THEN** the compiler reports an error on "ledger-documents"
+- **AND** the same table with the row `ledger-document` has no error
 - **TEST** `npm/archangel/test/types.test-d.ts` › "a row of a table without kinds must be a declared part or group"
 
 #### Scenario: A table name with a colon
@@ -83,7 +83,7 @@ The npm package MUST export `defineConfig` and the types of the config. With the
 
 #### Scenario: The checked fixtures
 
-- **GIVEN** the configs of the small-app and enhance3-slice fixtures, written with `defineConfig` and literal names only
+- **GIVEN** the configs of the small-app and monorepo-slice fixtures, written with `defineConfig` and literal names only
 - **WHEN** the TypeScript compiler checks them with `strict` on
 - **THEN** the compiler reports no error
 - **TEST** `npm/archangel/test/types.test-d.ts` › "the configs of the checked fixtures type-check with literal names"

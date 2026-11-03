@@ -24,9 +24,9 @@ Each violation of an import MUST give the importing file, line and column, the s
 #### Scenario: An entry violation
 
 - **GIVEN** an entry rule on "entity" with the entry file `index.ts`
-- **AND** an import of `@/entities/canvas/model/store` from outside the instance "canvas"
+- **AND** an import of `@/entities/ledger/model/store` from outside the instance "ledger"
 - **WHEN** archangel makes a check
-- **THEN** the violation says that the import must go through `src/entities/canvas/index.ts`
+- **THEN** the violation says that the import must go through `src/entities/ledger/index.ts`
 - **TEST** `crates/archangel_rules/tests/diagnostics.rs` › "entry_violation_names_the_entry_file_to_use"
 
 #### Scenario: A rule with a documentation link
@@ -50,10 +50,10 @@ Archangel MUST offer a fix only when it applied the fix in memory and the fix re
 
 #### Scenario: A specifier that can point to the entry file
 
-- **GIVEN** an import of `@/entities/canvas/model/store` that breaks an entry rule
-- **AND** the entry file `src/entities/canvas/index.ts`, which the specifier `@/entities/canvas` resolves to
+- **GIVEN** an import of `@/entities/ledger/model/store` that breaks an entry rule
+- **AND** the entry file `src/entities/ledger/index.ts`, which the specifier `@/entities/ledger` resolves to
 - **WHEN** archangel makes a check
-- **THEN** the violation has a fix that changes the specifier to `@/entities/canvas`
+- **THEN** the violation has a fix that changes the specifier to `@/entities/ledger`
 - **TEST** `crates/archangel_engine/tests/fixes.rs` › "entry_fix_points_the_specifier_at_the_entry_file"
 
 #### Scenario: The entry file does not export the imported name
@@ -68,7 +68,7 @@ Archangel MUST offer a fix only when it applied the fix in memory and the fix re
 
 - **GIVEN** the same import of `store`, and an entry file with `export * from './model'`, whose file `model/index.ts` exports `store`
 - **WHEN** archangel makes a check
-- **THEN** the violation has a fix that changes the specifier to `@/entities/canvas`
+- **THEN** the violation has a fix that changes the specifier to `@/entities/ledger`
 - **TEST** `crates/archangel_engine/tests/fixes.rs` › "entry_fix_follows_export_star_chains"
 
 #### Scenario: The fix would break another rule

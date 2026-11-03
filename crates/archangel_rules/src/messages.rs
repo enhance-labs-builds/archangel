@@ -185,52 +185,73 @@ impl Texts<'_> {
             RuleKind::Entry { files, .. } => return self.entry(files, parties),
             RuleKind::Sentence | RuleKind::TableRow { .. } => {}
         }
-        let Parties {
-            specifier, file, ..
-        } = *parties;
-        let files = &sentence.files_text;
+        // An `entry` written as one sentence of a rule of several keeps its own condition.
+        if let Condition::Entry { files, .. } = &sentence.condition {
+            return self.entry(files, parties);
+        }
+        self.sentence_words(sentence, parties)
+    }
+
+    /// The words of a violation of a sentence with an import condition.
+    fn sentence_words(&self, sentence: &Sentence, parties: &Parties<'_>) -> (Code, String, String) {
         let side = sentence
             .condition
             .side()
             .map(|side| self.side(side))
             .unwrap_or_default();
-        let (area, importers) = area_words(sentence);
+        match &sentence.condition {
+            Condition::MayOnlyImport(_) => self.may_only_import_words(sentence, parties, &side),
+            Condition::MayOnlyBeImportedBy(_) => imported_by_words(sentence, parties, &side),
+            _ => self.may_not_import_words(sentence, parties, &side),
+        }
+    }
+
+    fn may_only_import_words(
+        &self,
+        sentence: &Sentence,
+        parties: &Parties<'_>,
+        side: &str,
+    ) -> (Code, String, String) {
+        let Parties {
+            specifier, file, ..
+        } = *parties;
+        let files = &sentence.files_text;
+        let (area, _) = area_words(sentence);
+        let may = self.may_only(sentence, side);
+        (
+            Code::MayOnlyImport,
+            format!(
+                "{file} may not import \"{specifier}\", because files in \"{files}\" may \
+                 only import {may}{area}"
+            ),
+            format!("files in \"{files}\" may import only {may}{area}"),
+        )
+    }
+
+    fn may_not_import_words(
+        &self,
+        sentence: &Sentence,
+        parties: &Parties<'_>,
+        side: &str,
+    ) -> (Code, String, String) {
+        let Parties {
+            specifier, file, ..
+        } = *parties;
+        let files = &sentence.files_text;
+        let limits = crate::words::import_limits(&sentence.options);
         let manifest = sentence
             .options
             .dependency
             .map(|kind| self.manifest(file, kind))
             .unwrap_or_default();
-        match &sentence.condition {
-            Condition::MayOnlyImport(_) => {
-                let may = self.may_only(sentence, &side);
-                (
-                    Code::MayOnlyImport,
-                    format!(
-                        "{file} may not import \"{specifier}\", because files in \"{files}\" may \
-                         only import {may}{area}"
-                    ),
-                    format!("files in \"{files}\" may import only {may}{area}"),
-                )
-            }
-            Condition::MayOnlyBeImportedBy(_) => (
-                Code::MayOnlyBeImportedBy,
-                format!(
-                    "{file} may not import \"{specifier}\", because only {side} and files in \
-                     \"{files}\" may import files in \"{files}\"{importers}"
-                ),
-                format!(
-                    "only {side} and files in \"{files}\" may import files in \"{files}\"{importers}"
-                ),
+        (
+            Code::MayNotImport,
+            format!(
+                "{file} may not import \"{specifier}\", because files in \"{files}\" may not \
+                 import {side}{limits}{manifest}"
             ),
-            _ => (
-                Code::MayNotImport,
-                format!(
-                    "{file} may not import \"{specifier}\", because files in \"{files}\" may not \
-                     import {side}{manifest}"
-                ),
-                "remove the import, or move the code to files that may import it".to_owned(),
-            ),
-        }
+            "remove the import, or move the code to files that may import it".to_owned(),
+        )
     }
 
     /// What a `mayOnlyImport` sentence permits: its side, and its own files.
@@ -262,11 +283,7 @@ impl Texts<'_> {
                 .iter()
                 .map(|e| format!("\"{}\"", self.name(*e))),
         );
-        names.extend(
-            side.packages
-                .iter()
-                .map(|p| format!("the package `{}`", p.source())),
-        );
+        names.extend(side.packages.iter().map(|p| package_words(p.source())));
         names.join(", ")
     }
 
@@ -572,5 +589,39 @@ fn area_words(sentence: &Sentence) -> (String, String) {
                 format!(", among the importers in \"{area}\""),
             )
         },
+    )
+}
+
+/// A package pattern of a rule, in words: `*` is any package, and `@scope/*` is a package in the
+/// scope.
+fn package_words(pattern: &str) -> String {
+    match pattern {
+        "*" => "any package".to_owned(),
+        _ => match pattern.strip_suffix("/*") {
+            Some(scope) if !scope.contains('*') => format!("a package in `{scope}`"),
+            _ if pattern.contains('*') => format!("a package that matches `{pattern}`"),
+            _ => format!("the package `{pattern}`"),
+        },
+    }
+}
+
+/// The words of a violation of a `mayOnlyBeImportedBy` sentence.
+fn imported_by_words(
+    sentence: &Sentence,
+    parties: &Parties<'_>,
+    side: &str,
+) -> (Code, String, String) {
+    let Parties {
+        specifier, file, ..
+    } = *parties;
+    let files = &sentence.files_text;
+    let (_, importers) = area_words(sentence);
+    (
+        Code::MayOnlyBeImportedBy,
+        format!(
+            "{file} may not import \"{specifier}\", because only {side} and files in \
+             \"{files}\" may import files in \"{files}\"{importers}"
+        ),
+        format!("only {side} and files in \"{files}\" may import files in \"{files}\"{importers}"),
     )
 }

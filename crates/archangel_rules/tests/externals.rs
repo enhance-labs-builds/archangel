@@ -133,12 +133,12 @@ fn an_externals_name_of_a_workspace_package_is_config_invalid_in_a_check() {
     let repo = FixtureRepo::new()
         .file(
             "packages/contract/package.json",
-            r#"{ "name": "@enhance/contract" }"#,
+            r#"{ "name": "@example/contract" }"#,
         )
         .file("src/a.ts", "");
     let config = json!({
         "parts": { "src": "src/**" },
-        "externals": { "c": ["@enhance/contract"] },
+        "externals": { "c": ["@example/contract"] },
         "rules": [{ "name": "no-c", "files": "src/**", "mayNotImport": "c" }],
     });
     let (report, _) = support::check(&config, &repo, None);
@@ -149,7 +149,7 @@ fn an_externals_name_of_a_workspace_package_is_config_invalid_in_a_check() {
         .collect();
     assert_eq!(found.len(), 1, "{:?}", report.diagnostics);
     assert!(
-        found[0].message.contains("@enhance/contract")
+        found[0].message.contains("@example/contract")
             && found[0].message.contains("resolves to a repository file"),
         "{}",
         found[0].message

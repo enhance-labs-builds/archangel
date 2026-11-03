@@ -22,7 +22,8 @@ Then run `npx archangel test`. Archangel checks the preset's examples in your re
 It has the rules of Steiger, the official linter for Feature-Sliced Design.
 
 - By default, it uses the rules that Steiger recommends.
-- `strict: true` adds the four rules that Steiger has as options.
+- `strict: true` adds the four rules that Steiger has as options. One of them, `import-locality`,
+  refuses a relative import between slices and layers, so the code must use an alias such as `@/`.
 
 ### `nextjs`: Next.js
 

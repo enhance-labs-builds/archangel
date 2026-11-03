@@ -463,7 +463,7 @@ fn inside_rows(n: u64, m: u64, p: u64) -> FixtureRepo {
     let mut repo = FixtureRepo::new()
         .file("src/features/cart/target.ts", "")
         .file("src/entities/target.entity.ts", "")
-        .file("apps/api/src/board/domain/target.entity.ts", "");
+        .file("apps/api/src/order/domain/target.entity.ts", "");
     for index in 0..n {
         repo = repo.file(
             &format!("src/features/cart/f{index}.ts"),
@@ -478,7 +478,7 @@ fn inside_rows(n: u64, m: u64, p: u64) -> FixtureRepo {
     }
     for index in 0..p {
         repo = repo.file(
-            &format!("apps/api/src/board/domain/c{index}.entity.ts"),
+            &format!("apps/api/src/order/domain/c{index}.entity.ts"),
             "import './target.entity';\n",
         );
     }

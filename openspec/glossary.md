@@ -292,7 +292,7 @@ Not: target, value.
 
 ### Kind
 
-The name that a table's kind pattern gives a file, such as `entity` for `board.entity.ts`.
+The name that a table's kind pattern gives a file, such as `entity` for `order.entity.ts`.
 
 Not: role, type, category.
 

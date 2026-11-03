@@ -83,7 +83,7 @@ An entry rule MUST name one element and a list of entry file patterns relative t
 #### Scenario: An import past the entry file
 
 - **GIVEN** an entry rule on "entity" with the entry file `index.ts`, and the pattern `src/entities/{entity}/**`
-- **AND** a file outside "entity" that imports `src/entities/canvas/model/store.ts`
+- **AND** a file outside "entity" that imports `src/entities/ledger/model/store.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of the entry rule that names `index.ts` as the entry file
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "entry_rejects_an_import_past_the_entry_file"
@@ -91,7 +91,7 @@ An entry rule MUST name one element and a list of entry file patterns relative t
 #### Scenario: An import through the entry file
 
 - **GIVEN** the same entry rule
-- **AND** a file outside "entity" that imports `src/entities/canvas/index.ts`
+- **AND** a file outside "entity" that imports `src/entities/ledger/index.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of the entry rule
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "entry_permits_an_import_through_the_entry_file"
@@ -99,7 +99,7 @@ An entry rule MUST name one element and a list of entry file patterns relative t
 #### Scenario: One instance imports another past its entry file
 
 - **GIVEN** the same entry rule
-- **AND** the file `src/entities/user/a.ts` that imports `src/entities/canvas/model/store.ts`
+- **AND** the file `src/entities/user/a.ts` that imports `src/entities/ledger/model/store.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of the entry rule, because the two files are in different instances
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "entry_rejects_a_sibling_instance_past_the_entry_file"

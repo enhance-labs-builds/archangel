@@ -47,12 +47,12 @@ fn an_externals_name_of_a_workspace_package_is_refused_once_the_workspace_is_kno
     let config = parse_json(
         &json!({
             "parts": { "src": "src/**" },
-            "externals": { "c": ["@enhance/contract"], "d": ["pg"], "e": ["@enhance/*"] },
+            "externals": { "c": ["@example/contract"], "d": ["pg"], "e": ["@example/*"] },
         })
         .to_string(),
     )
     .expect("the config alone cannot know a workspace's packages");
-    let workspace = config.externals_in_workspace(|name| name == "@enhance/contract");
+    let workspace = config.externals_in_workspace(|name| name == "@example/contract");
     assert_eq!(workspace.len(), 1, "{workspace:?}");
     assert_eq!(
         workspace[0].code,

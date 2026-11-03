@@ -34,7 +34,7 @@ A table MUST have a name and one or more rows. Each row MUST be one rule. The ru
 #### Scenario: A cell names a kind outside the table's files
 
 - **GIVEN** a table `domain` with the files `apps/api/src/*/domain/**`, the kind pattern `**/*.{kind}.ts` and the rows `entity: ['value-object']` and `value-object: []`
-- **AND** the file `apps/api/src/board/domain/board.entity.ts`, which imports `apps/api/src/board/application/draft.value-object.ts`
+- **AND** the file `apps/api/src/order/domain/order.entity.ts`, which imports `apps/api/src/order/application/draft.value-object.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of the table, because the cell `value-object` means every file of that kind
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_cell_means_its_name_in_the_whole_repository"
@@ -52,8 +52,8 @@ A row MUST refuse an import whose target is in no row of the table, unless a cel
 
 #### Scenario: An entity imports a use case
 
-- **GIVEN** the enhance3-slice config, with the table `domain` and the kind pattern `**/*.{kind}.ts`
-- **AND** the file `apps/api/src/board/domain/board.entity.ts`, which imports `apps/api/src/board/application/save.use-case.ts`
+- **GIVEN** the monorepo-slice config, with the table `domain` and the kind pattern `**/*.{kind}.ts`
+- **AND** the file `apps/api/src/order/domain/order.entity.ts`, which imports `apps/api/src/order/application/save.use-case.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of `domain.entity` whose message says "no row for use-case"
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_target_with_a_kind_and_no_row_is_named_by_its_kind"
@@ -61,7 +61,7 @@ A row MUST refuse an import whose target is in no row of the table, unless a cel
 #### Scenario: An entity imports a file of a part that is not a row
 
 - **GIVEN** the same config
-- **AND** the file `apps/api/src/board/domain/board.entity.ts`, which imports `packages/contract/src/canvas.ts`
+- **AND** the file `apps/api/src/order/domain/order.entity.ts`, which imports `packages/contract/src/ledger.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of `domain.entity` whose message says "no row for contract"
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_target_without_a_kind_is_named_by_its_part"
@@ -95,10 +95,10 @@ A table MUST judge an import of an outside package only when a cell of the table
 
 #### Scenario: A package of the workspace
 
-- **GIVEN** the enhance3-slice config, where the package `@enhance/contract` resolves to `packages/contract/src/index.ts`
-- **AND** a file in `canvas-format` that imports `@enhance/contract`
+- **GIVEN** the monorepo-slice config, where the package `@example/contract` resolves to `packages/contract/src/index.ts`
+- **AND** a file in `ledger-format` that imports `@example/contract`
 - **WHEN** archangel makes a check
-- **THEN** archangel gives one violation of `workspace.canvas-format`, which names `contract` as the target
+- **THEN** archangel gives one violation of `workspace.ledger-format`, which names `contract` as the target
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_workspace_package_is_judged_by_the_part_of_its_file"
 
 ### Requirement: A row permits its own name in the same instance
@@ -123,8 +123,8 @@ A row MUST permit an import of its own name in the same instance. The instance M
 
 #### Scenario: A kind that may not import its own kind
 
-- **GIVEN** the enhance3-slice config, where mayNotImportItself lists `domain-event`
-- **AND** the file `apps/api/src/board/domain/created.domain-event.ts`, which imports `apps/api/src/board/domain/renamed.domain-event.ts`
+- **GIVEN** the monorepo-slice config, where mayNotImportItself lists `domain-event`
+- **AND** the file `apps/api/src/order/domain/created.domain-event.ts`, which imports `apps/api/src/order/domain/renamed.domain-event.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of `domain.domain-event` for that import
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "may_not_import_itself_removes_the_permission"
@@ -139,7 +139,7 @@ A row MUST permit an import of its own name in the same instance. The instance M
 
 #### Scenario: A kind that may import its own kind
 
-- **GIVEN** the same config, and the file `apps/api/src/board/domain/board.entity.ts`, which imports `apps/api/src/board/domain/column.entity.ts`
+- **GIVEN** the same config, and the file `apps/api/src/order/domain/order.entity.ts`, which imports `apps/api/src/order/domain/column.entity.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of the table
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_kind_may_import_its_own_kind_by_default"
@@ -147,9 +147,9 @@ A row MUST permit an import of its own name in the same instance. The instance M
 #### Scenario: A kind pattern with another capture
 
 - **GIVEN** a table with the kind pattern `apps/api/src/{context}/domain/**/*.{kind}.ts` and the row `entity: []`
-- **AND** the file `apps/api/src/board/domain/board.entity.ts`, which imports `apps/api/src/board/domain/column.entity.ts` and `apps/api/src/canvas/domain/canvas.entity.ts`
+- **AND** the file `apps/api/src/order/domain/order.entity.ts`, which imports `apps/api/src/order/domain/column.entity.ts` and `apps/api/src/ledger/domain/ledger.entity.ts`
 - **WHEN** archangel makes a check
-- **THEN** archangel gives one violation of the row `entity`, for the import of `canvas.entity.ts`
+- **THEN** archangel gives one violation of the row `entity`, for the import of `ledger.entity.ts`
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "another_capture_in_a_kind_pattern_makes_an_instance"
 
 #### Scenario: A row that both lists itself and may not import itself
@@ -165,8 +165,8 @@ A table MAY have the option everyRowMayImport, with cells. Each row MUST permit 
 
 #### Scenario: The shared Result type
 
-- **GIVEN** the enhance3-slice config, where everyRowMayImport lists `apps/api/src/shared/result.ts`
-- **AND** the file `apps/api/src/board/domain/money.value-object.ts`, which imports `apps/api/src/shared/result.ts`
+- **GIVEN** the monorepo-slice config, where everyRowMayImport lists `apps/api/src/shared/result.ts`
+- **AND** the file `apps/api/src/order/domain/money.value-object.ts`, which imports `apps/api/src/shared/result.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of the table
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "every_row_may_import_what_every_row_may_import_lists"
@@ -187,21 +187,21 @@ A table MAY have one kind pattern, which MUST contain the capture `{kind}` one o
 
 - **GIVEN** a table with the kind pattern `**/*.{kind}.ts`
 - **WHEN** archangel makes a check
-- **THEN** `board.entity.ts` has the kind `entity`, `board.entity.test.ts` has the kind `test`, and `board.ts` has no kind
+- **THEN** `order.entity.ts` has the kind `entity`, `order.entity.test.ts` has the kind `test`, and `order.ts` has no kind
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "the_kind_is_the_name_before_the_extension"
 
 #### Scenario: A declaration file
 
 - **GIVEN** the same table
 - **WHEN** archangel makes a check
-- **THEN** `board.entity.d.ts` has the kind `entity`, and `env.d.ts` has no kind
+- **THEN** `order.entity.d.ts` has the kind `entity`, and `env.d.ts` has no kind
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_declaration_file_counts_d_ts_as_its_extension"
 
 #### Scenario: Kinds by folder
 
 - **GIVEN** a table with the kind pattern `src/domain/{kind}/**`
 - **WHEN** archangel makes a check
-- **THEN** `src/domain/entities/board.ts` has the kind `entities`, and `packages/x/src/domain/entities/a.ts` has no kind, because the pattern starts at the config folder
+- **THEN** `src/domain/entities/order.ts` has the kind `entities`, and `packages/x/src/domain/entities/a.ts` has no kind, because the pattern starts at the config folder
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_kind_pattern_by_folder_starts_at_the_config_folder"
 
 #### Scenario: A folder kind with a dot
@@ -216,7 +216,7 @@ A table MAY have one kind pattern, which MUST contain the capture `{kind}` one o
 
 - **GIVEN** a table with the kind pattern `**/{kind}s/*.{kind}.ts`
 - **WHEN** archangel makes a check
-- **THEN** `src/entitys/board.entity.ts` has the kind `entity`, and `src/entitys/board.policy.ts` has no kind
+- **THEN** `src/entitys/order.entity.ts` has the kind `entity`, and `src/entitys/order.policy.ts` has no kind
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "the_kind_capture_in_two_places_takes_one_name"
 
 #### Scenario: A kind pattern without the capture
@@ -251,9 +251,9 @@ A row key that names no part, group or kind, in a table without a kind pattern, 
 
 #### Scenario: An unknown key without a kind pattern
 
-- **GIVEN** the part `canvas-document`, and a table with no kind pattern and the row `canvas-documents`
+- **GIVEN** the part `ledger-document`, and a table with no kind pattern and the row `ledger-documents`
 - **WHEN** archangel loads the config
-- **THEN** archangel gives `rule-unknown-element` at the row, and names `canvas-document` as the closest name
+- **THEN** archangel gives `rule-unknown-element` at the row, and names `ledger-document` as the closest name
 - **TEST** `crates/archangel_config/tests/tables.rs` › "a_row_key_that_names_nothing_is_refused_with_the_closest_name"
 
 ### Requirement: A row that everyRowMayImport names may not refuse itself
@@ -295,7 +295,7 @@ A table MAY have the option files. Only a file in the table's files MUST be judg
 
 #### Scenario: A kind file outside the table's files
 
-- **GIVEN** the enhance3-slice config, and the file `apps/api/src/board/application/draft.entity.ts`, which imports `apps/api/src/board/application/save.use-case.ts`
+- **GIVEN** the monorepo-slice config, and the file `apps/api/src/order/application/draft.entity.ts`, which imports `apps/api/src/order/application/save.use-case.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of the table `domain`, because the importer is not in the table's files
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_file_outside_the_tables_files_is_not_judged"
@@ -331,7 +331,7 @@ Every table MUST make the rule `<table>.every-file-has-a-kind`; there is no opti
 
 #### Scenario: A domain file with no kind
 
-- **GIVEN** the enhance3-slice config, and the file `apps/api/src/board/domain/board.ts`
+- **GIVEN** the monorepo-slice config, and the file `apps/api/src/order/domain/order.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of `domain.every-file-has-a-kind` for that file, whose message says that the file has no kind and shows the kind pattern
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_file_with_no_kind_is_refused_by_default"
@@ -345,7 +345,7 @@ Every table MUST make the rule `<table>.every-file-has-a-kind`; there is no opti
 
 #### Scenario: A misspelt kind
 
-- **GIVEN** a table with the kind pattern `**/*.{kind}.ts` and the row `aggregate-rot`, and the file `apps/api/src/board/domain/board.aggregate-root.ts` in its files
+- **GIVEN** a table with the kind pattern `**/*.{kind}.ts` and the row `aggregate-rot`, and the file `apps/api/src/order/domain/order.aggregate-root.ts` in its files
 - **WHEN** archangel makes a check
 - **THEN** the violation of `every-file-has-a-kind` names `aggregate-rot` as the closest row
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_file_whose_kind_has_no_row_names_the_closest_row"
@@ -353,7 +353,7 @@ Every table MUST make the rule `<table>.every-file-has-a-kind`; there is no opti
 #### Scenario: Tests, index files and declaration files left out
 
 - **GIVEN** the group `tests` as `**/*.test.ts`, and a table with the files `{ all: ['apps/api/src/*/domain/**', { not: ['tests', '**/index.ts', '**/*.d.ts'] }] }` and the kind pattern `**/*.{kind}.ts`
-- **AND** the files `index.ts`, `board.entity.test.ts` and `env.d.ts` in `apps/api/src/board/domain`
+- **AND** the files `index.ts`, `order.entity.test.ts` and `env.d.ts` in `apps/api/src/order/domain`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of `every-file-has-a-kind` for those files
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "files_left_out_of_a_table_need_no_kind"
@@ -361,10 +361,10 @@ Every table MUST make the rule `<table>.every-file-has-a-kind`; there is no opti
 #### Scenario: A file with no kind outside a table without files
 
 - **GIVEN** a table with the kind pattern `**/*.{kind}.ts`, no `files`, and the row `entity: []`, and no other rule
-- **AND** the file `apps/api/src/board/domain/board.ts`, which imports `apps/api/src/board/application/save.use-case.ts`
+- **AND** the file `apps/api/src/order/domain/order.ts`, which imports `apps/api/src/order/application/save.use-case.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of the table for that file or its import
-- **AND** `archangel rules` lists `board.ts` as a file that no rule judges
+- **AND** `archangel rules` lists `order.ts` as a file that no rule judges
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_file_with_no_kind_is_outside_a_table_without_files"
 
 ### Requirement: A file in two rows of one table is an error
@@ -387,7 +387,7 @@ When a row key names a declared group and the kind pattern gives that name as a 
 
 #### Scenario: A group named types
 
-- **GIVEN** the group `types` as `apps/api/src/shared/types/**`, a table with the kind pattern `**/*.{kind}.ts` and the row `types: []`, and the file `apps/api/src/board/domain/id.types.ts` in the table's files
+- **GIVEN** the group `types` as `apps/api/src/shared/types/**`, a table with the kind pattern `**/*.{kind}.ts` and the row `types: []`, and the file `apps/api/src/order/domain/id.types.ts` in the table's files
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation of `every-file-has-a-kind` for `id.types.ts`, whose message says that the row `types` means the group `apps/api/src/shared/types/**`, not the kind
 - **AND** `archangel rules` shows the row `types` with the files of the group
@@ -504,7 +504,7 @@ A kind row whose files are empty MUST NOT give a diagnostic. The check summary M
 
 #### Scenario: No aggregate root yet
 
-- **GIVEN** the enhance3-slice config, on a repository with entity files and no aggregate-root file
+- **GIVEN** the monorepo-slice config, on a repository with entity files and no aggregate-root file
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no diagnostic about the row `aggregate-root`
 - **AND** the text summary has the line `domain.aggregate-root has no file in this repository`
@@ -521,8 +521,8 @@ A kind row whose files are empty MUST NOT give a diagnostic. The check summary M
 
 #### Scenario: The first file of a kind in the editor
 
-- **GIVEN** a session with the enhance3-slice config and no aggregate-root file
-- **WHEN** the developer creates `apps/api/src/board/domain/board.aggregate-root.ts`, which imports `apps/api/src/board/application/save.use-case.ts`
+- **GIVEN** a session with the monorepo-slice config and no aggregate-root file
+- **WHEN** the developer creates `apps/api/src/order/domain/order.aggregate-root.ts`, which imports `apps/api/src/order/application/save.use-case.ts`
 - **THEN** the language server reports a violation of `domain.aggregate-root` for that import
 - **AND** the summary no longer lists the row, and the result is the same as a full check
 - **TEST** `crates/archangel_engine/tests/sessions.rs` › "a_row_becomes_active_when_its_first_file_is_created"
@@ -739,8 +739,8 @@ A table MAY have an area, written with within. Its rows MUST then judge only imp
 
 #### Scenario: A domain table limited to the API
 
-- **GIVEN** the enhance3-slice domain table with `within: 'api'`
-- **AND** the file `apps/api/src/board/domain/board.entity.ts`, which imports `packages/contract/src/canvas.ts`
+- **GIVEN** the monorepo-slice domain table with `within: 'api'`
+- **AND** the file `apps/api/src/order/domain/order.entity.ts`, which imports `packages/contract/src/ledger.ts`
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of the table for that import
 - **TEST** `crates/archangel_rules/tests/tables.rs` › "a_table_with_an_area_judges_only_targets_in_the_area"
@@ -751,15 +751,15 @@ A table MAY have an area, written with within. Its rows MUST then judge only imp
 
 #### Scenario: Explain an entity
 
-- **GIVEN** the enhance3-slice config and the file `apps/api/src/board/domain/board.entity.ts`
-- **WHEN** the developer runs `archangel explain apps/api/src/board/domain/board.entity.ts`
+- **GIVEN** the monorepo-slice config and the file `apps/api/src/order/domain/order.entity.ts`
+- **WHEN** the developer runs `archangel explain apps/api/src/order/domain/order.entity.ts`
 - **THEN** the output gives the kind `entity` in the table `domain`, and names the rule `domain.entity`
 - **AND** the output shows the row as one `mayOnlyImport` sentence with its cells, the everyRowMayImport cell `apps/api/src/shared/result.ts`, and itself, because the kind pattern `**/*.{kind}.ts` makes no instance
 - **TEST** `crates/archangel/tests/cli.rs` › "explain_shows_a_table_row_as_its_sentences"
 
 #### Scenario: Explain a row that may not import itself
 
-- **GIVEN** the same config and the file `apps/api/src/board/domain/created.domain-event.ts`
+- **GIVEN** the same config and the file `apps/api/src/order/domain/created.domain-event.ts`
 - **WHEN** the developer runs `archangel explain` on the file
 - **THEN** the output shows the row as the `mayOnlyImport` sentence and a second sentence, `mayNotImport` of its own kind
 - **TEST** `crates/archangel/tests/cli.rs` › "explain_shows_the_second_sentence_of_a_row_that_may_not_import_itself"

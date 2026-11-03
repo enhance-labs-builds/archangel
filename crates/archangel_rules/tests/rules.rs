@@ -143,18 +143,18 @@ fn entry() -> Value {
     json!([{ "kind": "entry", "element": "entity", "files": ["index.ts"] }])
 }
 
-fn canvas() -> FixtureRepo {
+fn ledger() -> FixtureRepo {
     FixtureRepo::new()
-        .file("src/entities/canvas/index.ts", "export {};\n")
+        .file("src/entities/ledger/index.ts", "export {};\n")
         .file(
-            "src/entities/canvas/model/store.ts",
+            "src/entities/ledger/model/store.ts",
             "export const store = 1;\n",
         )
 }
 
 #[test]
 fn entry_rejects_an_import_past_the_entry_file() {
-    let repo = canvas().file("src/app/a.ts", "import '../entities/canvas/model/store';\n");
+    let repo = ledger().file("src/app/a.ts", "import '../entities/ledger/model/store';\n");
     let found = report(&entry(), &repo);
     assert_eq!(
         violations(&found),
@@ -173,7 +173,7 @@ fn entry_rejects_an_import_past_the_entry_file() {
 
 #[test]
 fn entry_permits_an_import_through_the_entry_file() {
-    let repo = canvas().file("src/app/a.ts", "import '../entities/canvas/index';\n");
+    let repo = ledger().file("src/app/a.ts", "import '../entities/ledger/index';\n");
     assert_eq!(
         violations(&report(&entry(), &repo)),
         [],
@@ -183,9 +183,9 @@ fn entry_permits_an_import_through_the_entry_file() {
 
 #[test]
 fn entry_rejects_a_sibling_instance_past_the_entry_file() {
-    let repo = canvas().file(
+    let repo = ledger().file(
         "src/entities/user/a.ts",
-        "import '../canvas/model/store';\n",
+        "import '../ledger/model/store';\n",
     );
     assert_eq!(
         violations(&report(&entry(), &repo)),
@@ -300,9 +300,9 @@ fn no_cycles_handles_a_chain_of_200000_files() {
 
 #[test]
 fn one_import_can_break_two_rules() {
-    let repo = canvas().file(
+    let repo = ledger().file(
         "src/shared/a.ts",
-        "import '../entities/canvas/model/store';\n",
+        "import '../entities/ledger/model/store';\n",
     );
     let rules = json!([
         { "kind": "layers", "order": ["app", "entity", "shared"] },
@@ -321,10 +321,10 @@ fn one_import_can_break_two_rules() {
 
 #[test]
 fn rule_order_does_not_change_the_result() {
-    let repo = canvas()
+    let repo = ledger()
         .file(
             "src/shared/a.ts",
-            "import '../entities/canvas/model/store';\nimport '../app/x';\n",
+            "import '../entities/ledger/model/store';\nimport '../app/x';\n",
         )
         .file("src/app/x.ts", "");
     let forward = json!([
@@ -461,24 +461,24 @@ fn no_cycles_breaks_a_tie_between_shortest_cycles_by_path() {
 fn an_entry_pattern_starts_at_the_root_of_a_part_without_a_capture() {
     let repo = FixtureRepo::new()
         .file(
-            "packages/canvas-document/src/flex-grid/index.ts",
+            "packages/ledger-document/src/flex-grid/index.ts",
             "export const grid = 1;\n",
         )
         .file(
-            "packages/canvas-document/src/flex-grid/grid.ts",
+            "packages/ledger-document/src/flex-grid/grid.ts",
             "export const grid = 1;\n",
         )
         .file(
             "apps/web/a.ts",
-            "import '../../packages/canvas-document/src/flex-grid/index';\n",
+            "import '../../packages/ledger-document/src/flex-grid/index';\n",
         )
         .file(
             "apps/web/b.ts",
-            "import '../../packages/canvas-document/src/flex-grid/grid';\n",
+            "import '../../packages/ledger-document/src/flex-grid/grid';\n",
         );
     let config = json!({
-        "parts": { "web": "apps/web/**", "canvas-document": "packages/canvas-document/**" },
-        "rules": [{ "kind": "entry", "name": "entry", "element": "canvas-document", "files": ["src/*/index.ts"] }],
+        "parts": { "web": "apps/web/**", "ledger-document": "packages/ledger-document/**" },
+        "rules": [{ "kind": "entry", "name": "entry", "element": "ledger-document", "files": ["src/*/index.ts"] }],
     });
     let (found, _) = support::check(&config, &repo, None);
     assert_eq!(
@@ -503,7 +503,7 @@ fn table_and_rule() -> Value {
                 "kinds": "**/*.{kind}.ts",
             },
             { "name": "domain-not-to-application", "files": "domain", "mayNotImport": "application" },
-            { "name": "core-not-to-driver", "files": "domain", "mayNotImport": "driver" },
+            { "name": "domain-not-to-pool", "files": "domain", "mayNotImport": "driver" },
         ],
     })
 }
@@ -528,7 +528,7 @@ fn a_table_row_and_a_rule_each_count_for_one_import() {
         .file("apps/api/src/b/application/save.use-case.ts", "")
         .file("apps/api/src/b/domain/a.value-object.ts", "")
         .file(
-            "apps/api/src/b/domain/board.entity.ts",
+            "apps/api/src/b/domain/order.entity.ts",
             "import '../application/save.use-case';\n",
         );
     let (report, _) = support::check(&table_and_rule(), &repo, None);
@@ -546,7 +546,7 @@ fn an_exception_permits_only_the_row_that_it_names() {
         .file("apps/api/src/b/application/save.use-case.ts", "")
         .file("apps/api/src/b/domain/a.value-object.ts", "")
         .file(
-            "apps/api/src/b/domain/board.entity.ts",
+            "apps/api/src/b/domain/order.entity.ts",
             "// archangel-allow domain.entity: the move to a port is in progress\nimport '../application/save.use-case';\n",
         );
     let (report, _) = support::check(&table_and_rule(), &repo, None);
@@ -574,11 +574,11 @@ fn a_table_that_names_no_externals_set_leaves_a_package_to_other_rules() {
         .file("node_modules/pg/index.js", "")
         .file("apps/api/src/b/application/save.use-case.ts", "")
         .file("apps/api/src/b/domain/a.value-object.ts", "")
-        .file("apps/api/src/b/domain/board.entity.ts", "import 'pg';\n");
+        .file("apps/api/src/b/domain/order.entity.ts", "import 'pg';\n");
     let (report, _) = support::check(&table_and_rule(), &repo, None);
     assert_eq!(
         broken_rules(&report),
-        names(&["core-not-to-driver"]),
+        names(&["domain-not-to-pool"]),
         "{:?}",
         report.diagnostics
     );

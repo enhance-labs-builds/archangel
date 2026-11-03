@@ -11,7 +11,7 @@ use support::{of, report_of, slice, slice_repo, slice_table, violated, with_pack
 #[test]
 fn the_import_kinds_of_a_table_apply_to_each_row() {
     let repo = slice_repo().file(
-        "apps/api/src/board/domain/board.entity.ts",
+        "apps/api/src/order/domain/order.entity.ts",
         "import type { S } from '../application/save.use-case';\n",
     );
     let mut config = slice();
@@ -28,7 +28,7 @@ fn the_import_kinds_of_a_table_apply_to_each_row() {
 #[test]
 fn the_reason_and_link_of_a_table_apply_to_each_row() {
     let repo = slice_repo().file(
-        "apps/api/src/board/domain/board.entity.ts",
+        "apps/api/src/order/domain/order.entity.ts",
         "import '../application/save.use-case';\n",
     );
     let mut config = slice();
@@ -56,10 +56,10 @@ fn the_import_limits_of_a_table_apply_to_each_row() {
             "tsconfig.json",
             r#"{ "compilerOptions": { "baseUrl": ".", "paths": { "@api/*": ["apps/api/src/*"] } } }"#,
         )
-        .file("apps/api/src/board/application/load.use-case.ts", "")
+        .file("apps/api/src/order/application/load.use-case.ts", "")
         .file(
-            "apps/api/src/board/domain/board.entity.ts",
-            "import '../application/save.use-case';\nimport '@api/board/application/load.use-case';\n",
+            "apps/api/src/order/domain/order.entity.ts",
+            "import '../application/save.use-case';\nimport '@api/order/application/load.use-case';\n",
         );
     let mut config = slice();
     config["rules"][0] = slice_table(&json!({ "specifier": "parent" }));
@@ -76,7 +76,7 @@ fn the_import_limits_of_a_table_apply_to_each_row() {
 #[test]
 fn the_names_and_dependency_of_a_table_apply_to_each_row() {
     let repo = slice_repo().file(
-        "apps/api/src/board/domain/board.entity.ts",
+        "apps/api/src/order/domain/order.entity.ts",
         "import { save } from '../application/save.use-case';\n",
     );
     let mut config = slice();

@@ -306,8 +306,8 @@ defineConfig({
 // "a row of a table without kinds must be a declared part or group"
 expectError(
   defineConfig({
-    parts: { 'canvas-document': 'packages/canvas-document/**' },
-    rules: ({ mayImport }) => [mayImport('workspace', { 'canvas-documents': [] })],
+    parts: { 'ledger-document': 'packages/ledger-document/**' },
+    rules: ({ mayImport }) => [mayImport('workspace', { 'ledger-documents': [] })],
   }),
 );
 expectError(
@@ -318,9 +318,9 @@ expectError(
   }),
 );
 defineConfig({
-  parts: { 'canvas-document': 'packages/canvas-document/**' },
+  parts: { 'ledger-document': 'packages/ledger-document/**' },
   groups: { tests: '**/*.test.ts' },
-  rules: ({ mayImport }) => [mayImport('workspace', { 'canvas-document': [], tests: ['canvas-document'] })],
+  rules: ({ mayImport }) => [mayImport('workspace', { 'ledger-document': [], tests: ['ledger-document'] })],
 });
 
 // "a table or row name with a colon or slash is a type error"
@@ -453,7 +453,7 @@ expectError(
 
 // "the configs of the checked fixtures type-check with literal names"
 import '../../../docs/examples/small-app/archangel.config.js';
-import '../../../docs/examples/enhance3-slice/archangel.config.js';
+import '../../../docs/examples/monorepo-slice/archangel.config.js';
 
 // A `mustBeNamed` list with no entry permits no name.
 expectError(

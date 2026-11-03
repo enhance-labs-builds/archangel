@@ -284,16 +284,16 @@ fn a_kind_pattern_reads_the_kind_and_the_other_captures() {
     let pattern = kinds("src/{context}/{kind}/**");
     assert!(pattern.has_instance(), "a capture other than the kind");
     let place = pattern
-        .place("src/board/views/a.ts", true)
+        .place("src/order/views/a.ts", true)
         .expect("a place");
     assert_eq!(place.kind, "views");
     assert_eq!(
         place.instance,
-        ["board"],
-        "board is the capture other than the kind, so it names the instance"
+        ["order"],
+        "order is the capture other than the kind, so it names the instance"
     );
     assert!(
-        pattern.place("src/board/views/a.ts", false).is_none(),
+        pattern.place("src/order/views/a.ts", false).is_none(),
         "the pass did not match"
     );
     assert!(

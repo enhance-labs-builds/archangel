@@ -161,7 +161,7 @@ fn explain_as_json_gives_the_element_rules_imports_and_importers() {
             "element": { "name": "shared", "instance": [] },
             "selectors": [],
             "rules": ["layers"],
-            "sentences": [{ "rule": "layers", "sentence": "files in shared may not import app" }],
+            "sentences": [{ "rule": "layers", "sentence": "files in shared may not import app", "judges": "its imports" }],
             "imports": [{
                 "line": 1,
                 "specifier": "../app/main",

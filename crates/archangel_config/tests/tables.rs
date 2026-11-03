@@ -77,14 +77,14 @@ fn a_misspelt_cell_is_refused_with_the_closest_name() {
 #[test]
 fn a_row_key_that_names_nothing_is_refused_with_the_closest_name() {
     let config = json!({
-        "parts": { "canvas-document": "packages/canvas-document/**" },
-        "rules": [table("t", &json!({ "canvas-documents": [] }), &json!({}))],
+        "parts": { "ledger-document": "packages/ledger-document/**" },
+        "rules": [table("t", &json!({ "ledger-documents": [] }), &json!({}))],
     });
     let (message, field) = one_of(&config, ProblemCode::RuleUnknownElement);
-    assert!(message.contains("\"canvas-document\""), "{message}");
+    assert!(message.contains("\"ledger-document\""), "{message}");
     assert_eq!(
         field.as_deref(),
-        Some("rules[0].rows.canvas-documents"),
+        Some("rules[0].rows.ledger-documents"),
         "a row key that names nothing is refused with the closest name"
     );
 }

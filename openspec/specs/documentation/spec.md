@@ -62,14 +62,14 @@ The fixture is `docs/examples/small-app/`, and its config is the one in design.m
 - **THEN** it holds one config block whose text is the config of `docs/examples/small-app/`, and one output block whose text is the fixture's expected output of `archangel check`
 - **TEST** `crates/archangel/tests/doc_examples.rs` › "the_readme_shows_the_small_app_and_its_error"
 
-### Requirement: The enhance3 slice fixture checks a real architecture
+### Requirement: The monorepo slice fixture checks a monorepo architecture
 
-The fixture is `docs/examples/enhance3-slice/`, and its config is the one in design.md, "What enhance3 gains". It MUST hold the workspace table of enhance3's apps and packages, its API domain table, and the rules `web-uses-api-types-only` and `core-not-to-driver`, with a small set of files. Its files MUST include one import that each table refuses.
+The fixture is `docs/examples/monorepo-slice/`. It is a small monorepo of apps and packages. It MUST hold a workspace table of its apps and packages, an API domain table, and the rules `frontend-api-types-only` and `domain-not-to-pool`, with a small set of files. Its files MUST include one import that each table refuses.
 
-#### Scenario: The enhance3 slice
+#### Scenario: The monorepo slice
 
-- **GIVEN** the enhance3-slice fixture
+- **GIVEN** the monorepo-slice fixture
 - **WHEN** the test runs `archangel check` and `archangel test` on it
 - **THEN** `archangel check` gives one violation of `workspace.contract` for an import of `web`, and one violation of `domain.entity` for an import of a use case
 - **AND** each output is the expected output of the fixture
-- **TEST** `crates/archangel/tests/doc_examples.rs` › "the_enhance3_slice_gives_its_documented_output"
+- **TEST** `crates/archangel/tests/doc_examples.rs` › "the_monorepo_slice_gives_its_documented_output"

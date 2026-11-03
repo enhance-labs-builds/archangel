@@ -11,9 +11,9 @@ use serde_json::json;
 
 fn check(importer: &str) -> Report {
     let repo = FixtureRepo::new()
-        .file("src/entities/canvas/index.ts", "export {};\n")
+        .file("src/entities/ledger/index.ts", "export {};\n")
         .file(
-            "src/entities/canvas/model/store.ts",
+            "src/entities/ledger/model/store.ts",
             "export const store = 1;\n",
         )
         .file("src/app/main.ts", "")
@@ -36,7 +36,7 @@ fn codes(report: &Report) -> Vec<(Code, Option<String>)> {
         .collect()
 }
 
-const PAST_ENTRY: &str = "import '../entities/canvas/model/store';\n";
+const PAST_ENTRY: &str = "import '../entities/ledger/model/store';\n";
 
 #[test]
 fn exception_permits_one_import_to_break_one_rule() {
@@ -146,7 +146,7 @@ fn exception_for_an_unknown_rule_is_exception_unknown_rule() {
 #[test]
 fn exception_that_permits_nothing_is_exception_unused() {
     let report = check(
-        "// archangel-allow entry(entity): the store was moved\nimport '../entities/canvas/index';\n",
+        "// archangel-allow entry(entity): the store was moved\nimport '../entities/ledger/index';\n",
     );
     let found = codes(&report);
     assert!(

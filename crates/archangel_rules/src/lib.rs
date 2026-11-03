@@ -27,7 +27,7 @@ mod structure;
 mod transitive;
 mod words;
 
-pub use architecture::{Architecture, Target};
+pub use architecture::{Architecture, SentenceAbout, Target};
 pub use baseline::{Baseline, BaselineEntry, BaselineError};
 pub use check::{FileCheck, Report, Results, Summary};
 pub use classes::{Classes, Lookup};

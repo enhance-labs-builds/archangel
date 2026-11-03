@@ -213,12 +213,12 @@ fn replaced_file_cycle_through_a_repository_file_is_found() {
 
 #[test]
 fn rejected_example_caught_by_another_rule_fails_and_names_it() {
-    let repo = FixtureRepo::new().file("src/entities/canvas/index.ts", "export const c = 1;\n");
+    let repo = FixtureRepo::new().file("src/entities/ledger/index.ts", "export const c = 1;\n");
     let rules = json!([
         { "kind": "layers", "name": "layers", "order": ["app", "feature", "entity", "shared"] },
         {
             "kind": "entry", "name": "entry", "element": "entity", "files": ["index.ts"],
-            "examples": { "rejected": [{ "src/shared/x.ts": "import '../entities/canvas/index';\n" }] },
+            "examples": { "rejected": [{ "src/shared/x.ts": "import '../entities/ledger/index';\n" }] },
         },
     ]);
     let (outcomes, _) = examples(&rules, &repo);
@@ -345,10 +345,10 @@ fn accepted_isolate_example_that_leaves_the_element_proves_nothing() {
 
 #[test]
 fn accepted_entry_example_through_the_entry_file_passes() {
-    let repo = FixtureRepo::new().file("src/entities/canvas/index.ts", "export const c = 1;\n");
+    let repo = FixtureRepo::new().file("src/entities/ledger/index.ts", "export const c = 1;\n");
     let rules = json!([{
         "kind": "entry", "name": "entry", "element": "entity", "files": ["index.ts"],
-        "examples": { "accepted": [{ "src/app/a.ts": "import '../entities/canvas/index';\n" }] },
+        "examples": { "accepted": [{ "src/app/a.ts": "import '../entities/ledger/index';\n" }] },
     }]);
     let (outcomes, _) = examples(&rules, &repo);
     assert_eq!(
@@ -599,8 +599,8 @@ fn listed_only_for_development(manifest: &str) -> Vec<(String, String)> {
     vec![(
         "dev".to_owned(),
         format!(
-            "src/a.ts may not import \"vitest\", because files in \"src\" may not import the \
-             package `*` that {manifest} lists only under devDependencies"
+            "src/a.ts may not import \"vitest\", because files in \"src\" may not import any \
+             package that {manifest} lists only under devDependencies"
         ),
     )]
 }
@@ -657,8 +657,8 @@ fn an_example_manifest_replaces_the_repository_manifest_at_its_path_and_the_near
         dependency_violations(&repo, &nearer),
         [(
             "undeclared".to_owned(),
-            "src/a.ts may not import \"vitest\", because files in \"src\" may not import the \
-             package `*` that src/package.json does not list"
+            "src/a.ts may not import \"vitest\", because files in \"src\" may not import any \
+             package that src/package.json does not list"
                 .to_owned()
         )],
         "the example's src/package.json is nearer than the repository's package.json"

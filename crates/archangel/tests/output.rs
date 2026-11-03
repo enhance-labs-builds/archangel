@@ -32,11 +32,11 @@ fn base() -> FixtureRepo {
         .file("src/app/main.ts", "")
         .file("src/features/login/index.ts", "")
         .file(
-            "src/entities/canvas/index.ts",
+            "src/entities/ledger/index.ts",
             "export * from './model/store';\n",
         )
         .file(
-            "src/entities/canvas/model/store.ts",
+            "src/entities/ledger/model/store.ts",
             "export const store = 1;\n",
         )
         .file("src/shared/s.ts", "")
@@ -46,7 +46,7 @@ fn base() -> FixtureRepo {
 fn one_entry_violation() -> FixtureRepo {
     base().file(
         "src/features/login/a.ts",
-        "import { store } from '../../entities/canvas/model/store';\n",
+        "import { store } from '../../entities/ledger/model/store';\n",
     )
 }
 
