@@ -695,9 +695,12 @@
                   },
                   {
                     "$ref": "#/definitions/namePattern"
+                  },
+                  {
+                    "$ref": "#/definitions/nameList"
                   }
                 ],
-                "description": "A style that the name, up to the first dot, must be in, or a name pattern that the full name, without the last extension, must match."
+                "description": "A style that the name, up to the first dot, must be in, or a name pattern that the full name, without the last extension, must match, or a list of them, of which one must match."
               }
             }
           },
@@ -753,9 +756,12 @@
                   },
                   {
                     "$ref": "#/definitions/namePattern"
+                  },
+                  {
+                    "$ref": "#/definitions/nameList"
                   }
                 ],
-                "description": "A style that each folder's name must be in, or a name pattern that it must match, which may use `{FolderName}` for the folder that holds it."
+                "description": "A style that each folder's name must be in, or a name pattern that it must match, which may use `{FolderName}` for the folder that holds it, or a list of them, of which one must match."
               }
             }
           },
@@ -1433,7 +1439,22 @@
     "namePattern": {
       "type": "string",
       "minLength": 1,
-      "description": "A name: text, `*` for any text, and `{FileName}`, `{fileName}`, `{file-name}`, `{file_name}` or `{FILE_NAME}` for the file's name in each style, or the same spellings of `{FolderName}` for the name of the folder that holds it."
+      "description": "A name: text, `*` for any text or no text, and `{FileName}`, `{fileName}`, `{file-name}`, `{file_name}` or `{FILE_NAME}` for the file's name in each style, or the same spellings of `{FolderName}` for the name of the folder that holds it."
+    },
+    "nameList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/style"
+          },
+          {
+            "$ref": "#/definitions/namePattern"
+          }
+        ]
+      },
+      "description": "The names that a `mustBeNamed` rule permits. One entry must match."
     }
   },
   "anyOf": [

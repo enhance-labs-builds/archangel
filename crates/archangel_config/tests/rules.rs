@@ -143,8 +143,11 @@ fn a_condition_reads_a_style_a_kind_of_export_or_a_name_pattern() {
     let conditions: Vec<String> = valued_rules()
         .iter()
         .map(|rule| match &rule.sentences[0].condition {
-            Condition::MustBeNamed(NameRule::Style(style)) => format!("style {style}"),
-            Condition::MustBeNamed(NameRule::Pattern(p)) => format!("name pattern {}", p.source()),
+            Condition::MustBeNamed(rules) => match rules.as_slice() {
+                [NameRule::Style(style)] => format!("style {style}"),
+                [NameRule::Pattern(p)] => format!("name pattern {}", p.source()),
+                other => format!("names {other:?}"),
+            },
             Condition::MustContain(patterns) => format!("contains {}", patterns.len()),
             Condition::MustExport(p) => format!("exports {}", p.source()),
             Condition::MayNotExport(ExportKind::Default) => "no default export".to_owned(),
