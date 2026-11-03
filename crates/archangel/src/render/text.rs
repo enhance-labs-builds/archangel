@@ -9,7 +9,7 @@ use std::path::Path;
 use annotate_snippets::{AnnotationKind, Group, Level, Origin, Renderer, Snippet};
 use archangel_engine::Timings;
 use archangel_graph::Work;
-use archangel_rules::{Diagnostic, Summary};
+use archangel_rules::{Code, Diagnostic, Summary};
 
 /// Every diagnostic, each with its source line when the file can be read from `dir`.
 pub(crate) fn diagnostics(dir: &Path, diagnostics: &[Diagnostic], color: bool) -> String {
@@ -54,7 +54,7 @@ fn group<'a>(diagnostic: &'a Diagnostic, source: Option<&'a str>) -> Group<'a> {
     // the text read, as when the file changed after the check, is shown without the snippet.
     let marked =
         |text: &str, (start, end): (u32, u32)| text.get(start as usize..end as usize).is_some();
-    let mut group = match (&diagnostic.file, diagnostic.span, source) {
+    let group = match (&diagnostic.file, diagnostic.span, source) {
         (Some(file), Some(span), Some(text)) if marked(text, span) => {
             let (start, end) = span;
             let mut annotation = AnnotationKind::Primary.span(start as usize..end as usize);
@@ -84,13 +84,29 @@ fn group<'a>(diagnostic: &'a Diagnostic, source: Option<&'a str>) -> Group<'a> {
             diagnostic.help.as_deref(),
         ),
     };
+    notes(group, diagnostic)
+}
+
+/// The lines under an error: what to do, its rule, its reason and its link.
+fn notes<'a>(mut group: Group<'a>, diagnostic: &'a Diagnostic) -> Group<'a> {
+    if diagnostic.code == Code::MayImport {
+        group =
+            group.element(Level::HELP.message(
+                "remove the import, or move the code to a file whose row permits the import",
+            ));
+    }
     if let Some(rule) = &diagnostic.rule
         && rule != diagnostic.code.as_str()
     {
         group = group.element(Level::NOTE.message(format!("rule: {rule}")));
     }
     if let Some(reason) = &diagnostic.reason {
-        group = group.element(Level::NOTE.message(format!("reason: {reason}")));
+        let word = if diagnostic.because {
+            "because"
+        } else {
+            "reason"
+        };
+        group = group.element(Level::NOTE.message(format!("{word}: {reason}")));
     }
     if let Some(link) = &diagnostic.link {
         group = group.element(Level::NOTE.message(format!("see: {link}")));
@@ -170,10 +186,21 @@ pub(crate) fn summary(summary: &Summary, problems: usize) -> String {
             "  {repository} is a repository of its own, checked as part of this one"
         );
     }
-    for name in &summary.preset_names_matching_nothing {
-        let _ = writeln!(out, "  {name} matches nothing in this repository");
-    }
+    push_tables(&mut out, summary);
     out
+}
+
+/// The lines about what presets and tables declare and no file has.
+fn push_tables(out: &mut String, summary: &Summary) {
+    for name in &summary.preset_names_matching_nothing {
+        let _ = match summary.preset_tables_matching_nothing.get(name) {
+            Some(why) => writeln!(out, "  {name} matches no file: {why}"),
+            None => writeln!(out, "  {name} matches nothing in this repository"),
+        };
+    }
+    for row in summary.rows_with_no_file.iter().flatten() {
+        let _ = writeln!(out, "  {row} has no file in this repository");
+    }
 }
 
 /// Where to read about the codes of the diagnostics printed, or nothing when there are none.

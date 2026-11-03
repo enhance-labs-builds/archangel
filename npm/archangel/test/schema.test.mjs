@@ -117,3 +117,11 @@ test('what archangel refuses, the schema refuses', () => {
     assert.equal(validate(config), false, JSON.stringify(config));
   }
 });
+
+test('an area is valid on mayOnlyImport and mayOnlyBeImportedBy, and on no other condition', () => {
+  const config = (rule) => ({ parts: { entity: 'src/entity/**' }, rules: [{ files: 'entity', ...rule }] });
+  assert.ok(validate(config({ mayOnlyImport: [], within: 'src/**' })), JSON.stringify(validate.errors));
+  assert.ok(validate(config({ mayOnlyBeImportedBy: 'entity', within: 'src/**' })), JSON.stringify(validate.errors));
+  assert.ok(!validate(config({ mayNotImport: 'entity', within: 'src/**' })));
+  assert.ok(!validate(config({ mustBeNamed: 'kebab-case', within: 'src/**' })));
+});

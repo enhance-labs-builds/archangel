@@ -253,3 +253,66 @@ fn an_inline_permitted_package_is_named_by_an_import_a_manifest_or_node() {
         "left-pad is imported, react is listed, and node:fs is always there"
     );
 }
+
+#[test]
+fn two_parts_that_match_one_file_are_an_error() {
+    let repo = FixtureRepo::new().file("src/features/login/session.model.ts", "");
+    let config = json!({
+        "parts": { "model": "src/**/*.model.ts", "feature": "src/features/{feature}/**" },
+    });
+    let (report, _) = support::check(&config, &repo, None);
+    let found = codes::messages(&report, Code::PartOverlap);
+    assert_eq!(found.len(), 1, "one part-overlap: {:?}", report.diagnostics);
+    for word in [
+        "src/features/login/session.model.ts",
+        "\"model\"",
+        "\"feature\"",
+        "`not`",
+        "group",
+        "baseline",
+    ] {
+        assert!(found[0].contains(word), "{word} in: {}", found[0]);
+    }
+    assert!(!Code::PartOverlap.is_rule(), "a baseline never holds it");
+}
+
+#[test]
+fn a_presets_parts_are_a_separate_set() {
+    let repo = FixtureRepo::new()
+        .file("node_modules/react/index.js", "")
+        .file("node_modules/zod/index.js", "")
+        .file(
+            "apps/web/src/features/cart/a.ts",
+            "import 'react';\nimport 'zod';\n",
+        );
+    let config = archangel_config::from_value(&json!({
+        "extends": [{
+            "name": "fsd-web",
+            "root": "apps/web/src",
+            "parts": { "features": "features/{slice}/**" },
+            "rules": [{ "name": "no-zod", "files": "features", "mayNotImport": { "packages": ["zod"] } }],
+        }],
+        "parts": { "web": "apps/web/**" },
+        "rules": [{ "name": "no-react", "files": "web", "mayNotImport": { "packages": ["react"] } }],
+    }))
+    .expect("a valid config");
+    let mut work = Work::default();
+    let graph = ImportGraph::build(repo.path(), &GraphOptions::default(), &mut work);
+    let report = Architecture::compile(config).check(&graph, None, &mut work);
+    assert_eq!(
+        codes::messages(&report, Code::PartOverlap),
+        [] as [String; 0],
+        "no overlap"
+    );
+    let rules: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.code.is_rule())
+        .map(|d| d.rule.clone().unwrap_or_default())
+        .collect();
+    assert_eq!(
+        rules,
+        ["no-react", "fsd-web/no-zod"],
+        "both rules judge the file"
+    );
+}

@@ -50,3 +50,10 @@ disable = [
   # Its assertion messages name the failing test, as the tests' own messages do.
   "unconstructive-error",
 ]
+
+[paths."crates/*/tests/support/"]
+disable = [
+  # Each test crate includes a support file and uses only some of its helpers, so the file has to
+  # turn dead_code off; a test crate that uses none of a helper is the normal case.
+  "relaxed-check",
+]

@@ -435,14 +435,24 @@ fn a_preset_brings_its_plugins_and_the_configs_plugin_of_the_same_name_replaces_
 }
 
 #[test]
-fn a_config_without_elements_or_a_preset_is_refused() {
+fn a_config_with_no_part_no_rule_and_no_preset_is_refused() {
     let problem = loader_problem(&json!({ "rules": [] }));
-    assert_eq!(problem.field.as_deref(), Some("elements"), "{problem:?}");
+    assert_eq!(problem.field.as_deref(), Some("parts"), "{problem:?}");
     assert!(
-        problem.message.contains("declare at least one element"),
+        problem.message.contains("declare a part"),
         "{}",
         problem.message
     );
+}
+
+#[test]
+fn a_config_with_a_rule_needs_no_part() {
+    for rules in [
+        json!([{ "kind": "mayImport", "name": "t", "rows": { "a": [] }, "kinds": "**/*.{kind}.ts" }]),
+        json!([{ "name": "r", "files": "src/**", "mustBeNamed": "kebab-case" }]),
+    ] {
+        from_value(&json!({ "rules": rules })).expect("a rule is enough");
+    }
 }
 
 #[test]
@@ -485,4 +495,32 @@ fn a_preset_whose_plugins_are_not_an_object_is_refused() {
             );
         }
     }
+}
+
+#[test]
+fn off_with_a_table_name_removes_each_rule_of_that_table_and_no_other() {
+    let row = archangel_testkit::table(
+        "t",
+        &json!({ "a": [], "b": [] }),
+        &json!({ "kinds": "x/{kind}/**" }),
+    );
+    let other =
+        archangel_testkit::table("u", &json!({ "c": [] }), &json!({ "kinds": "y/{kind}/**" }));
+    let config = merged(&json!({
+        "parts": { "x": "z/**" },
+        "off": ["t"],
+        "rules": [row, other],
+    }));
+    let mut removed: Vec<&str> = config.off.iter().map(|rule| rule.name.as_str()).collect();
+    removed.sort_unstable();
+    assert_eq!(
+        removed,
+        ["t.a", "t.b", "t.every-file-has-a-kind"],
+        "off with a table name takes both its rows and the table's own rule"
+    );
+    assert!(
+        config.rules.iter().all(|rule| rule.name.starts_with("u.")),
+        "table u stays whole and nothing of t is left: {:?}",
+        config.rules
+    );
 }

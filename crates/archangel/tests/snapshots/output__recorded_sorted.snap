@@ -1,0 +1,229 @@
+---
+source: crates/archangel/tests/output.rs
+expression: all
+---
+$ archangel check
+status: 1
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/a.ts:2:8
+  |
+2 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/a.ts:9:8
+  |
+9 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/b.ts:2:8
+  |
+2 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+checked 7 files and 4 imports: 3 problems
+For what a code means, run `archangel docs layers`.
+
+$ archangel check --format json
+status: 1
+{
+  "schemaVersion": 1,
+  "diagnostics": [
+    {
+      "code": "layers",
+      "rule": "layers",
+      "file": "src/shared/a.ts",
+      "line": 2,
+      "column": 8,
+      "span": [
+        8,
+        21
+      ],
+      "specifier": "../app/main",
+      "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+      "help": "\"shared\" may import only \"shared\"",
+      "reason": "Shared code must not know about features",
+      "link": null,
+      "id": {
+        "rule": "layers",
+        "file": "src/shared/a.ts",
+        "specifier": "../app/main",
+        "occurrence": 0
+      },
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "layers",
+      "rule": "layers",
+      "file": "src/shared/a.ts",
+      "line": 9,
+      "column": 8,
+      "span": [
+        36,
+        61
+      ],
+      "specifier": "../features/login/index",
+      "message": "\"shared\" may not import \"feature\", an earlier layer, through \"../features/login/index\"",
+      "help": "\"shared\" may import only \"shared\"",
+      "reason": "Shared code must not know about features",
+      "link": null,
+      "id": {
+        "rule": "layers",
+        "file": "src/shared/a.ts",
+        "specifier": "../features/login/index",
+        "occurrence": 0
+      },
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "layers",
+      "rule": "layers",
+      "file": "src/shared/b.ts",
+      "line": 2,
+      "column": 8,
+      "span": [
+        8,
+        21
+      ],
+      "specifier": "../app/main",
+      "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+      "help": "\"shared\" may import only \"shared\"",
+      "reason": "Shared code must not know about features",
+      "link": null,
+      "id": {
+        "rule": "layers",
+        "file": "src/shared/b.ts",
+        "specifier": "../app/main",
+        "occurrence": 0
+      },
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
+  "summary": {
+    "files": 7,
+    "imports": 4,
+    "exceptions": {},
+    "baselined": {},
+    "permittedUnresolved": 0,
+    "unfollowed": 0,
+    "linksNotFollowed": [],
+    "nestedRepositories": [],
+    "presetNamesMatchingNothing": [],
+    "work": {
+      "filesFound": 7,
+      "filesRead": 7,
+      "bytesRead": 141,
+      "filesParsed": 7,
+      "importsFound": 4,
+      "resolutions": 4,
+      "filesClassified": 8,
+      "patternPasses": 8,
+      "ruleEvaluations": 4,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}
+
+$ archangel test
+status: 1
+error[rule-unproven]: the rule "layers" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: layers
+
+error[rule-unproven]: the rule "entry(entity)" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: entry(entity)
+
+0 examples, none failed; 2 rules without a rejected example
+
+$ archangel test --format json
+status: 1
+{
+  "schemaVersion": 1,
+  "examples": [],
+  "unproven": [
+    {
+      "code": "rule-unproven",
+      "rule": "layers",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"layers\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "rule-unproven",
+      "rule": "entry(entity)",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"entry(entity)\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
+  "summary": {
+    "passed": false,
+    "work": {
+      "filesFound": 0,
+      "filesRead": 0,
+      "bytesRead": 0,
+      "filesParsed": 0,
+      "importsFound": 0,
+      "resolutions": 0,
+      "filesClassified": 0,
+      "patternPasses": 0,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}

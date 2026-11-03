@@ -770,6 +770,7 @@ fn plugin_violation(
     let mut diagnostic = Diagnostic::new(Code::Plugin, message);
     diagnostic.rule = Some(config_rule.name.clone());
     diagnostic.reason.clone_from(&config_rule.reason);
+    diagnostic.because = config_rule.because;
     diagnostic.link = config_rule
         .link
         .clone()

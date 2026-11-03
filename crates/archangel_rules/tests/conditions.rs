@@ -661,3 +661,266 @@ fn a_transitive_violation_is_the_occurrence_of_the_import_its_rule_counts() {
         "the runtime import is the second import of ../lib/b, after the type import"
     );
 }
+
+/// An entity file among the API's files, with the rule of an area under test.
+fn entity_config(rule: &Value) -> Value {
+    json!({
+        "elements": { "entity": "apps/api/src/*/domain/**", "value-object": "apps/api/src/*/values/**" },
+        "rules": [rule],
+    })
+}
+
+#[test]
+fn may_only_import_within_rejects_an_import_into_the_area_outside_its_list() {
+    let repo = FixtureRepo::new()
+        .file(
+            "apps/api/src/canvas/domain/a.entity.ts",
+            "import '../application/save.use-case';\n",
+        )
+        .file("apps/api/src/canvas/application/save.use-case.ts", "")
+        .file("apps/api/src/canvas/values/v.ts", "");
+    let config = entity_config(&json!({
+        "name": "entities", "files": "entity", "mayOnlyImport": ["value-object"], "within": "apps/api/src/**",
+    }));
+    let found = report_with(&config, &repo);
+    assert_eq!(
+        sites(&found),
+        [site(
+            "apps/api/src/canvas/domain/a.entity.ts",
+            "../application/save.use-case"
+        )],
+        "{found:?}"
+    );
+    let message = &rule_violations(&found)[0].message;
+    assert!(message.contains("\"value-object\""), "{message}");
+    assert!(message.contains("apps/api/src/**"), "{message}");
+}
+
+#[test]
+fn may_only_import_within_does_not_judge_an_import_outside_the_area() {
+    let repo = installed(
+        FixtureRepo::new()
+            .file(
+                "apps/api/src/canvas/domain/a.entity.ts",
+                "import 'zod';\nimport '../../../../web/src/shared/lib/format';\n",
+            )
+            .file("apps/web/src/shared/lib/format.ts", "")
+            .file("apps/api/src/canvas/values/v.ts", ""),
+        "zod",
+    );
+    let config = entity_config(&json!({
+        "files": "entity", "mayOnlyImport": ["value-object"], "within": "apps/api/src/**",
+    }));
+    assert_eq!(sites(&report_with(&config, &repo)), [], "both are outside");
+}
+
+#[test]
+fn may_only_import_within_judges_the_packages_in_its_area() {
+    let repo = installed(
+        installed(
+            FixtureRepo::new()
+                .file(
+                    "apps/api/src/canvas/domain/a.entity.ts",
+                    "import 'zod';\nimport 'lodash';\n",
+                )
+                .file("apps/api/src/canvas/values/v.ts", ""),
+            "zod",
+        ),
+        "lodash",
+    );
+    let config = entity_config(&json!({
+        "files": "entity",
+        "mayOnlyImport": [{ "packages": ["zod"] }],
+        "within": ["apps/api/src/**", { "packages": ["*"] }],
+    }));
+    assert_eq!(
+        sites(&report_with(&config, &repo)),
+        [site("apps/api/src/canvas/domain/a.entity.ts", "lodash")],
+        "the area holds every package, and the list holds zod"
+    );
+}
+
+#[test]
+fn may_only_import_within_permits_its_own_files() {
+    let repo = FixtureRepo::new()
+        .file(
+            "apps/api/src/canvas/domain/a.entity.ts",
+            "import './b.entity';\n",
+        )
+        .file("apps/api/src/canvas/domain/b.entity.ts", "")
+        .file("apps/api/src/canvas/values/v.ts", "");
+    let config = entity_config(&json!({
+        "files": "entity", "mayOnlyImport": ["value-object"], "within": "apps/api/src/**",
+    }));
+    assert_eq!(sites(&report_with(&config, &repo)), [], "its own files");
+}
+
+#[test]
+fn may_only_import_within_combines_with_the_import_limits() {
+    let repo = FixtureRepo::new()
+        .file(
+            "tsconfig.json",
+            r#"{ "compilerOptions": { "baseUrl": ".", "paths": { "@api/*": ["apps/api/src/canvas/*"] } } }"#,
+        )
+        .file(
+            "apps/api/src/canvas/domain/a.entity.ts",
+            "import '../application/save.use-case';\nimport '@api/application/load.use-case';\n",
+        )
+        .file("apps/api/src/canvas/application/save.use-case.ts", "")
+        .file("apps/api/src/canvas/application/load.use-case.ts", "")
+        .file("apps/api/src/canvas/values/v.ts", "");
+    let config = entity_config(&json!({
+        "files": "entity", "mayOnlyImport": ["value-object"], "within": "apps/api/src/**", "specifier": "parent",
+    }));
+    assert_eq!(
+        sites(&report_with(&config, &repo)),
+        [site(
+            "apps/api/src/canvas/domain/a.entity.ts",
+            "../application/save.use-case"
+        )],
+        "only the import that starts with ../"
+    );
+}
+
+#[test]
+fn an_unresolved_import_is_not_a_violation_of_a_rule_with_an_area() {
+    let repo = FixtureRepo::new()
+        .file(
+            "apps/api/src/canvas/domain/a.entity.ts",
+            "import './missing';\n",
+        )
+        .file("apps/api/src/canvas/values/v.ts", "");
+    let config = entity_config(&json!({
+        "files": "entity", "mayOnlyImport": ["value-object"], "within": "apps/api/src/**",
+    }));
+    let found = report_with(&config, &repo);
+    assert_eq!(sites(&found), [], "no violation of the rule");
+    let unresolved = found
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == Code::ImportUnresolved)
+        .count();
+    assert_eq!(unresolved, 1, "{found:?}");
+}
+
+#[test]
+fn may_only_be_imported_by_within_does_not_judge_an_importer_outside_the_area() {
+    let repo = FixtureRepo::new()
+        .file("scripts/seed.ts", "import '../db/client';\n")
+        .file("apps/web/a.ts", "import '../../db/client';\n")
+        .file("apps/api/a.ts", "import '../../db/client';\n")
+        .file("db/client.ts", "");
+    let config = json!({
+        "elements": { "db": "db/**", "api": "apps/api/**", "web": "apps/web/**" },
+        "rules": [{ "name": "db-for-api", "files": "db", "mayOnlyBeImportedBy": "api", "within": "apps/**" }],
+    });
+    let found = report_with(&config, &repo);
+    assert_eq!(
+        sites(&found),
+        [site("apps/web/a.ts", "../../db/client")],
+        "the script is outside the area"
+    );
+    let message = &rule_violations(&found)[0].message;
+    assert!(message.contains("apps/**"), "{message}");
+}
+
+#[test]
+fn may_only_import_within_an_externals_set_judges_its_packages() {
+    let repo = installed(
+        installed(
+            FixtureRepo::new()
+                .file(
+                    "src/domain/a.ts",
+                    "import 'pg';\nimport 'zod';\nimport './b';\n",
+                )
+                .file("src/domain/b.ts", "")
+                .file(
+                    "package.json",
+                    r#"{ "name": "app", "dependencies": { "drizzle-orm": "1" } }"#,
+                ),
+            "pg",
+        ),
+        "zod",
+    );
+    let config = json!({
+        "parts": { "domain": "src/domain/**" },
+        "externals": { "driver": ["pg", "drizzle-orm"] },
+        "rules": [{ "name": "drivers-in-infrastructure-only", "files": "domain", "mayOnlyImport": [], "within": "driver" }],
+    });
+    assert_eq!(
+        sites(&report_with(&config, &repo)),
+        [site("src/domain/a.ts", "pg")],
+        "only the package in the set"
+    );
+    let found = report_with(&config, &repo);
+    let message = &rule_violations(&found)[0].message;
+    assert!(
+        message.contains("may only import each other, within \"driver\""),
+        "{message}"
+    );
+}
+
+#[test]
+fn may_only_import_without_an_area_judges_outside_packages() {
+    let repo = installed(
+        FixtureRepo::new()
+            .file("src/view/a.ts", "import 'zod';\n")
+            .file("src/shared/b.ts", ""),
+        "zod",
+    );
+    let config = json!({
+        "elements": { "view": "src/view/**", "shared": "src/shared/**" },
+        "rules": [{ "files": "view", "mayOnlyImport": ["shared"] }],
+    });
+    assert_eq!(
+        sites(&report_with(&config, &repo)),
+        [site("src/view/a.ts", "zod")],
+        "no area judges every import"
+    );
+}
+
+#[test]
+fn may_only_import_permits_its_own_files_in_the_same_instance() {
+    let repo = FixtureRepo::new()
+        .file(
+            "src/features/cart/a.ts",
+            "import './b';\nimport '../login/c';\n",
+        )
+        .file("src/features/cart/b.ts", "")
+        .file("src/features/login/c.ts", "")
+        .file("src/shared/s.ts", "");
+    let config = json!({
+        "parts": { "feature": "src/features/{feature}/**", "shared": "src/shared/**" },
+        "rules": [{ "files": "feature", "mayOnlyImport": ["shared"] }],
+    });
+    let found = report_with(&config, &repo);
+    assert_eq!(
+        sites(&found),
+        [site("src/features/cart/a.ts", "../login/c")],
+        "the same instance is permitted, and the other is not"
+    );
+    let message = &rule_violations(&found)[0].message;
+    assert!(message.contains("same instance"), "{message}");
+}
+
+#[test]
+fn an_area_package_that_no_import_uses_and_no_manifest_lists_is_an_error() {
+    let repo = FixtureRepo::new()
+        .file("src/entity/a.ts", "")
+        .file("src/value/v.ts", "");
+    let config = json!({
+        "elements": { "entity": "src/entity/**", "value-object": "src/value/**" },
+        "rules": [{
+            "name": "entities", "files": "entity", "mayOnlyImport": ["value-object"],
+            "within": [{ "packages": ["zodd"] }],
+        }],
+    });
+    let found = report_with(&config, &repo);
+    let empty: Vec<_> = found
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == Code::ElementEmpty && d.message.contains("`zodd`"))
+        .collect();
+    assert_eq!(empty.len(), 1, "{found:?}");
+    assert_eq!(empty[0].rule.as_deref(), Some("entities"), "{empty:?}");
+}

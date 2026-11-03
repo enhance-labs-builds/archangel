@@ -94,17 +94,40 @@ Not: placeholder, parameter, slot.
 ### Element
 
 A named kind of file or package that the config declares, such as "feature" or "react". A file
-element has patterns for repository files. A package element has a list of package names.
+element has patterns for repository files. A package element has a list of package names. The 0.2
+spelling of a file element is a Part, and of a package element is an Externals set.
 
 Not: layer (for one element), module, category, role.
 
 
-### Element instance
+### Part
 
-One element together with one set of capture values. With the pattern `src/features/{feature}/**`,
-each feature folder is a different instance of the element "feature".
+A file element that the config declares under the key `parts`. A file is in at most one of the
+config's parts. Each preset's parts are a separate set.
+
+Not: layer (for one part), module, slice.
+
+
+### Externals set
+
+A named list of package patterns that the config declares under the key `externals`. A package is
+in every set that lists it.
+
+Not: package group, vendor list.
+
+
+### Instance
+
+One part or element together with one set of capture values, or a kind together with the values of
+the other captures of its kind pattern. With the pattern `src/features/{feature}/**`, each feature
+folder is a different instance of the part "feature". A name without a capture has one instance.
 
 Not: slice, sub-element.
+
+
+### Element instance
+
+See Instance.
 
 
 ### Instance root
@@ -190,7 +213,8 @@ Not: metric, statistic, performance counter.
 ### Rule builder
 
 A function that the config's rules function receives: `rule` for a sentence, and `layers`,
-`isolate` and `entry` for the shorthand kinds. Each builder returns one rule.
+`isolate`, `entry` and `mayImport` for the shorthand kinds. Each builder returns one rule, except
+`mayImport`, which gives one rule for each row.
 
 Not: helper, factory.
 
@@ -222,9 +246,77 @@ Not: negative control, mutant (for this meaning).
 ### Selector
 
 A named set of files, declared by patterns, elements, instances, directives or other selectors.
-Selectors may overlap: a file is in every selector it matches, and in at most one element.
+Selectors may overlap: a file is in every selector it matches, and in at most one element. The 0.2
+spelling of a selector is a Group.
 
-Not: tag, group, category, file set.
+Not: tag, category, file set.
+
+
+### Group
+
+A selector that the config declares under the key `groups`. A file can be in any number of groups.
+
+Not: tag, category, file set.
+
+
+### Area
+
+The set of files and packages that a rule judges imports into, given by the rule's `within`. An
+import out of the area is outside the rule.
+
+Not: scope, boundary, domain.
+
+
+### Table
+
+A rule builder call `mayImport('<name>', rows, options)`, which states in one place what each kind,
+part or group may import. Each row compiles to one rule.
+
+Not: matrix, role matrix.
+
+
+### Row
+
+One key of a table and its list of cells, which compiles to the rule `<table>.<row>`.
+
+Not: entry, line.
+
+
+### Cell
+
+One item of a row's list: another row, a declared name or a path pattern, which the row's files may
+import.
+
+Not: target, value.
+
+
+### Kind
+
+The name that a table's kind pattern gives a file, such as `entity` for `board.entity.ts`.
+
+Not: role, type, category.
+
+
+### Kind pattern
+
+The pattern of a table's `kinds` option, whose capture `{kind}` gives each file its kind.
+
+Not: role pattern.
+
+
+### Reach
+
+The counts that `archangel rules` prints for a rule: the files in its files, the imports it judged,
+its problems, its exceptions and its baseline matches.
+
+Not: coverage, usage.
+
+
+### Unjudged
+
+A file or an import that no rule judged in a check. `archangel rules` lists them.
+
+Not: uncovered, unchecked.
 
 
 ### Class
@@ -246,8 +338,8 @@ Not: predicate, constraint, check (a check is one run of archangel).
 
 ### Shorthand kind
 
-One of the three rule kinds layers, isolate and entry, each of which stands for one or more
-sentences.
+One of the four rule kinds layers, isolate, entry and mayImport, each of which stands for one or
+more sentences.
 
 Not: rule type, macro, legacy rule.
 

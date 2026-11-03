@@ -1,0 +1,4 @@
+pass  no-pg-in-routes  accepted #1  src/routes/users.ts, src/services/users.ts
+pass  no-pg-in-routes  rejected #1  src/routes/users.ts
+2 examples, none failed; 0 rules without a rejected example
+3 table rows need no written example; `archangel rules` shows what each covers

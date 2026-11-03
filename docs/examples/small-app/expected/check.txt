@@ -1,0 +1,12 @@
+error[may-import]: views may not import api, through "../api/fetch-cart": views may import only models, shared, and itself
+ --> src/features/cart/views/cart-page.tsx:2:27
+  |
+2 | import { fetchCart } from '../api/fetch-cart';
+  |                           ^^^^^^^^^^^^^^^^^^^ views may import only models, shared, and itself
+  |
+  = help: remove the import, or move the code to a file whose row permits the import
+  = note: rule: feature-code.views
+  = note: because: A view shows a model. Only the api folder talks to the server.
+
+checked 8 files and 10 imports: 1 problem
+For what a code means, run `archangel docs may-import`.

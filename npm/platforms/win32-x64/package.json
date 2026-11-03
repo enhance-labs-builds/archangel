@@ -1,6 +1,6 @@
 {
   "name": "@enhance-eng/archangel-win32-x64",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "The archangel binary for win32-x64, built for x86_64-pc-windows-msvc. Install @enhance-eng/archangel, which depends on it.",
   "license": "MIT OR Apache-2.0",
   "repository": {

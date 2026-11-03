@@ -10,20 +10,21 @@ use crate::model::{
 };
 use crate::names::{NamePattern, Owner, Style};
 use crate::parse::{
-    nearest, optional_string, parse_examples, patterns, string_list, unknown_fields,
+    nearest, one_spelling, optional_string, parse_examples, patterns, string_list, unknown_fields,
 };
 use crate::pattern::Pattern;
 use crate::plugins::plugin_use;
 use crate::problem::{ConfigProblem, ProblemCode};
 use crate::selectors::{Names, Placement, written};
+use crate::shorthand::{KIND_LIST, element_names, layer_sentences, or_list, removed_kind};
 
-const COMMON_FIELDS: [&str; 5] = ["name", "reason", "link", "imports", "examples"];
+const COMMON_FIELDS: [&str; 6] = ["name", "reason", "because", "link", "imports", "examples"];
 
 const SHORTHANDS: [&str; 3] = ["layers", "isolate", "entry"];
 
 /// The fields of a rule that uses a plugin condition.
-const PLUGIN_FIELDS: [&str; 7] = [
-    "files", "plugin", "options", "name", "reason", "link", "examples",
+const PLUGIN_FIELDS: [&str; 8] = [
+    "files", "plugin", "options", "name", "reason", "because", "link", "examples",
 ];
 
 /// The conditions about imports, which the import options limit.
@@ -34,7 +35,15 @@ const FOLDER_CONDITIONS: [&str; 3] = ["mustBeNamed", "mustContain", "mustNotExis
 
 /// The fields of a rule written as several sentences, which belong to the rule, not to one of
 /// its sentences.
-const SENTENCES_FIELDS: [&str; 6] = ["name", "reason", "link", "imports", "examples", "sentences"];
+const SENTENCES_FIELDS: [&str; 7] = [
+    "name",
+    "reason",
+    "because",
+    "link",
+    "imports",
+    "examples",
+    "sentences",
+];
 
 /// Every condition the rule language names, so that a rule with two of them is refused as one
 /// mistake, whichever two they are.
@@ -68,19 +77,20 @@ const DEPENDENCIES: [(&str, DependencyKind); 2] = [
     ("undeclared", DependencyKind::Undeclared),
 ];
 
-const OPTIONS: [&str; 6] = [
+const OPTIONS: [&str; 7] = [
     "names",
     "specifier",
     "instance",
     "dependency",
     "transitively",
     "stopAt",
+    "within",
 ];
 
 /// One rule object, with its location in the config.
-struct Input<'a> {
-    object: &'a Map<String, Value>,
-    field: String,
+pub(crate) struct Input<'a> {
+    pub(crate) object: &'a Map<String, Value>,
+    pub(crate) field: String,
 }
 
 pub(crate) fn parse_rule(
@@ -102,7 +112,16 @@ pub(crate) fn parse_rule(
         None => input.sentence(names, problems),
     };
     let given_name = optional_string(object, "name", &input.field, problems);
-    let reason = optional_string(object, "reason", &input.field, problems);
+    if object.contains_key("$name") {
+        problems.push(invalid(
+            &input.at("name"),
+            "a config uses one spelling for each key, and this call names the rule two times; \
+             keep the name as the first argument and remove the `name` key",
+        ));
+    }
+    let reason_key = one_spelling(object, ["because", "reason"], |key| input.at(key), problems)
+        .map_or("reason", |(key, _)| key);
+    let reason = optional_string(object, reason_key, &input.field, problems);
     let link = optional_string(object, "link", &input.field, problems);
     let examples = parse_examples(object.get("examples"), &input.field, problems);
     let (kind, sentences, default_name, transitive) = parsed?;
@@ -115,16 +134,19 @@ pub(crate) fn parse_rule(
         kind,
         sentences,
         reason,
+        because: reason_key == "because",
         link,
         imports,
         examples,
+        source: crate::parse::rule_source(object),
+        replaces_preset_rule: false,
     })
 }
 
 type Parsed = (RuleKind, Vec<Sentence>, String, bool);
 
 impl Input<'_> {
-    fn at(&self, key: &str) -> String {
+    pub(crate) fn at(&self, key: &str) -> String {
         format!("{}.{key}", self.field)
     }
 
@@ -212,8 +234,9 @@ impl Input<'_> {
                 ConfigProblem::new(
                     ProblemCode::RuleNeedsCapture,
                     format!(
-                        "isolate needs an element whose pattern captures a name, such as \
-                         `src/features/{{feature}}/**`, and \"{name}\" has none"
+                        "isolate needs {} whose pattern captures a name, such as \
+                         `src/features/{{feature}}/**`, and \"{name}\" has none",
+                        names.a_part()
                     ),
                 )
                 .at(self.at("element")),
@@ -248,10 +271,11 @@ impl Input<'_> {
         if let Some(id) = element
             && matches!(elements[id.index()].kind, ElementKind::Packages(_))
         {
+            let word = names.part_word();
             problems.push(invalid(
                 &self.at("element"),
                 &format!(
-                    "\"{}\" is a package element; an entry rule needs a file element",
+                    "\"{}\" is a package {word}; an entry rule needs a file {word}",
                     elements[id.index()].name
                 ),
             ));
@@ -315,7 +339,9 @@ impl Input<'_> {
                 problems.push(invalid(&field, "must be a sentence object"));
                 continue;
             };
-            for key in ["name", "reason", "link", "imports", "examples", "plugin"] {
+            for key in [
+                "name", "reason", "because", "link", "imports", "examples", "plugin",
+            ] {
                 if object.contains_key(key) {
                     problems.push(invalid(
                         &format!("{field}.{key}"),
@@ -385,9 +411,12 @@ impl Input<'_> {
             problems.push(
                 ConfigProblem::new(
                     ProblemCode::RuleNeedsCapture,
-                    "`mustContain` looks in each instance, so `files` must name an element whose \
-                     pattern captures a name, such as `src/features/{feature}/**`; to look in \
-                     each folder, write `folders` instead",
+                    format!(
+                        "`mustContain` looks in each instance, so `files` must name {} whose \
+                         pattern captures a name, such as `src/features/{{feature}}/**`; to look \
+                         in each folder, write `folders` instead",
+                        names.a_part()
+                    ),
                 )
                 .at(self.at("files")),
             );
@@ -520,6 +549,20 @@ impl Input<'_> {
             "mayNotImport" => names
                 .side(value, &field, problems)
                 .map(Condition::MayNotImport),
+            "mayOnlyImport" if value.as_array().is_some_and(Vec::is_empty) => {
+                if self.object.contains_key("within") {
+                    Some(Condition::MayOnlyImport(Side {
+                        text: "nothing".to_owned(),
+                        ..Side::default()
+                    }))
+                } else {
+                    problems.push(invalid(
+                        &field,
+                        "lists nothing; to refuse every import into an area, add `within`",
+                    ));
+                    None
+                }
+            }
             "mayOnlyImport" => names
                 .side(value, &field, problems)
                 .map(Condition::MayOnlyImport),
@@ -704,7 +747,7 @@ impl Input<'_> {
         }
         let options = self.read_options(names, problems);
         let captured = files.is_some_and(|files| captured_element(files, names.elements));
-        self.options_agree(&options, captured, problems);
+        self.options_agree(&options, (captured, names.a_part()), problems);
         (problems.len() == before).then_some(options)
     }
 
@@ -712,7 +755,9 @@ impl Input<'_> {
     fn options_belong(&self, condition: &str, problems: &mut Vec<ConfigProblem>) {
         let import_condition = IMPORT_CONDITIONS.contains(&condition);
         for option in OPTIONS.iter().filter(|o| self.object.contains_key(**o)) {
-            if !import_condition {
+            if *option == "within" {
+                self.area_belongs(condition, problems);
+            } else if !import_condition {
                 problems.push(invalid(
                     &self.at(option),
                     &format!("`{option}` limits an import condition, and `{condition}` is not one"),
@@ -726,7 +771,43 @@ impl Input<'_> {
         }
     }
 
-    fn read_options(
+    /// Refuses an area on a condition that it does not limit. `mayNotImport` already writes what
+    /// an area would mean there, so the message gives that form.
+    fn area_belongs(&self, condition: &str, problems: &mut Vec<ConfigProblem>) {
+        let field = self.at("within");
+        if condition == "mayNotImport" {
+            let side = self.object.get(condition).map_or_else(String::new, source);
+            let area = self.object.get("within").map_or_else(String::new, source);
+            problems.push(invalid(
+                &field,
+                &format!(
+                    "`mayNotImport` already names what it refuses, so it takes no area; write \
+                     `mayNotImport: {{ all: [{side}, {area}] }}`"
+                ),
+            ));
+        } else if !IMPORT_CONDITIONS.contains(&condition) {
+            problems.push(invalid(
+                &field,
+                &format!(
+                    "`within` limits the imports that a rule judges, and `{condition}` checks no \
+                     import"
+                ),
+            ));
+        }
+    }
+
+    /// The area of a rule, as a rule side.
+    fn area(&self, names: &mut Names<'_>, problems: &mut Vec<ConfigProblem>) -> Option<Side> {
+        let value = self.object.get("within")?;
+        let field = self.at("within");
+        if lists_nothing(value) {
+            problems.push(invalid(&field, "an area needs at least one value"));
+            return None;
+        }
+        names.side(value, &field, problems)
+    }
+
+    pub(crate) fn read_options(
         &self,
         names: &mut Names<'_>,
         problems: &mut Vec<ConfigProblem>,
@@ -758,6 +839,8 @@ impl Input<'_> {
                 .object
                 .get("stopAt")
                 .and_then(|value| names.file_set(value, &self.at("stopAt"), problems)),
+            within: self.area(names, problems),
+            own: None,
         }
     }
 
@@ -765,7 +848,7 @@ impl Input<'_> {
     fn options_agree(
         &self,
         options: &ImportOptions,
-        captured: bool,
+        (captured, a_part): (bool, &str),
         problems: &mut Vec<ConfigProblem>,
     ) {
         if options.stop_at.is_some() && !options.transitively {
@@ -785,8 +868,11 @@ impl Input<'_> {
             problems.push(
                 ConfigProblem::new(
                     ProblemCode::RuleNeedsCapture,
-                    "`instance` compares the captures at both ends, so `files` must name an \
-                     element whose pattern captures a name, such as `src/features/{feature}/**`",
+                    format!(
+                        "`instance` compares the captures at both ends, so `files` must name \
+                         {a_part} whose pattern captures a name, such as \
+                         `src/features/{{feature}}/**`"
+                    ),
                 )
                 .at(self.at("instance")),
             );
@@ -814,7 +900,7 @@ impl Input<'_> {
         found
     }
 
-    fn imports(
+    pub(crate) fn imports(
         &self,
         sentences: &[Sentence],
         transitive: bool,
@@ -928,90 +1014,36 @@ fn value_text(condition: &Condition) -> Option<String> {
     }
 }
 
-const KIND_LIST: &str = "must be one of layers, isolate or entry; any other rule is a sentence of \
-                         `files` and one condition, without `kind`";
-
-/// The sentence that replaces a removed rule kind, written from the rule's own fields.
-fn removed_kind(kind: &str, object: &Map<String, Value>) -> Option<String> {
-    let field = |key: &str| object.get(key).map_or_else(|| "...".to_owned(), compact);
-    match kind {
-        "only" => Some(format!(
-            "{{ \"files\": {}, \"mayOnlyBeImportedBy\": {} }}",
-            field("element"),
-            field("importedBy")
-        )),
-        "forbid" => Some(format!(
-            "{{ \"files\": {}, \"mayNotImport\": {} }}",
-            field("from"),
-            field("to")
-        )),
-        "noCycles" => Some("{ \"files\": \"**\", \"noCycles\": true }".to_owned()),
-        _ => None,
-    }
+/// Whether a set of files is exactly one element whose pattern has a capture.
+/// Whether a set of files or packages holds no value: an empty list, or an empty `any` or `all`.
+fn lists_nothing(value: &Value) -> bool {
+    let empty = |items: Option<&Value>| items.and_then(Value::as_array).is_some_and(Vec::is_empty);
+    empty(Some(value)) || empty(value.get("any")) || empty(value.get("all"))
 }
 
-/// JSON with a space after each comma, as a person writes it.
-fn compact(value: &Value) -> String {
+/// A value of the config as the config's own text writes it.
+fn source(value: &Value) -> String {
     match value {
-        Value::Array(items) => format!(
-            "[{}]",
-            items.iter().map(compact).collect::<Vec<_>>().join(", ")
-        ),
+        Value::String(text) => format!("'{text}'"),
+        Value::Array(items) => {
+            let items: Vec<String> = items.iter().map(source).collect();
+            format!("[{}]", items.join(", "))
+        }
+        Value::Object(object) => {
+            let fields: Vec<String> = object
+                .iter()
+                .map(|(key, value)| format!("{key}: {}", source(value)))
+                .collect();
+            format!("{{ {} }}", fields.join(", "))
+        }
         other => other.to_string(),
     }
 }
 
-/// Each later layer may not import any earlier one; a package element imports nothing, so it is
-/// only ever the other side.
-fn layer_sentences(order: &[ElementId], elements: &[Element]) -> Vec<Sentence> {
-    let mut seen: Vec<ElementId> = Vec::new();
-    let mut sentences = Vec::new();
-    for &element in order {
-        if seen.contains(&element) {
-            continue;
-        }
-        if !seen.is_empty() && matches!(elements[element.index()].kind, ElementKind::Files(_)) {
-            let mut side = Side {
-                text: element_names(&seen, elements).join(", "),
-                ..Side::default()
-            };
-            for &earlier in &seen {
-                match elements[earlier.index()].kind {
-                    ElementKind::Files(_) => side.files.push(FileSet::of(Term::Element(earlier))),
-                    ElementKind::Packages(_) => side.elements.push(earlier),
-                }
-            }
-            sentences.push(Sentence {
-                files: FileSet::of(Term::Element(element)),
-                folders: None,
-                files_text: elements[element.index()].name.clone(),
-                condition: Condition::MayNotImport(side),
-                options: ImportOptions::default(),
-            });
-        }
-        seen.push(element);
-    }
-    sentences
-}
-
-fn element_names(ids: &[ElementId], elements: &[Element]) -> Vec<String> {
-    ids.iter()
-        .map(|id| elements[id.index()].name.clone())
-        .collect()
-}
-
-/// Whether a set of files is exactly one element whose pattern has a capture.
 fn captured_element(files: &FileSet, elements: &[Element]) -> bool {
     files
         .element()
         .is_some_and(|id| elements[id.index()].has_capture())
-}
-
-fn or_list(items: &[String]) -> String {
-    match items.split_last() {
-        Some((last, rest)) if !rest.is_empty() => format!("{} or {last}", rest.join(", ")),
-        _ => items.concat(),
-    }
 }
 
 /// An element by name, for a shorthand.
