@@ -247,6 +247,7 @@ the files of the same instance. To permit each instance, add the part to the lis
 | --- | --- | --- |
 | `mustNotExist` | `rule('a', { files: { all: ['src/**', { not: { element: '*' } }] }, mustNotExist: true })` | a file that is in no part |
 | `mustBeNamed` | `rule('a', { files: 'src/components/**/*.tsx', mustBeNamed: 'PascalCase' })` | a file name that is not in this style |
+| `mustBeNamed` | `rule('a', { files: 'src/ui/**/*.tsx', mustBeNamed: ['*.view', '*.container'] })` | a file name that matches no entry in the list |
 | `mustContain` | `rule('a', { files: 'feature', mustContain: 'index.ts' })` | an instance that does not have this file |
 
 ### Export conditions
@@ -326,6 +327,20 @@ is the file name in PascalCase, and `{folder-name}` is the folder name in kebab-
 ```ts
 rule('test-names', { files: '**/*.test.ts', mustBeNamed: '{folder-name}.test' })
 ```
+
+In a name pattern, `*` is any text or no text. A name pattern reads the full name, which is the name
+without its last extension. `*.view` matches `cart.view.tsx`. It does not match `view.tsx` or
+`cart.view.extra.tsx`.
+
+`mustBeNamed` accepts a list of styles and name patterns. One match from the list is sufficient. For
+a rule about folders, each entry follows the rules of a single value, so an entry cannot use the file
+name.
+
+```ts
+rule('ui-files', { files: 'src/*/ui/**/*.{ts,tsx}', mustBeNamed: ['*.view', '*.container', '*.styles'] })
+```
+
+An empty list is a config error.
 
 ## Shorthands
 

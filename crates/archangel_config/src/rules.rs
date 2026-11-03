@@ -8,7 +8,8 @@ use crate::model::{
     ImportKinds, ImportOptions, InstanceMatch, NameRule, Rule, RuleKind, Sentence, Side,
     SpecifierForm, Term,
 };
-use crate::names::{NamePattern, Owner, Style};
+use crate::must_be_named::must_be_named;
+use crate::names::NamePattern;
 use crate::parse::{
     nearest, one_spelling, optional_string, parse_examples, patterns, string_list, unknown_fields,
 };
@@ -585,37 +586,21 @@ impl Input<'_> {
         if name == "mustContain" {
             return self.contained(&field, problems);
         }
-        let text = self.text(name, problems)?;
-        match name {
-            "mustBeNamed" => {
-                let rule = match Style::from_name(text) {
-                    Some(style) => NameRule::Style(style),
-                    None => NameRule::Pattern(self.name_pattern(name, text, problems)?),
-                };
-                if let (true, NameRule::Pattern(pattern)) = (folder_rule, &rule)
-                    && pattern.uses(Owner::File)
-                {
-                    problems.push(invalid(
-                        &field,
-                        "a folder has no file name; a rule about folders can use the spellings of \
-                         `{FolderName}`, the name of the folder that holds it",
-                    ));
-                    return None;
-                }
-                Some(Condition::MustBeNamed(rule))
-            }
-            "mustExport" => self
-                .name_pattern(name, text, problems)
-                .map(Condition::MustExport),
-            _ => {
-                let kind = match text {
-                    "default" => ExportKind::Default,
-                    "star" => ExportKind::Star,
-                    _ => ExportKind::Names(self.name_pattern(name, text, problems)?),
-                };
-                Some(Condition::MayNotExport(kind))
-            }
+        if name == "mustBeNamed" {
+            return must_be_named(self.object.get(name), &field, folder_rule, problems);
         }
+        let text = self.text(name, problems)?;
+        if name == "mustExport" {
+            return self
+                .name_pattern(name, text, problems)
+                .map(Condition::MustExport);
+        }
+        let kind = match text {
+            "default" => ExportKind::Default,
+            "star" => ExportKind::Star,
+            _ => ExportKind::Names(self.name_pattern(name, text, problems)?),
+        };
+        Some(Condition::MayNotExport(kind))
     }
 
     /// The patterns of `folders`: those with a leading `!` leave folders out.
@@ -1000,7 +985,13 @@ fn default_kinds(runtime: bool) -> ImportKinds {
 /// The value of a condition that has one besides its side, as the default name writes it.
 fn value_text(condition: &Condition) -> Option<String> {
     match condition {
-        Condition::MustBeNamed(rule) => Some(rule.source().to_owned()),
+        Condition::MustBeNamed(rules) => Some(
+            rules
+                .iter()
+                .map(NameRule::source)
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
         Condition::MustContain(patterns) => Some(
             patterns
                 .iter()
