@@ -57,6 +57,10 @@ pub struct Import {
     pub form: ImportForm,
     /// The line of the specifier, from 1.
     pub line: u32,
+    /// The first line of the statement that holds the specifier, from 1.
+    pub statement_line: u32,
+    /// The last line of the statement, from 1.
+    pub statement_end_line: u32,
     /// The column of the specifier, from 1, in characters.
     pub column: u32,
     /// The byte offsets of the specifier, quotes included.
@@ -67,6 +71,23 @@ pub struct Import {
     /// The names an import or export-from statement brings in: `default`, `*` or the name. An
     /// `export *` and a side-effect import list none.
     pub names: Vec<String>,
+    /// Whether every name has its own `type` modifier and the statement has none, so that the
+    /// tsconfig of the file decides the mark.
+    pub names_typed: bool,
+}
+
+impl FileFacts {
+    /// Sets the mark of each import that the file's tsconfig decides: `verbatimModuleSyntax` makes
+    /// TypeScript keep a statement whose names all have the `type` modifier, so the module runs.
+    pub(crate) fn mark_imports(&mut self, verbatim_module_syntax: bool) {
+        for import in self.imports.iter_mut().filter(|import| import.names_typed) {
+            import.kind = if verbatim_module_syntax {
+                ImportKind::Runtime
+            } else {
+                ImportKind::Type
+            };
+        }
+    }
 }
 
 /// Whether an import stays in the compiled JavaScript.
@@ -240,10 +261,13 @@ impl Source<'_> {
             },
             form,
             line,
+            statement_line: line,
+            statement_end_line: line,
             column,
             span: (span.start, span.end),
             utf16: self.lines.utf16(self.text, span.start, span.end),
             names: Vec::new(),
+            names_typed: false,
         }
     }
 
@@ -290,10 +314,13 @@ impl Source<'_> {
                     ImportForm::ExportFrom
                 };
                 let statement = StatementNames::of(record, request.statement_span);
-                let import = self
+                let mut import = self
                     .import(specifier.as_str(), request.span, form)
                     .typed(request.is_type || statement.all_typed)
                     .with_names(statement.names);
+                import.names_typed = statement.all_typed && !request.is_type && !self.declaration;
+                import.statement_line = self.position(request.statement_span.start).0;
+                import.statement_end_line = self.position(request.statement_span.end).0;
                 facts.imports.push(import);
             }
         }
@@ -302,11 +329,13 @@ impl Source<'_> {
     fn dynamic_imports(&self, record: &ModuleRecord<'_>, facts: &mut FileFacts) {
         for dynamic in &record.dynamic_imports {
             match literal(self.slice(dynamic.module_request)) {
-                Some(specifier) => facts.imports.push(self.import(
-                    &specifier,
-                    dynamic.module_request,
-                    ImportForm::Dynamic,
-                )),
+                Some(specifier) => {
+                    let mut import =
+                        self.import(&specifier, dynamic.module_request, ImportForm::Dynamic);
+                    import.statement_line = self.position(dynamic.span.start).0;
+                    import.statement_end_line = self.position(dynamic.span.end).0;
+                    facts.imports.push(import);
+                }
                 None => facts.unfollowed.push(self.position(dynamic.span.start).0),
             }
         }

@@ -1,0 +1,6 @@
+error[plugin]: src/features/cart/total.ts has 3 imports, and the limit is 2
+--> src/features/cart/total.ts
+ = note: rule: small-files
+
+checked 6 files and 6 imports: 1 problem
+For what a code means, run `archangel docs plugin`.

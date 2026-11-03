@@ -324,3 +324,104 @@ fn a_transitive_rule_takes_no_option_that_limits_one_import() {
         "each of the four limits one import, which a chain of imports does not have"
     );
 }
+
+#[test]
+fn an_empty_list_with_an_area_reads_as_nothing_in_a_message() {
+    let config = parse_json(
+        &json!({
+            "parts": { "api": "apps/api/**" },
+            "rules": [{ "files": "api", "mayOnlyImport": [], "within": "apps/**" }],
+        })
+        .to_string(),
+    )
+    .expect("the config is valid");
+    match &config.rules[0].sentences[0].condition {
+        Condition::MayOnlyImport(side) => assert_eq!(side.text, "nothing"),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn a_rule_remembers_whether_it_wrote_because_or_reason() {
+    let because = |key: &str| {
+        let config = parse_json(
+            &json!({
+                "parts": { "api": "apps/api/**" },
+                "rules": [{ "files": "api", "mustNotExist": true, key: "Why." }],
+            })
+            .to_string(),
+        )
+        .expect("the config is valid");
+        config.rules[0].because
+    };
+    assert!(
+        because("because"),
+        "a rule written with `because` remembers that word, so it prints it back"
+    );
+    assert!(
+        !because("reason"),
+        "a rule written with `reason` does not claim that it wrote `because`"
+    );
+}
+
+#[test]
+fn a_rule_keeps_where_the_loader_says_that_it_was_made() {
+    let config = parse_json(
+        &json!({
+            "parts": { "api": "apps/api/**" },
+            "rules": [{ "files": "api", "mustNotExist": true, "$at": { "file": "c.ts", "line": 7 } }],
+        })
+        .to_string(),
+    )
+    .expect("the config is valid");
+    let source = config.rules[0].source.as_ref().expect("a place");
+    assert_eq!(
+        (source.file.as_str(), source.line),
+        ("c.ts", 7),
+        "`$at` from the loader is the place that a problem with this rule points to"
+    );
+}
+
+#[test]
+fn a_message_calls_a_part_what_the_config_calls_it() {
+    let message = |key: &str| {
+        let found = parse_json(
+            &json!({ key: { "a": "a/**" }, "rules": [{ "kind": "isolate", "element": "a" }] })
+                .to_string(),
+        )
+        .expect_err("no capture");
+        found[0].message.clone()
+    };
+    assert!(
+        message("parts").contains("needs a part whose pattern"),
+        "{}",
+        message("parts")
+    );
+    assert!(
+        message("elements").contains("needs an element whose pattern"),
+        "{}",
+        message("elements")
+    );
+}
+
+#[test]
+fn a_shape_message_calls_the_names_what_the_key_calls_them() {
+    let message = |key: &str| {
+        let found = parse_json(&json!({ key: "src/**" }).to_string()).expect_err("not an object");
+        found
+            .iter()
+            .map(|p| p.message.clone())
+            .collect::<Vec<_>>()
+            .join("; ")
+    };
+    assert!(
+        message("parts").contains("an object of part names"),
+        "{}",
+        message("parts")
+    );
+    assert!(
+        message("elements").contains("an object of element names"),
+        "{}",
+        message("elements")
+    );
+}

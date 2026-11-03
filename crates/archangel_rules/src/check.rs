@@ -2,7 +2,10 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use archangel_config::{Classification, Condition, ElementId, ElementKind, ImportKinds, Pattern};
+use archangel_config::{
+    Classification, Condition, ElementId, ElementKind, FileSet, ImportKinds, Pattern, RuleKind,
+    Table, TableId, Term,
+};
 use archangel_graph::{
     GraphProblem, Import, ImportGraph, Manifests, Resolution, SourceFile, UnresolvedReason, Work,
 };
@@ -50,6 +53,11 @@ pub struct Summary {
     /// The elements and selectors that presets declared and that match nothing, which is no
     /// error, because a project need not use every part of a preset.
     pub preset_names_matching_nothing: Vec<String>,
+    /// The kind rows of tables that have no file in this repository, in config order, or `None` for
+    /// a config with no table.
+    pub rows_with_no_file: Option<Vec<String>>,
+    /// Why each table of a preset in `preset_names_matching_nothing` matches no file.
+    pub preset_tables_matching_nothing: BTreeMap<String, String>,
 }
 
 /// What the rules found in one file's imports. A session keeps one per file, so that an edit to a
@@ -150,6 +158,9 @@ impl Architecture {
         run.empty_elements();
         run.empty_selectors();
         run.graph_problems();
+        run.part_overlaps();
+        run.tables();
+        run.externals_in_workspace();
         if let Some(baseline) = baseline {
             run.apply_baseline(baseline);
         }
@@ -208,8 +219,8 @@ pub(crate) struct Run<'a> {
     pub(crate) manifests: Manifests<'a>,
     pub(crate) classes: &'a mut Classes,
     pub(crate) scope: Scope<'a>,
-    /// The rule whose example this run checks, and whether it considered an import of it.
-    pub(crate) watched: Option<(usize, bool)>,
+    /// The rules whose example this run checks, and whether one considered an import of it.
+    pub(crate) watched: Option<(Vec<usize>, bool)>,
     pub(crate) violations: Vec<Diagnostic>,
     pub(crate) other: Vec<Diagnostic>,
     used_elements: BTreeSet<ElementId>,
@@ -259,8 +270,10 @@ impl<'a> Run<'a> {
         let lookup = Lookup::new(self.architecture, self.graph);
         let found = self.classes.file(lookup, path, work);
         if let Some(class) = &found.1 {
-            self.used_elements.insert(class.element);
-            self.touched.insert(class.element);
+            for place in class.all() {
+                self.used_elements.insert(place.element);
+                self.touched.insert(place.element);
+            }
         }
         found
     }
@@ -291,7 +304,7 @@ impl<'a> Run<'a> {
         } else {
             let found = self.classes.example_file(self.architecture, file, work);
             if let Some(class) = &found.1 {
-                self.touched.insert(class.element);
+                self.touched.extend(class.all().map(|place| place.element));
             }
             found
         };
@@ -347,19 +360,7 @@ impl<'a> Run<'a> {
                 (class, classification, Some(path.as_str()), None)
             }
             Resolution::Package(name) => {
-                let (class, classification) = self.classes.package(self.architecture, name);
-                if let Some(class) = &classification {
-                    self.used_elements.insert(class.element);
-                    self.touched.insert(class.element);
-                }
-                if let ClassKey::Package { names, .. } = self.classes.key(class) {
-                    let reached = names
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, n)| **n)
-                        .map(|(i, _)| i);
-                    self.touched_names.extend(reached);
-                }
+                let (class, classification) = self.package_target(name);
                 (class, classification, None, Some(name.as_str()))
             }
             Resolution::Unresolved(reason) => {
@@ -387,20 +388,42 @@ impl<'a> Run<'a> {
         };
         let (broken, evaluations) = self.architecture.evaluate(self.classes, &edge);
         work.rule_evaluations += evaluations;
-        self.watch(from_class, to_class, site.import);
+        self.watch(&edge);
         for sentence in broken {
-            let violation = self.violation(sentence, from, to.as_ref(), site);
+            let violation = self.violation(sentence, from, to.as_ref(), site, (path, package));
             self.violations.push(violation);
         }
     }
 
+    /// The class of a package that an import names, which notes the sets and names it reaches.
+    fn package_target(&mut self, name: &str) -> (u32, Option<Classification>) {
+        let (class, classification) = self.classes.package(self.architecture, name);
+        if let Some(class) = &classification {
+            for place in class.all() {
+                self.used_elements.insert(place.element);
+                self.touched.insert(place.element);
+            }
+        }
+        if let ClassKey::Package { names, .. } = self.classes.key(class) {
+            let reached = names
+                .iter()
+                .enumerate()
+                .filter(|(_, n)| **n)
+                .map(|(i, _)| i);
+            self.touched_names.extend(reached);
+        }
+        (class, classification)
+    }
+
     /// Notes whether the rule whose example this run checks looked at an import.
-    fn watch(&mut self, from: u32, to: u32, import: &Import) {
-        if let Some((rule, considered)) = &mut self.watched {
-            *considered |= covers(self.architecture.config.rules[*rule].imports, import.kind)
-                && self
-                    .architecture
-                    .considers(*rule, self.classes.key(from), self.classes.key(to));
+    fn watch(&mut self, edge: &Edge<'_>) {
+        if let Some((rules, considered)) = &mut self.watched {
+            *considered |= rules.iter().any(|rule| {
+                covers(
+                    self.architecture.config.rules[*rule].imports,
+                    edge.import.kind,
+                ) && self.architecture.looks_at(*rule, edge, self.classes)
+            });
         }
     }
 
@@ -440,9 +463,28 @@ impl<'a> Run<'a> {
         from: Option<&Classification>,
         to: Option<&Classification>,
         site: &Site<'_>,
+        ends: (Option<&str>, Option<&str>),
     ) -> Diagnostic {
         let compiled = &self.architecture.sentences[sentence];
         let rule = &self.architecture.config.rules[compiled.rule];
+        if let RuleKind::TableRow {
+            table,
+            row: Some(row),
+        } = &rule.kind
+        {
+            let described = crate::messages::RowViolation {
+                architecture: self.architecture,
+                classes: self.classes,
+                table: *table,
+                row,
+                compiled,
+                to,
+                path: ends.0,
+                package: ends.1,
+            }
+            .describe(site.import.specifier.as_str());
+            return import_diagnostic(rule, site, described);
+        }
         let texts = Texts {
             architecture: self.architecture,
             graph: self.graph,
@@ -484,7 +526,7 @@ impl<'a> Run<'a> {
             let (graph, first_step) = self.cycle_graph(rule.imports, &index, &selected);
             work.cycle_files_visited += graph.file_count() as u64;
             if let Some((watched, considered)) = &mut self.watched
-                && *watched == compiled.rule
+                && watched.contains(&compiled.rule)
             {
                 let evaluated = self.scope.evaluated.len();
                 *considered |= first_step.keys().any(|&(from, _)| from < evaluated);
@@ -539,7 +581,7 @@ impl<'a> Run<'a> {
     /// What a preset declared is listed in the summary instead.
     fn empty_selectors(&mut self) {
         for (set, origin) in &self.architecture.reported {
-            if self.classes.files_in(*set) > 0 {
+            if self.classes.files_of_set(*set) > 0 {
                 continue;
             }
             let name = match origin {
@@ -556,8 +598,9 @@ impl<'a> Run<'a> {
             let definition = self.architecture.definition(*set);
             let message = match origin {
                 Origin::Selector(name) => format!(
-                    "the selector \"{name}\" matches no file ({definition}), so no rule about it \
-                     can fire; fix its definition or remove it"
+                    "the {} \"{name}\" matches no file ({definition}), so no rule about it can \
+                     fire; fix its definition or remove it",
+                    self.architecture.config.group_word()
                 ),
                 Origin::Inline(rule) => format!(
                     "the rule \"{rule}\" names the pattern {definition}, which matches no file, so \
@@ -569,6 +612,210 @@ impl<'a> Run<'a> {
                 diagnostic.rule = Some(rule.clone());
             }
             self.other.push(diagnostic);
+        }
+    }
+
+    /// A file in two of the config's own parts. The config holds the fix, so the baseline does not
+    /// hold it.
+    fn part_overlaps(&mut self) {
+        let elements = &self.architecture.config.elements;
+        for (path, parts) in self.classes.overlaps() {
+            let names: Vec<String> = parts
+                .iter()
+                .map(|part| format!("\"{}\"", elements[part.index()].name))
+                .collect();
+            let message = format!(
+                "{path} is in the parts {}, and a file is in one part at most; narrow one of the \
+                 patterns with `not`, or make one of them a group. The baseline does not hold this \
+                 problem, so fix it in the config",
+                names.join(" and ")
+            );
+            self.other
+                .push(Diagnostic::new(Code::PartOverlap, message).at(path, 0, 0));
+        }
+    }
+
+    /// For each table: the kind rows with no file, a table that checks nothing, and a file in two
+    /// of its rows.
+    fn tables(&mut self) {
+        let architecture = self.architecture;
+        if architecture.config.tables.is_empty() {
+            return;
+        }
+        let mut no_file = Vec::new();
+        for (index, table) in architecture.config.tables.iter().enumerate() {
+            let id = TableId(u32::try_from(index).unwrap_or(u32::MAX));
+            let rows: Vec<(&str, usize)> = architecture
+                .sentences
+                .iter()
+                .filter(|compiled| compiled.sentence == 0)
+                .filter_map(
+                    |compiled| match &architecture.config.rules[compiled.rule].kind {
+                        RuleKind::TableRow {
+                            table,
+                            row: Some(row),
+                        } if *table == id => Some((row.as_str(), compiled.files)),
+                        _ => None,
+                    },
+                )
+                .collect();
+            let live =
+                architecture.config.rules.iter().any(
+                    |rule| matches!(&rule.kind, RuleKind::TableRow { table, .. } if *table == id),
+                );
+            if !live {
+                continue;
+            }
+            let files = rows
+                .iter()
+                .map(|(_, set)| self.classes.table_files_of_set(*set))
+                .sum::<u64>();
+            if files == 0 && (table.rows.is_empty() || !rows.is_empty()) {
+                self.table_checks_nothing(table);
+                continue;
+            }
+            for (row, set) in &rows {
+                let is_kind = table.rows.iter().any(|(key, files)| {
+                    key == row && matches!(files.terms.as_slice(), [Term::Kind { .. }])
+                });
+                if is_kind && self.classes.table_files_of_set(*set) == 0 {
+                    no_file.push(format!("{}.{row}", table.name));
+                }
+            }
+            self.row_overlaps(table, &rows);
+        }
+        self.summary.rows_with_no_file = Some(no_file);
+    }
+
+    /// A table whose rows together have no file: an error, unless another diagnostic already says
+    /// why, or a preset declares it.
+    fn table_checks_nothing(&mut self, table: &Table) {
+        if table.from_preset {
+            let why = table.kinds.as_ref().map_or_else(
+                || "none of its rows has a file".to_owned(),
+                |kinds| {
+                    format!(
+                        "no file matches its kind pattern {}",
+                        kinds.pattern.source()
+                    )
+                },
+            );
+            self.summary
+                .preset_names_matching_nothing
+                .push(table.name.clone());
+            self.summary
+                .preset_tables_matching_nothing
+                .insert(table.name.clone(), why);
+            return;
+        }
+        if !table.rows.is_empty() && self.already_reported(table) {
+            return;
+        }
+        let name = &table.name;
+        let message = if table.rows.is_empty() {
+            format!(
+                "the table \"{name}\" has no row, so it checks nothing; add a row or remove the table"
+            )
+        } else {
+            let pattern = table.kinds.as_ref().map_or_else(String::new, |kinds| {
+                format!(
+                    ", and no file matches its kind pattern {}",
+                    kinds.pattern.source()
+                )
+            });
+            format!(
+                "the rows of the table \"{name}\" have no file{pattern}, so it checks nothing; check \
+                 the pattern and the row names, or remove the table"
+            )
+        };
+        self.other.push(Diagnostic::new(Code::TableEmpty, message));
+    }
+
+    /// Whether a pattern, a part or a group that the table names matches no file, for which
+    /// `selector-empty` or `element-empty` already reports it.
+    fn already_reported(&self, table: &Table) -> bool {
+        let architecture = self.architecture;
+        let empty_pattern = architecture.reported.iter().any(|(set, origin)| {
+            matches!(origin, Origin::Inline(name) if *name == table.name)
+                && self.classes.files_of_set(*set) == 0
+        });
+        let areas = architecture.config.rules.iter().flat_map(|rule| {
+            let of_table = matches!(
+                &rule.kind,
+                RuleKind::TableRow { table: id, .. }
+                    if architecture.config.tables[id.index()].name == table.name
+            );
+            rule.sentences
+                .iter()
+                .filter(move |_| of_table)
+                .filter_map(|sentence| sentence.options.within.as_ref())
+                .flat_map(|area| area.files.iter())
+        });
+        let mut sets: Vec<&FileSet> = table.rows.iter().map(|(_, files)| files).collect();
+        sets.push(&table.files);
+        sets.extend(areas);
+        empty_pattern
+            || sets
+                .iter()
+                .flat_map(|set| &set.terms)
+                .any(|term| self.term_is_empty(term))
+    }
+
+    fn term_is_empty(&self, term: &Term) -> bool {
+        match term {
+            Term::Element(element) => self.classes.files_of(*element) == 0,
+            Term::Selector(id) => self
+                .architecture
+                .sets
+                .iter()
+                .position(|set| set.terms == [Term::Selector(*id)])
+                .is_some_and(|set| self.classes.files_of_set(set) == 0),
+            _ => false,
+        }
+    }
+
+    /// A file in two rows of one table. The config holds the fix, so the baseline does not hold it.
+    /// Only a class with two rows needs a look at its files, so the search grows with classes.
+    fn row_overlaps(&mut self, table: &Table, rows: &[(&str, usize)]) {
+        let in_two = |key: &ClassKey| {
+            matches!(key, ClassKey::File { bits, .. }
+                if rows.iter().filter(|(_, set)| bits[*set]).count() > 1)
+        };
+        if !self.classes.counted_classes().any(in_two) {
+            return;
+        }
+        let mut found = Vec::new();
+        for path in self.classes.counted_files_in(in_two) {
+            let names: Vec<String> = rows
+                .iter()
+                .filter(|(_, set)| self.classes.file_in(path, *set))
+                .map(|(row, _)| format!("`{row}`"))
+                .collect();
+            let message = format!(
+                "{path} is in the rows {} of the table \"{}\", so each of them judges it; narrow \
+                 one of the rows with `not`, or leave the file out of the table's files. The \
+                 baseline does not hold this problem, so fix it in the config",
+                names.join(" and "),
+                table.name
+            );
+            found.push(Diagnostic::new(Code::TableRowOverlap, message).at(path, 0, 0));
+        }
+        self.other.extend(found);
+    }
+
+    /// A name of an externals set that is a package of the workspace, which only the graph knows.
+    fn externals_in_workspace(&mut self) {
+        let graph = self.graph;
+        let problems = self
+            .architecture
+            .config
+            .externals_in_workspace(|name| graph.is_workspace_package(name));
+        for problem in problems {
+            let field = problem.field.unwrap_or_default();
+            self.other.push(Diagnostic::new(
+                Code::ConfigInvalid,
+                format!("{field}: {}", problem.message),
+            ));
         }
     }
 
@@ -649,7 +896,10 @@ impl<'a> Run<'a> {
                     // Node's built-in modules are always installed, though no manifest lists them.
                     patterns.iter().any(|p| p.source().starts_with("node:"))
                         || dependencies.iter().any(|name| {
-                            self.architecture.matcher.classify_package(name) == Some(id)
+                            self.architecture
+                                .matcher
+                                .package_elements(name)
+                                .contains(&id)
                         }),
                     pattern_list(patterns.iter().map(Pattern::source)),
                 ),
@@ -659,9 +909,10 @@ impl<'a> Run<'a> {
                     .preset_names_matching_nothing
                     .push(element.name.clone());
             } else if !listed {
+                let word = self.architecture.config.part_word();
                 let message = format!(
-                    "the element \"{}\" matches nothing ({what}), so no rule about it can fire; fix the \
-                     pattern or remove the element",
+                    "the {word} \"{}\" matches nothing ({what}), so no rule about it can fire; fix the \
+                     pattern or remove the {word}",
                     element.name
                 );
                 self.other
@@ -672,7 +923,32 @@ impl<'a> Run<'a> {
         self.empty_presets();
     }
 
-    /// A preset whose file elements together match no file: most likely a wrong root.
+    /// The sets of the rows of each table that a preset declares.
+    fn tables_of_preset(&self, preset: &str) -> Vec<usize> {
+        let architecture = self.architecture;
+        let prefix = format!("{preset}/");
+        architecture
+            .sentences
+            .iter()
+            .filter(|compiled| compiled.sentence == 0)
+            .filter_map(
+                |compiled| match &architecture.config.rules[compiled.rule].kind {
+                    RuleKind::TableRow {
+                        table,
+                        row: Some(_),
+                    } if architecture.config.tables[table.index()]
+                        .name
+                        .starts_with(&prefix) =>
+                    {
+                        Some(compiled.files)
+                    }
+                    _ => None,
+                },
+            )
+            .collect()
+    }
+
+    /// A preset whose file elements and tables together match no file: most likely a wrong root.
     fn empty_presets(&mut self) {
         for preset in &self.architecture.config.presets {
             let files: Vec<ElementId> = preset
@@ -686,7 +962,14 @@ impl<'a> Run<'a> {
                     )
                 })
                 .collect();
-            if files.is_empty() || files.iter().any(|&id| self.classes.files_of(id) > 0) {
+            let tables = self.tables_of_preset(&preset.name);
+            let tables_have_files = tables
+                .iter()
+                .any(|set| self.classes.table_files_of_set(*set) > 0);
+            if (files.is_empty() && tables.is_empty())
+                || tables_have_files
+                || files.iter().any(|&id| self.classes.files_of(id) > 0)
+            {
                 continue;
             }
             let root = if preset.root.is_empty() {
@@ -718,7 +1001,8 @@ impl<'a> Run<'a> {
             ) {
                 continue;
             }
-            for &name in &compiled.side_packages {
+            let area = compiled.area.iter().flat_map(|area| &area.packages);
+            for &name in compiled.side.packages.iter().chain(area) {
                 let pattern = &self.architecture.package_names[name];
                 let always = pattern.source() == "*" || pattern.source().starts_with("node:");
                 let listed = always

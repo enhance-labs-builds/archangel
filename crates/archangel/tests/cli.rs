@@ -5,6 +5,9 @@
 #[path = "support/cli.rs"]
 mod support;
 
+#[path = "support/fixtures.rs"]
+mod fixtures;
+
 use archangel_testkit::FixtureRepo;
 use serde_json::{Value, json};
 use support::run;
@@ -526,4 +529,187 @@ fn stats_prints_work_counts_and_stage_durations() {
             .any(|l| l.contains(stage) && l.contains("ms"));
         assert!(has, "the stats time the {stage} stage: {}", found.stdout);
     }
+}
+
+#[test]
+fn explain_shows_a_one_word_brace_as_a_capture() {
+    let repo = FixtureRepo::new()
+        .file("src/a.ts", "")
+        .json_config(&json!({ "parts": { "code": "src/**/*.{ts}" } }));
+    let found = run(&repo, &["explain", "src/a.ts"]);
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    assert!(
+        found.stdout.contains("part: \"code\", instance \"ts\""),
+        "the part with the capture's value: {}",
+        found.stdout
+    );
+}
+
+#[test]
+fn explain_shows_a_file_in_a_part_and_in_a_part_of_a_preset() {
+    let repo = FixtureRepo::new()
+        .file("apps/web/src/features/cart/a.ts", "")
+        .file(
+            "archangel.config.mjs",
+            "export default {
+               extends: [{
+                 name: 'fsd-web',
+                 root: 'apps/web/src',
+                 parts: { features: 'features/{slice}/**' },
+               }],
+               parts: { web: 'apps/web/**' },
+             };",
+        );
+    let found = run(&repo, &["explain", "apps/web/src/features/cart/a.ts"]);
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    for line in [
+        "part: \"web\"\n",
+        "part: \"fsd-web/features\", instance \"cart\"\n",
+    ] {
+        assert!(found.stdout.contains(line), "{line} in: {}", found.stdout);
+    }
+}
+
+#[test]
+fn two_parts_that_match_one_file_exit_one() {
+    let repo = FixtureRepo::new()
+        .file("src/features/login/session.model.ts", "")
+        .json_config(&json!({
+            "parts": { "model": "src/**/*.model.ts", "feature": "src/features/{feature}/**" },
+        }));
+    let found = run(&repo, &["check"]);
+    assert_eq!(found.status, 1, "{}{}", found.stdout, found.stderr);
+    assert!(found.stdout.contains("part-overlap"), "{}", found.stdout);
+}
+
+/// A table with one kind that has files and one that has none.
+fn table_repo() -> FixtureRepo {
+    FixtureRepo::new()
+        .file("apps/api/a.entity.ts", "")
+        .json_config(&json!({
+            "parts": { "api": "apps/api/**" },
+            "rules": [{
+                "kind": "mayImport",
+                "name": "domain",
+                "rows": { "entity": [], "aggregate-root": [] },
+                "kinds": "**/*.{kind}.ts",
+            }],
+        }))
+}
+
+#[test]
+fn a_row_with_no_file_is_listed_in_the_summary_as_text_and_json() {
+    let repo = table_repo();
+    let text = run(&repo, &["check"]);
+    assert_eq!(text.status, 0, "{}{}", text.stdout, text.stderr);
+    assert!(
+        text.stdout
+            .contains("domain.aggregate-root has no file in this repository"),
+        "{}",
+        text.stdout
+    );
+    let json: Value =
+        serde_json::from_str(&run(&repo, &["check", "--format", "json"]).stdout).unwrap();
+    assert_eq!(
+        json["summary"]["rowsWithNoFile"],
+        json!(["domain.aggregate-root"]),
+        "a row with no file is listed in the summary as text and json"
+    );
+}
+
+#[test]
+fn explain_shows_a_table_row_as_its_sentences() {
+    let found = run(
+        &fixtures::fixture("monorepo-slice"),
+        &["explain", "apps/api/src/order/domain/order.entity.ts"],
+    );
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    let out = &found.stdout;
+    assert!(out.contains("kind: entity in domain\n"), "{out}");
+    assert!(out.contains("domain.entity"), "{out}");
+    assert!(
+        out.contains(
+            "entity may import only value-object, domain-event, specification, policy, error, \
+             types, consts, apps/api/src/shared/result.ts, and itself"
+        ),
+        "{out}"
+    );
+}
+
+#[test]
+fn explain_shows_the_second_sentence_of_a_row_that_may_not_import_itself() {
+    let found = run(
+        &fixtures::fixture("monorepo-slice"),
+        &[
+            "explain",
+            "apps/api/src/order/domain/created.domain-event.ts",
+        ],
+    );
+    assert_eq!(found.status, 0, "{}{}", found.stdout, found.stderr);
+    let out = &found.stdout;
+    assert!(
+        out.contains("domain-event may import only value-object, types, consts, apps/api/src/shared/result.ts\n"),
+        "{out}"
+    );
+    assert!(out.contains("domain-event may not import itself"), "{out}");
+}
+
+fn because_repo(key: &str) -> FixtureRepo {
+    FixtureRepo::new()
+        .file("src/a/x.ts", "import '../b/y';\n")
+        .file("src/b/y.ts", "")
+        .json_config(&json!({
+            "elements": { "a": "src/a/**", "b": "src/b/**" },
+            "rules": [{ "name": "r", "files": "a", "mayNotImport": "b", key: "They stay apart." }],
+        }))
+}
+
+#[test]
+fn a_rule_written_with_because_prints_because() {
+    let found = run(&because_repo("because"), &["check"]);
+    assert!(
+        found.stdout.contains("because: They stay apart."),
+        "{}",
+        found.stdout
+    );
+    assert!(!found.stdout.contains("reason:"), "{}", found.stdout);
+}
+
+#[test]
+fn a_rule_written_with_reason_prints_reason() {
+    let found = run(&because_repo("reason"), &["check"]);
+    assert!(
+        found.stdout.contains("reason: They stay apart."),
+        "{}",
+        found.stdout
+    );
+    assert!(!found.stdout.contains("because:"), "{}", found.stdout);
+}
+
+#[test]
+fn a_row_error_says_what_to_do() {
+    let found = run(&fixtures::fixture("small-app"), &["check"]);
+    assert!(
+        found.stdout.contains(
+            "= help: remove the import, or move the code to a file whose row permits the import"
+        ),
+        "{}",
+        found.stdout
+    );
+}
+
+#[test]
+fn an_unknown_name_in_a_config_with_no_names_does_not_list_nothing() {
+    let repo = FixtureRepo::new().file("src/routes/a.ts", "").json_config(&json!({
+        "rules": [
+            { "kind": "mayImport", "name": "t", "rows": { "routes": [] }, "kinds": "src/{kind}/**" },
+            { "name": "r", "files": "routes", "mustBeNamed": "kebab-case" },
+        ],
+    }));
+    let found = run(&repo, &["check"]);
+    assert_eq!(found.status, 2, "{}{}", found.stdout, found.stderr);
+    let all = format!("{}{}", found.stdout, found.stderr);
+    assert!(!all.contains("the declared names are ;"), "{all}");
+    assert!(!all.contains("packages: ['routes']"), "{all}");
+    assert!(all.contains("only in its table"), "{all}");
 }

@@ -5,3 +5,6 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc ccda370057df523ee0e6313ac5a74b01d151093e7ab0de37b4aa88fdf5c514b7 # shrinks to rules = [Object {"kind": String("entry"), "element": String("e2"), "files": Array [String("index.ts")], "imports": String("all")}], from = None, to = Some((2, 0, true)), typed = false
+cc 29866f1a50077ba9e2b1ec885192d161168b8c6d6969c222f7a066272269cfd0 # shrinks to table = RandomTable { rows: [(2, [])], every: [2], itself: [2], area: None }, from = "a/i0/f.k0.ts", to = "a/i0/f.k0.ts", package = None
+cc 3cf6950840f012bd0616fd7b61813aea532193f1f499ded61ab8e0a4f8c1184d # shrinks to table = RandomTable { rows: [(0, [2])], every: [], itself: [], area: None }, from = "a/i1/f.k1.ts", to = "a/i0/f.k0.ts", package = None
+cc 539669f0462e3a04817e9abace501e3544596c122b3119b39f8d6d192809f3c3 # shrinks to table = RandomTable { rows: [(0, [5])], every: [], itself: [], area: None }, from = "a/i0/f.k0.ts", to = "a/i0/f.k0.ts", package = None

@@ -353,10 +353,10 @@ fn a_field_after_a_number_or_a_boolean_has_its_own_line_and_column() {
                 "rules[2].reasn",
                 (6, 44),
                 "archangel does not know this field; did you mean `reason`? The known fields are \
-                 files, folders, name, reason, link, imports, examples, mayNotImport, \
+                 files, folders, name, reason, because, link, imports, examples, mayNotImport, \
                  mayOnlyImport, mayOnlyBeImportedBy, mustBeNamed, mustContain, mustNotExist, \
                  mustExport, mayNotExport, mustOnlyReExport, noCycles, names, specifier, \
-                 instance, dependency, transitively, stopAt"
+                 instance, dependency, transitively, stopAt, within"
             ),
         ],
         "a value of several characters is one array item, and a value right before `}}` does not \
@@ -409,7 +409,7 @@ fn a_capture_name_is_letters_digits_and_underscores_and_does_not_start_with_a_di
                 "elements.x",
                 (2, 17),
                 &format!(
-                    "the pattern `src/{{1a}}/x` of element \"x\" is invalid: the capture `{{1a}}` \
+                    "the pattern `src/{{1a}}/x` of \"x\" is invalid: the capture `{{1a}}` \
                      {needs}"
                 )
             ),
@@ -418,7 +418,7 @@ fn a_capture_name_is_letters_digits_and_underscores_and_does_not_start_with_a_di
                 "elements.y",
                 (2, 36),
                 &format!(
-                    "the pattern `src/{{a-b}}/y` of element \"y\" is invalid: the capture \
+                    "the pattern `src/{{a-b}}/y` of \"y\" is invalid: the capture \
                      `{{a-b}}` {needs}"
                 )
             ),
@@ -762,10 +762,10 @@ fn a_problem_displays_as_its_code_its_field_and_its_message() {
         [with_field.to_string(), without_field.to_string()],
         [
             "config-invalid: rules[0].colour: archangel does not know this field; the known fields \
-             are files, folders, name, reason, link, imports, examples, mayNotImport, \
+             are files, folders, name, reason, because, link, imports, examples, mayNotImport, \
              mayOnlyImport, mayOnlyBeImportedBy, mustBeNamed, mustContain, mustNotExist, \
              mustExport, mayNotExport, mustOnlyReExport, noCycles, names, specifier, instance, \
-             dependency, transitively, stopAt"
+             dependency, transitively, stopAt, within"
                 .to_owned(),
             "config-missing: no config in /repo or any folder above it; archangel looks for \
              archangel.config.ts, archangel.config.mts, archangel.config.js, archangel.config.mjs, \

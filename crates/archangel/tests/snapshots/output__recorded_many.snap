@@ -1,0 +1,412 @@
+---
+source: crates/archangel/tests/output.rs
+expression: all
+---
+$ archangel check
+status: 1
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m0.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m0.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m100.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m100.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m125.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m125.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m150.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m150.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m175.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m175.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m200.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m200.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m225.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m225.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m25.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m25.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m250.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m250.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m275.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m275.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m300.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m300.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m325.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m325.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m350.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m350.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m375.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m375.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m400.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m400.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m425.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m425.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m450.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m450.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m475.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m475.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m50.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m50.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "app", an earlier layer, through "../app/main"
+ --> src/shared/m75.ts:1:8
+  |
+1 | import '../app/main';
+  |        ^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+error[layers]: "shared" may not import "feature", an earlier layer, through "../features/login/index"
+ --> src/shared/m75.ts:2:8
+  |
+2 | import '../features/login/index';
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ "shared" may import only "shared"
+  |
+  = note: reason: Shared code must not know about features
+
+checked 505 files and 521 imports: 40 problems
+For what a code means, run `archangel docs layers`.
+
+$ archangel check --format json
+status: 1
+28341 bytes, FNV-1a 9ed4148a25c85fca
+
+$ archangel test
+status: 1
+error[rule-unproven]: the rule "layers" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: layers
+
+error[rule-unproven]: the rule "entry(entity)" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: entry(entity)
+
+0 examples, none failed; 2 rules without a rejected example
+
+$ archangel test --format json
+status: 1
+{
+  "schemaVersion": 1,
+  "examples": [],
+  "unproven": [
+    {
+      "code": "rule-unproven",
+      "rule": "layers",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"layers\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "rule-unproven",
+      "rule": "entry(entity)",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"entry(entity)\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
+  "summary": {
+    "passed": false,
+    "work": {
+      "filesFound": 0,
+      "filesRead": 0,
+      "bytesRead": 0,
+      "filesParsed": 0,
+      "importsFound": 0,
+      "resolutions": 0,
+      "filesClassified": 0,
+      "patternPasses": 0,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}

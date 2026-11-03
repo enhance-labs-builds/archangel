@@ -18,6 +18,10 @@ pub enum Code {
     MayOnlyImport,
     /// A `mayOnlyBeImportedBy` condition.
     MayOnlyBeImportedBy,
+    /// A row of an import table.
+    MayImport,
+    /// A file in the files of a table has no row.
+    EveryFileHasAKind,
     /// A `mustNotExist` condition.
     MustNotExist,
     /// A `mustBeNamed` condition.
@@ -56,6 +60,12 @@ pub enum Code {
     SelectorEmpty,
     /// A preset whose elements together match no file.
     PresetEmpty,
+    /// A file in two of the config's own parts.
+    PartOverlap,
+    /// A file in two rows of one table.
+    TableRowOverlap,
+    /// A table with no row, or whose rows together have no file.
+    TableEmpty,
     /// A file whose exports an export rule needs, which an `export *` chain hides.
     ExportsUnknown,
     /// A file or folder that cannot be opened, or a file that is not text.
@@ -89,13 +99,15 @@ pub enum Code {
 }
 
 /// The names of the codes, in declaration order, so a code's discriminant indexes its name.
-const NAMES: [&str; 40] = [
+const NAMES: [&str; 45] = [
     "layers",
     "isolate",
     "entry",
     "may-not-import",
     "may-only-import",
     "may-only-be-imported-by",
+    "may-import",
+    "every-file-has-a-kind",
     "must-not-exist",
     "must-be-named",
     "must-contain",
@@ -115,6 +127,9 @@ const NAMES: [&str; 40] = [
     "element-empty",
     "selector-empty",
     "preset-empty",
+    "part-overlap",
+    "table-row-overlap",
+    "table-empty",
     "exports-unknown",
     "file-unreadable",
     "parse-failed",
@@ -133,13 +148,15 @@ const NAMES: [&str; 40] = [
 ];
 
 /// Each code's documentation page, in the order of [`NAMES`].
-const PAGES: [&str; 40] = [
+const PAGES: [&str; 45] = [
     include_str!("../docs/layers.md"),
     include_str!("../docs/isolate.md"),
     include_str!("../docs/entry.md"),
     include_str!("../docs/may-not-import.md"),
     include_str!("../docs/may-only-import.md"),
     include_str!("../docs/may-only-be-imported-by.md"),
+    include_str!("../docs/may-import.md"),
+    include_str!("../docs/every-file-has-a-kind.md"),
     include_str!("../docs/must-not-exist.md"),
     include_str!("../docs/must-be-named.md"),
     include_str!("../docs/must-contain.md"),
@@ -159,6 +176,9 @@ const PAGES: [&str; 40] = [
     include_str!("../docs/element-empty.md"),
     include_str!("../docs/selector-empty.md"),
     include_str!("../docs/preset-empty.md"),
+    include_str!("../docs/part-overlap.md"),
+    include_str!("../docs/table-row-overlap.md"),
+    include_str!("../docs/table-empty.md"),
     include_str!("../docs/exports-unknown.md"),
     include_str!("../docs/file-unreadable.md"),
     include_str!("../docs/parse-failed.md"),
@@ -178,13 +198,15 @@ const PAGES: [&str; 40] = [
 
 impl Code {
     /// Every code, in the order the documentation lists them.
-    pub const ALL: [Self; 40] = [
+    pub const ALL: [Self; 45] = [
         Self::Layers,
         Self::Isolate,
         Self::Entry,
         Self::MayNotImport,
         Self::MayOnlyImport,
         Self::MayOnlyBeImportedBy,
+        Self::MayImport,
+        Self::EveryFileHasAKind,
         Self::MustNotExist,
         Self::MustBeNamed,
         Self::MustContain,
@@ -204,6 +226,9 @@ impl Code {
         Self::ElementEmpty,
         Self::SelectorEmpty,
         Self::PresetEmpty,
+        Self::PartOverlap,
+        Self::TableRowOverlap,
+        Self::TableEmpty,
         Self::ExportsUnknown,
         Self::FileUnreadable,
         Self::ParseFailed,
@@ -259,6 +284,8 @@ impl Code {
                 | Self::MayNotImport
                 | Self::MayOnlyImport
                 | Self::MayOnlyBeImportedBy
+                | Self::MayImport
+                | Self::EveryFileHasAKind
                 | Self::MustNotExist
                 | Self::MustBeNamed
                 | Self::MustContain
@@ -277,6 +304,7 @@ impl Code {
         matches!(
             self,
             Self::MustNotExist
+                | Self::EveryFileHasAKind
                 | Self::MustBeNamed
                 | Self::MustContain
                 | Self::MustExport
@@ -355,6 +383,8 @@ pub struct Diagnostic {
     pub help: Option<String>,
     /// The rule's reason, from the config.
     pub reason: Option<String>,
+    /// Whether the rule wrote its reason with `because`, which the text output then says.
+    pub because: bool,
     /// Where to read more, from the config.
     pub link: Option<String>,
     /// The violation's identity.
@@ -394,6 +424,7 @@ impl Diagnostic {
             message: message.into(),
             help: None,
             reason: None,
+            because: false,
             link: None,
             id: None,
             cycle: Vec::new(),

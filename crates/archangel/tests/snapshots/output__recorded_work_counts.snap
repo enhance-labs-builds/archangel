@@ -1,0 +1,103 @@
+---
+source: crates/archangel/tests/output.rs
+expression: all
+---
+$ archangel check
+status: 0
+checked 12 files and 0 imports: no problems
+
+$ archangel check --format json
+status: 0
+{
+  "schemaVersion": 1,
+  "diagnostics": [],
+  "summary": {
+    "files": 12,
+    "imports": 0,
+    "exceptions": {},
+    "baselined": {},
+    "permittedUnresolved": 0,
+    "unfollowed": 0,
+    "linksNotFollowed": [],
+    "nestedRepositories": [],
+    "presetNamesMatchingNothing": [],
+    "work": {
+      "filesFound": 12,
+      "filesRead": 12,
+      "bytesRead": 0,
+      "filesParsed": 12,
+      "importsFound": 0,
+      "resolutions": 0,
+      "filesClassified": 13,
+      "patternPasses": 13,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 12,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}
+
+$ archangel test
+status: 1
+error[rule-unproven]: the rule "no-cycles" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected
+ |
+ = note: rule: no-cycles
+
+0 examples, none failed; 1 rules without a rejected example
+
+$ archangel test --format json
+status: 1
+{
+  "schemaVersion": 1,
+  "examples": [],
+  "unproven": [
+    {
+      "code": "rule-unproven",
+      "rule": "no-cycles",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"no-cycles\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
+  "summary": {
+    "passed": false,
+    "work": {
+      "filesFound": 0,
+      "filesRead": 0,
+      "bytesRead": 0,
+      "filesParsed": 0,
+      "importsFound": 0,
+      "resolutions": 0,
+      "filesClassified": 0,
+      "patternPasses": 0,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}

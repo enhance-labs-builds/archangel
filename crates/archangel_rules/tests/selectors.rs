@@ -600,3 +600,47 @@ fn plugin_rules_see_an_example_file_as_its_own_path_and_text_place_it() {
         "an example's file, classified on its own"
     );
 }
+
+#[test]
+fn an_area_pattern_that_matches_nothing_is_an_error() {
+    let repo = FixtureRepo::new()
+        .file("src/entity/a.ts", "")
+        .file("src/value/b.ts", "");
+    let config = json!({
+        "elements": { "entity": "src/entity/**", "value-object": "src/value/**" },
+        "rules": [{
+            "name": "entities", "files": "entity", "mayOnlyImport": ["value-object"],
+            "within": "apps/apii/src/**",
+        }],
+    });
+    let found = report(&config, &repo);
+    let empty: Vec<_> = found
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == Code::SelectorEmpty)
+        .collect();
+    assert_eq!(empty.len(), 1, "{found:?}");
+    assert_eq!(empty[0].rule.as_deref(), Some("entities"), "{empty:?}");
+    assert!(empty[0].message.contains("apps/apii/src/**"), "{empty:?}");
+}
+
+#[test]
+fn a_kind_of_a_table_that_matches_nothing_is_not_selector_empty() {
+    let repo = FixtureRepo::new().file("src/a.entity.ts", "");
+    let config = json!({
+        "parts": { "src": "src/**" },
+        "rules": [{
+            "kind": "mayImport",
+            "name": "t",
+            "rows": { "aggregate-root": [], "entity": [] },
+            "kinds": "**/*.{kind}.ts",
+        }],
+    });
+    let (report, _) = support::check(&config, &repo, None);
+    let empty: Vec<_> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == Code::SelectorEmpty)
+        .collect();
+    assert!(empty.is_empty(), "{empty:?}");
+}

@@ -1,13 +1,14 @@
 //! The tests of an import's own facts: the names it brings in, how its specifier is written, the
 //! instances at its ends, and how the importing file's nearest manifest lists the package.
 
-use archangel_config::{DependencyKind, InstanceMatch, Sentence, SpecifierForm};
+use archangel_config::{DependencyKind, InstanceMatch, OwnInstance, Sentence, SpecifierForm};
 use archangel_graph::{Import, ImportForm, Resolution};
 
 use crate::architecture::Edge;
+use crate::classes::Classes;
 
 /// Whether every option of a sentence holds for an import.
-pub(crate) fn hold(sentence: &Sentence, edge: &Edge<'_>) -> bool {
+pub(crate) fn hold(sentence: &Sentence, edge: &Edge<'_>, classes: &Classes) -> bool {
     let options = &sentence.options;
     options
         .names
@@ -16,24 +17,40 @@ pub(crate) fn hold(sentence: &Sentence, edge: &Edge<'_>) -> bool {
         && options.specifier.is_none_or(|form| written_as(edge, form))
         && options
             .instance
-            .is_none_or(|instance| instances_compare(sentence, edge, instance))
+            .is_none_or(|instance| instances_compare(sentence, edge, instance, classes))
         && options
             .dependency
             .is_none_or(|kind| declared_as(edge, kind))
 }
 
-/// Whether both ends are in the element of `files`, in one instance or in two as asked.
-fn instances_compare(sentence: &Sentence, edge: &Edge<'_>, instance: InstanceMatch) -> bool {
-    let (Some(element), Some(a), Some(b)) = (
-        sentence.files.element(),
-        edge.from.classification,
-        edge.to.classification,
+/// Whether both ends are in the element of `files`, or of a row's own name, in one instance or in
+/// two as asked.
+fn instances_compare(
+    sentence: &Sentence,
+    edge: &Edge<'_>,
+    instance: InstanceMatch,
+    classes: &Classes,
+) -> bool {
+    let own = sentence.options.own.as_ref().and_then(|own| own.instance);
+    let element = match own {
+        Some(OwnInstance::Kind(table)) => {
+            return classes
+                .kind_instances(edge, table)
+                .is_some_and(|same| (instance == InstanceMatch::Same) == same);
+        }
+        Some(OwnInstance::Element(element)) => Some(element),
+        None => sentence.files.element(),
+    };
+    let Some(element) = element else {
+        return false;
+    };
+    let (Some(a), Some(b)) = (
+        edge.from.classification.and_then(|c| c.of(element)),
+        edge.to.classification.and_then(|c| c.of(element)),
     ) else {
         return false;
     };
-    a.element == element
-        && b.element == element
-        && (instance == InstanceMatch::Same) == (a.captures == b.captures)
+    (instance == InstanceMatch::Same) == (a.captures == b.captures)
 }
 
 /// Whether the importing file's nearest manifest lists the package as asked. Node's built-in

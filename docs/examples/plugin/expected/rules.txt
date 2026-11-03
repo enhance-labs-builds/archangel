@@ -1,0 +1,11 @@
+small-files  archangel.config.ts:8
+  files in feature must meet the plugin condition team/max-imports
+    4 files · 1 problem
+
+Files that no rule judges: 1
+  plugins/team.ts
+Imports between repository files that no rule judges: 3
+  src/features/cart/total.ts:1 imports src/features/cart/plus.ts
+  src/features/cart/total.ts:2 imports src/features/cart/round-cents.ts
+  src/features/cart/total.ts:3 imports src/features/cart/tax.ts
+Outside packages that no rule names: @enhance-eng/archangel (1 import).

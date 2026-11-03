@@ -4,7 +4,11 @@
 #[path = "support/cli.rs"]
 mod support;
 
+#[path = "support/install.rs"]
+mod install;
+
 use archangel_testkit::FixtureRepo;
+use install::install_archangel;
 use serde_json::json;
 use support::run;
 
@@ -20,21 +24,19 @@ fn sources() -> FixtureRepo {
 }
 
 #[test]
-fn init_names_an_element_for_each_folder_of_source_files() {
+fn init_names_a_part_for_each_folder_of_source_files() {
     let repo = sources();
     let found = run(&repo, &["init"]);
     assert_eq!(found.status, 0, "init writes the config: {}", found.stderr);
     let config: serde_json::Value =
         serde_json::from_str(&repo.read("archangel.config.json")).unwrap();
     assert_eq!(
-        config["elements"],
+        config["parts"],
         json!({ "app": "src/app/**", "features": "src/features/**", "shared": "src/shared/**" }),
-        "one element per folder in src with a source file; not assets, not ignored folders"
+        "one part per folder in src with a source file; not assets, not ignored folders"
     );
     assert!(
-        found
-            .stdout
-            .contains("with 3 elements: app, features, shared"),
+        found.stdout.contains("with 3 parts: app, features, shared"),
         "it says what it wrote: {}",
         found.stdout
     );
@@ -75,61 +77,16 @@ fn init_names_the_folders_at_the_top_when_src_has_none() {
     let config: serde_json::Value =
         serde_json::from_str(&repo.read("archangel.config.json")).unwrap();
     assert_eq!(
-        config["elements"],
+        config["parts"],
         json!({ "lib": "lib/**", "tools": "tools/**" }),
         "a folder at the top with a source file at any depth; not a file at the top, not docs"
     );
     assert_eq!(
         found.stdout,
-        "wrote archangel.config.json with 2 elements: lib, tools\n\
-         Order the elements with a layers rule, then run `archangel check`; `archangel docs layers` shows how.\n",
+        "wrote archangel.config.json with 2 parts: lib, tools\n\
+         Write what each part may import in a table, then run `archangel check`; `archangel docs may-import` shows how.\n",
         "it says what it wrote and what to do next"
     );
-}
-
-/// The package's own entry and the module it re-exports, standing in for the `archangel` that a
-/// TypeScript config imports.
-fn install_archangel(repo: &FixtureRepo) {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    repo.write(
-        "node_modules/@enhance-eng/archangel/package.json",
-        r#"{ "name": "@enhance-eng/archangel", "type": "module", "main": "index.js" }"#,
-    );
-    let copied = [
-        (
-            "npm/archangel/index.js",
-            "node_modules/@enhance-eng/archangel/index.js",
-        ),
-        (
-            "npm/archangel/plugin.js",
-            "node_modules/@enhance-eng/archangel/plugin.js",
-        ),
-        (
-            "npm/archangel/presets/fsd.js",
-            "node_modules/@enhance-eng/archangel/presets/fsd.js",
-        ),
-        (
-            "npm/archangel/presets/fsd-conditions.js",
-            "node_modules/@enhance-eng/archangel/presets/fsd-conditions.js",
-        ),
-        (
-            "npm/archangel/presets/nextjs.js",
-            "node_modules/@enhance-eng/archangel/presets/nextjs.js",
-        ),
-        (
-            "node_modules/pluralize/package.json",
-            "node_modules/pluralize/package.json",
-        ),
-        (
-            "node_modules/pluralize/pluralize.js",
-            "node_modules/pluralize/pluralize.js",
-        ),
-    ];
-    for (from, to) in copied {
-        let text =
-            std::fs::read_to_string(root.join(from)).unwrap_or_else(|e| panic!("{from}: {e}"));
-        repo.write(to, &text);
-    }
 }
 
 #[test]
@@ -146,7 +103,7 @@ fn init_typescript_quotes_only_the_names_that_are_not_identifiers() {
         "import { defineConfig } from '@enhance-eng/archangel';\n\
          \n\
          export default defineConfig({\n  \
-         elements: {\n    \
+         parts: {\n    \
          $lib: 'src/$lib/**',\n    \
          '2d': 'src/2d/**',\n    \
          _internal: 'src/_internal/**',\n    \
@@ -154,13 +111,13 @@ fn init_typescript_quotes_only_the_names_that_are_not_identifiers() {
          'my-feature': 'src/my-feature/**',\n  \
          },\n  \
          rules: ({ rule }) => [\n    \
-         rule({\n      \
-         name: 'no-cycles',\n      \
+         rule('no-cycles', {\n      \
          files: '**',\n      \
          noCycles: true,\n      \
+         because: 'Files that import each other cannot change or load one at a time.',\n      \
          examples: {\n        \
-         accepted: [{ 'cycle/a.ts': 'import \"./b\";\\n', 'cycle/b.ts': 'export {};\\n' }],\n        \
-         rejected: [{ 'cycle/a.ts': 'import \"./b\";\\n', 'cycle/b.ts': 'import \"./a\";\\n' }],\n      \
+         accepted: ['cycle/a.ts imports cycle/b.ts'],\n        \
+         rejected: ['cycle/a.ts imports cycle/b.ts imports cycle/a.ts'],\n      \
          },\n    \
          }),\n  \
          ],\n\
@@ -171,9 +128,7 @@ fn init_typescript_quotes_only_the_names_that_are_not_identifiers() {
     for name in ["2d", "my-feature", "$lib"] {
         let explained = run(&repo, &["explain", &format!("src/{name}/index.ts")]);
         assert!(
-            explained
-                .stdout
-                .contains(&format!("  element: \"{name}\"\n")),
+            explained.stdout.contains(&format!("  part: \"{name}\"\n")),
             "the config loads, with the element named {name}: {}{}",
             explained.stdout,
             explained.stderr
@@ -208,7 +163,7 @@ fn init_never_writes_over_a_config() {
 #[test]
 fn init_with_no_source_folders_says_so() {
     let found = run(&FixtureRepo::new().file("README.md", ""), &["init"]);
-    assert_eq!(found.status, 2, "nothing to name elements after");
+    assert_eq!(found.status, 2, "nothing to name parts after");
     assert!(
         found.stderr.contains("found no folder of source files"),
         "it says why: {}",

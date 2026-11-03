@@ -20,6 +20,7 @@ workspace = true
 
 [dependencies]
 jsonschema = { version = "0.60.2", default-features = false }
+nodejs-built-in-modules = "1.0.0"
 regex = "1.13.1"
 serde_json = { version = "1.0.154", features = ["preserve_order"] }
 strsim = "0.11.1"

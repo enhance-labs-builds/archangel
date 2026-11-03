@@ -2,7 +2,10 @@
 //! marks type imports.
 #![cfg(test)]
 
-use archangel_graph::{FileFacts, ImportForm, ImportKind, ParseFailure, extract_file};
+use archangel_graph::{
+    FileFacts, GraphOptions, ImportForm, ImportGraph, ImportKind, ParseFailure, Work, extract_file,
+};
+use archangel_testkit::FixtureRepo;
 
 fn facts(path: &str, text: &str) -> FileFacts {
     extract_file(path, text).expect("the file parses")
@@ -110,6 +113,121 @@ fn marks_type_imports_by_their_modifiers() {
             ("./c", ImportKind::Runtime)
         ],
         "statement and name modifiers decide the kind"
+    );
+    assert_eq!(
+        marks(Some(WITHOUT_OPTION), text),
+        [
+            ("./a".to_owned(), ImportKind::Type),
+            ("./b".to_owned(), ImportKind::Type),
+            ("./c".to_owned(), ImportKind::Runtime)
+        ],
+        "a tsconfig without the option gives the same marks"
+    );
+}
+
+const WITH_OPTION: &str = r#"{ "compilerOptions": { "verbatimModuleSyntax": true } }"#;
+const WITHOUT_OPTION: &str = r#"{ "compilerOptions": { "strict": true } }"#;
+
+/// The marks of the imports of one file in a repository with this tsconfig, in specifier order.
+fn marks(tsconfig: Option<&str>, text: &str) -> Vec<(String, ImportKind)> {
+    let mut repo = FixtureRepo::new().file("src/x.ts", text);
+    if let Some(tsconfig) = tsconfig {
+        repo = repo.file("tsconfig.json", tsconfig);
+    }
+    let graph = ImportGraph::build(repo.path(), &GraphOptions::default(), &mut Work::default());
+    let facts = graph.file("src/x.ts").and_then(|f| f.facts.as_ref());
+    let mut found: Vec<(String, ImportKind)> = facts
+        .expect("the file parses")
+        .imports
+        .iter()
+        .map(|import| (import.specifier.clone(), import.kind))
+        .collect();
+    found.sort();
+    found
+}
+
+fn mark(specifier: &str, kind: ImportKind) -> (String, ImportKind) {
+    (specifier.to_owned(), kind)
+}
+
+#[test]
+fn inline_type_names_are_a_runtime_import_under_verbatim_module_syntax() {
+    let text = "import type { A } from './a';\nimport { type B } from './b';\n";
+    assert_eq!(
+        marks(Some(WITH_OPTION), text),
+        [
+            mark("./a", ImportKind::Type),
+            mark("./b", ImportKind::Runtime)
+        ],
+        "TypeScript keeps the statement of ./b"
+    );
+}
+
+#[test]
+fn an_inherited_verbatim_module_syntax_counts() {
+    let repo = FixtureRepo::new()
+        .file("src/x.ts", "import { type B } from './b';\n")
+        .file("base.json", WITH_OPTION)
+        .file("tsconfig.json", r#"{ "extends": "./base.json" }"#);
+    let graph = ImportGraph::build(repo.path(), &GraphOptions::default(), &mut Work::default());
+    let facts = graph.file("src/x.ts").and_then(|f| f.facts.as_ref());
+    assert_eq!(
+        facts.expect("the file parses").imports[0].kind,
+        ImportKind::Runtime,
+        "the option comes from the config that the tsconfig extends"
+    );
+}
+
+#[test]
+fn a_re_export_of_type_names_follows_verbatim_module_syntax() {
+    let text = "export { type A } from './a';\nexport { type B, c } from './c';\n";
+    assert_eq!(
+        marks(Some(WITHOUT_OPTION), text),
+        [
+            mark("./a", ImportKind::Type),
+            mark("./c", ImportKind::Runtime)
+        ],
+        "without the option"
+    );
+    assert_eq!(
+        marks(Some(WITH_OPTION), text),
+        [
+            mark("./a", ImportKind::Runtime),
+            mark("./c", ImportKind::Runtime)
+        ],
+        "with the option"
+    );
+}
+
+#[test]
+fn export_type_star_is_a_type_import() {
+    let text = "export type * from './a';\nexport type * as b from './b';\n";
+    for tsconfig in [WITHOUT_OPTION, WITH_OPTION] {
+        assert_eq!(
+            marks(Some(tsconfig), text),
+            [mark("./a", ImportKind::Type), mark("./b", ImportKind::Type)],
+            "the statement has the modifier, with {tsconfig}"
+        );
+    }
+}
+
+#[test]
+fn a_declaration_file_stays_a_type_import_under_verbatim_module_syntax() {
+    let repo = FixtureRepo::new()
+        .file(
+            "src/env.d.ts",
+            "import { type B } from './b';\nimport { c } from './c';\n",
+        )
+        .file("tsconfig.json", WITH_OPTION);
+    let graph = ImportGraph::build(repo.path(), &GraphOptions::default(), &mut Work::default());
+    let facts = graph.file("src/env.d.ts").and_then(|f| f.facts.as_ref());
+    assert!(
+        facts
+            .expect("the file parses")
+            .imports
+            .iter()
+            .all(|i| i.kind == ImportKind::Type),
+        "every import in a declaration file is a type import"
     );
 }
 
@@ -322,4 +440,23 @@ fn finds_the_first_top_level_statement_that_is_the_files_own() {
     for (text, expected) in cases {
         assert_eq!(own(text), expected, "the own statement of:\n{text}");
     }
+}
+
+#[test]
+fn an_edit_under_verbatim_module_syntax_keeps_the_runtime_mark() {
+    let repo = FixtureRepo::new()
+        .file("src/x.ts", "")
+        .file("tsconfig.json", WITH_OPTION);
+    let mut graph = ImportGraph::build(repo.path(), &GraphOptions::default(), &mut Work::default());
+    let text = "import { type B } from './b';\n";
+    assert!(
+        graph.replace_file("src/x.ts", Some(text), &mut Work::default()),
+        "an edit under verbatim module syntax keeps the runtime mark"
+    );
+    let facts = graph.file("src/x.ts").and_then(|f| f.facts.as_ref());
+    assert_eq!(
+        facts.expect("the file parses").imports[0].kind,
+        ImportKind::Runtime,
+        "the edited text follows the tsconfig too"
+    );
 }

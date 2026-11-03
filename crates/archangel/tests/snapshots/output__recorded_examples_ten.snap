@@ -1,0 +1,471 @@
+---
+source: crates/archangel/tests/output.rs
+expression: all
+---
+$ archangel check
+status: 0
+checked 2 files and 0 imports: no problems
+
+$ archangel check --format json
+status: 0
+{
+  "schemaVersion": 1,
+  "diagnostics": [],
+  "summary": {
+    "files": 2,
+    "imports": 0,
+    "exceptions": {},
+    "baselined": {},
+    "permittedUnresolved": 0,
+    "unfollowed": 0,
+    "linksNotFollowed": [],
+    "nestedRepositories": [],
+    "presetNamesMatchingNothing": [],
+    "work": {
+      "filesFound": 2,
+      "filesRead": 2,
+      "bytesRead": 0,
+      "filesParsed": 2,
+      "importsFound": 0,
+      "resolutions": 0,
+      "filesClassified": 3,
+      "patternPasses": 3,
+      "ruleEvaluations": 0,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 0,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}
+
+$ archangel test
+status: 0
+pass  layers  rejected #1  src/shared/e0.ts
+pass  layers  rejected #2  src/shared/e1.ts
+pass  layers  rejected #3  src/shared/e2.ts
+pass  layers  rejected #4  src/shared/e3.ts
+pass  layers  rejected #5  src/shared/e4.ts
+pass  layers  rejected #6  src/shared/e5.ts
+pass  layers  rejected #7  src/shared/e6.ts
+pass  layers  rejected #8  src/shared/e7.ts
+pass  layers  rejected #9  src/shared/e8.ts
+pass  layers  rejected #10  src/shared/s.ts
+10 examples, none failed; 0 rules without a rejected example
+
+$ archangel test --format json
+status: 0
+{
+  "schemaVersion": 1,
+  "examples": [
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 1,
+      "files": [
+        "src/shared/e0.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/e0.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/e0.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 2,
+      "files": [
+        "src/shared/e1.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/e1.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/e1.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 3,
+      "files": [
+        "src/shared/e2.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/e2.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/e2.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 4,
+      "files": [
+        "src/shared/e3.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/e3.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/e3.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 5,
+      "files": [
+        "src/shared/e4.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/e4.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/e4.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 6,
+      "files": [
+        "src/shared/e5.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/e5.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/e5.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 7,
+      "files": [
+        "src/shared/e6.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/e6.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/e6.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 8,
+      "files": [
+        "src/shared/e7.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/e7.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/e7.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 9,
+      "files": [
+        "src/shared/e8.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/e8.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/e8.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    },
+    {
+      "rule": "layers",
+      "kind": "rejected",
+      "number": 10,
+      "files": [
+        "src/shared/s.ts"
+      ],
+      "passed": true,
+      "failure": null,
+      "diagnostics": [
+        {
+          "code": "layers",
+          "rule": "layers",
+          "file": "src/shared/s.ts",
+          "line": 1,
+          "column": 8,
+          "span": [
+            7,
+            20
+          ],
+          "specifier": "../app/main",
+          "message": "\"shared\" may not import \"app\", an earlier layer, through \"../app/main\"",
+          "help": "\"shared\" may import only \"shared\"",
+          "reason": null,
+          "link": null,
+          "id": {
+            "rule": "layers",
+            "file": "src/shared/s.ts",
+            "specifier": "../app/main",
+            "occurrence": 0
+          },
+          "cycle": [],
+          "group": [],
+          "chain": [],
+          "fix": null
+        }
+      ]
+    }
+  ],
+  "unproven": [],
+  "summary": {
+    "passed": true,
+    "work": {
+      "filesFound": 0,
+      "filesRead": 0,
+      "bytesRead": 0,
+      "filesParsed": 10,
+      "importsFound": 10,
+      "resolutions": 10,
+      "filesClassified": 20,
+      "patternPasses": 20,
+      "ruleEvaluations": 10,
+      "cycleFilesVisited": 0,
+      "transitiveFilesVisited": 0,
+      "structureEvaluations": 0,
+      "folderEvaluations": 0,
+      "exportEvaluations": 0,
+      "examplesChecked": 10,
+      "filesWritten": 0,
+      "pluginRecordsSent": 0,
+      "pluginChecks": 0
+    }
+  }
+}

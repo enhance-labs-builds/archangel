@@ -1,0 +1,314 @@
+fsd/forbidden-imports  archangel.config.ts
+  because: A module may import only from layers below its own, and a slice not from another slice of its layer, except through @x.
+  link: https://feature-sliced.github.io/steiger/rules/forbidden-imports
+  from the preset fsd
+  files in shared may not import entities, features, widgets, pages, app
+  files in entities may not import features, widgets, pages, app
+  files in features may not import widgets, pages, app
+  files in widgets may not import pages, app
+  files in pages may not import app
+  files in entities may not import all of (entities, not entities/*/@x/**) in a different instance
+  files in features may not import all of (features, not features/*/@x/**) in a different instance
+  files in widgets may not import all of (widgets, not widgets/*/@x/**) in a different instance
+  files in pages may not import all of (pages, not pages/*/@x/**) in a different instance
+    3 files · 1 import judged · 0 problems · 0 exceptions
+
+fsd/no-public-api-sidestep  archangel.config.ts
+  because: Code outside a slice or segment imports it through its public API, the index file, not its inner files.
+  link: https://feature-sliced.github.io/steiger/rules/no-public-api-sidestep
+  from the preset fsd
+  files in fsd/entities may be imported from outside their instance only through its entry files index.*, @x/**
+  files in fsd/features may be imported from outside their instance only through its entry files index.*, @x/**
+  files in fsd/widgets may be imported from outside their instance only through its entry files index.*, @x/**
+  files in fsd/pages may be imported from outside their instance only through its entry files index.*, @x/**
+  files in all of (shared, not ["shared/*","shared/*/index.*","shared/{ui,lib}/*","shared/{ui,lib}/*/index.*"]) may only be imported by shared
+  files in all of (app, not ["app/*","app/*/index.*"]) may only be imported by app
+    2 files · 1 import judged · 0 problems · 0 exceptions
+
+fsd/public-api  archangel.config.ts:10
+  replaces the rule public-api of the preset fsd
+  each folder in apps/web/src/features/* must have a file that matches index.ts or index.tsx
+    1 folder · 0 problems
+
+fsd/no-layer-public-api  archangel.config.ts
+  because: A layer other than App has no index file; its slices and segments have them instead.
+  link: https://feature-sliced.github.io/steiger/rules/no-layer-public-api
+  from the preset fsd
+  files in {shared,entities,features,widgets,pages}/index.* must not exist
+    checks nothing: no file is in {shared,entities,features,widgets,pages}/index.*
+
+fsd/no-reserved-folder-names  archangel.config.ts
+  because: A folder inside a segment may not have a name that a segment or @x has, which would be confusing.
+  link: https://feature-sliced.github.io/steiger/rules/no-reserved-folder-names
+  from the preset fsd
+  no folder may be in {shared,app}/*/**/{ui,api,lib,model,config,@x}, {entities,features,widgets,pages}/*/*/**/{ui,api,lib,model,config,@x}
+    0 folders · 0 problems
+
+fsd/no-segmentless-slices  archangel.config.ts
+  because: Each slice divides its code into segments, such as ui, api, lib, model and config.
+  link: https://feature-sliced.github.io/steiger/rules/no-segmentless-slices
+  from the preset fsd
+  each folder in {entities,features,widgets,pages}/* must have a file that matches {ui,api,lib,model,config}.* or {ui,api,lib,model,config}/**
+    1 folder · 0 problems
+
+fsd/no-segments-on-sliced-layers  archangel.config.ts
+  because: A segment belongs inside a slice, not directly in a sliced layer.
+  link: https://feature-sliced.github.io/steiger/rules/no-segments-on-sliced-layers
+  from the preset fsd
+  no folder may be in {entities,features,widgets,pages}/{ui,api,lib,model,config}
+    0 folders · 0 problems
+
+fsd/no-ui-in-app  archangel.config.ts
+  because: The App layer has no ui segment; UI belongs in the layers below it.
+  link: https://feature-sliced.github.io/steiger/rules/no-ui-in-app
+  from the preset fsd
+  no folder may be in app/ui
+  files in app/ui.* must not exist
+    0 folders · 0 problems
+
+fsd/segments-by-purpose  archangel.config.ts
+  because: A segment's name says what its code is for, not what it is, so not utils, components or hooks.
+  link: https://feature-sliced.github.io/steiger/rules/segments-by-purpose
+  from the preset fsd
+  no folder may be in {shared,app}/{component,components,helper,helpers,util,utils,constant,constants,const,consts,type,types,store,stores,modal,modals,service,services,function,functions,class,classes,enum,enums,interface,interfaces,decorator,decorators,schema,schemas,handler,handlers,fixture,fixtures,middleware,middlewares,validator,validators,validation,validations,resolver,resolvers,mutation,mutations,asset,assets,hook,hooks,context,provider,providers,composable,composables,directive,directives,action,actions,reducer,reducers,selector,selectors,effect,effects,saga,sagas,thunk,thunks,pipe,pipes}, {entities,features,widgets,pages}/*/{component,components,helper,helpers,util,utils,constant,constants,const,consts,type,types,store,stores,modal,modals,service,services,function,functions,class,classes,enum,enums,interface,interfaces,decorator,decorators,schema,schemas,handler,handlers,fixture,fixtures,middleware,middlewares,validator,validators,validation,validations,resolver,resolvers,mutation,mutations,asset,assets,hook,hooks,context,provider,providers,composable,composables,directive,directives,action,actions,reducer,reducers,selector,selectors,effect,effects,saga,sagas,thunk,thunks,pipe,pipes}
+  files in {shared,app}/{component,components,helper,helpers,util,utils,constant,constants,const,consts,type,types,store,stores,modal,modals,service,services,function,functions,class,classes,enum,enums,interface,interfaces,decorator,decorators,schema,schemas,handler,handlers,fixture,fixtures,middleware,middlewares,validator,validators,validation,validations,resolver,resolvers,mutation,mutations,asset,assets,hook,hooks,context,provider,providers,composable,composables,directive,directives,action,actions,reducer,reducers,selector,selectors,effect,effects,saga,sagas,thunk,thunks,pipe,pipes}.*, {entities,features,widgets,pages}/*/{component,components,helper,helpers,util,utils,constant,constants,const,consts,type,types,store,stores,modal,modals,service,services,function,functions,class,classes,enum,enums,interface,interfaces,decorator,decorators,schema,schemas,handler,handlers,fixture,fixtures,middleware,middlewares,validator,validators,validation,validations,resolver,resolvers,mutation,mutations,asset,assets,hook,hooks,context,provider,providers,composable,composables,directive,directives,action,actions,reducer,reducers,selector,selectors,effect,effects,saga,sagas,thunk,thunks,pipe,pipes}.* must not exist
+    0 folders · 0 problems
+
+fsd/no-processes  archangel.config.ts
+  because: The Processes layer is deprecated; move its code to Features and App.
+  link: https://feature-sliced.github.io/steiger/rules/no-processes
+  from the preset fsd
+  no folder may be in processes
+    0 folders · 0 problems
+
+fsd/typo-in-layer-name  archangel.config.ts
+  because: A folder in the root whose name is close to a layer name is probably that layer, misspelt.
+  link: https://feature-sliced.github.io/steiger/rules/typo-in-layer-name
+  from the preset fsd
+  files in ** must meet the plugin condition fsd/typo-in-layer-name
+    3 files · 0 problems
+
+fsd/ambiguous-slice-names  archangel.config.ts
+  because: A slice named like a segment of Shared could be mistaken for it.
+  link: https://feature-sliced.github.io/steiger/rules/ambiguous-slice-names
+  from the preset fsd
+  files in ** must meet the plugin condition fsd/ambiguous-slice-names
+    3 files · 0 problems
+
+fsd/inconsistent-naming  archangel.config.ts
+  because: The slices of Entities are all plural or all singular.
+  link: https://feature-sliced.github.io/steiger/rules/inconsistent-naming
+  from the preset fsd
+  files in ** must meet the plugin condition fsd/inconsistent-naming
+    3 files · 0 problems
+
+fsd/repetitive-naming  archangel.config.ts
+  because: Slices that all repeat one word should be a slice group named for it.
+  link: https://feature-sliced.github.io/steiger/rules/repetitive-naming
+  from the preset fsd
+  files in ** must meet the plugin condition fsd/repetitive-naming
+    3 files · 0 problems
+
+fsd/excessive-slicing  archangel.config.ts
+  because: More than 20 slices in a layer or group are hard to find your way in.
+  link: https://feature-sliced.github.io/steiger/rules/excessive-slicing
+  from the preset fsd
+  files in ** must meet the plugin condition fsd/excessive-slicing
+    3 files · 0 problems
+
+fsd/shared-lib-grouping  archangel.config.ts
+  because: More than 15 modules in shared/lib are hard to find your way in.
+  link: https://feature-sliced.github.io/steiger/rules/shared-lib-grouping
+  from the preset fsd
+  files in ** must meet the plugin condition fsd/shared-lib-grouping
+    3 files · 0 problems
+
+fsd-admin/forbidden-imports  archangel.config.ts
+  because: A module may import only from layers below its own, and a slice not from another slice of its layer, except through @x.
+  link: https://feature-sliced.github.io/steiger/rules/forbidden-imports
+  from the preset fsd-admin
+  files in shared may not import entities, features, widgets, pages, app
+  files in entities may not import features, widgets, pages, app
+  files in features may not import widgets, pages, app
+  files in widgets may not import pages, app
+  files in pages may not import app
+  files in entities may not import all of (entities, not entities/*/@x/**) in a different instance
+  files in features may not import all of (features, not features/*/@x/**) in a different instance
+  files in widgets may not import all of (widgets, not widgets/*/@x/**) in a different instance
+  files in pages may not import all of (pages, not pages/*/@x/**) in a different instance
+    3 files · 1 import judged · 0 problems · 0 exceptions
+
+fsd-admin/no-higher-level-imports  archangel.config.ts
+  because: A module may import only from layers below its own.
+  link: https://feature-sliced.github.io/steiger/rules/no-higher-level-imports
+  from the preset fsd-admin
+  files in shared may not import entities, features, widgets, pages, app
+  files in entities may not import features, widgets, pages, app
+  files in features may not import widgets, pages, app
+  files in widgets may not import pages, app
+  files in pages may not import app
+    3 files · 1 import judged · 0 problems · 0 exceptions
+
+fsd-admin/no-cross-imports  archangel.config.ts
+  because: A slice may not import from another slice of its layer, except through its @x public API.
+  link: https://feature-sliced.github.io/steiger/rules/no-cross-imports
+  from the preset fsd-admin
+  files in entities may not import all of (entities, not entities/*/@x/**) in a different instance
+  files in features may not import all of (features, not features/*/@x/**) in a different instance
+  files in widgets may not import all of (widgets, not widgets/*/@x/**) in a different instance
+  files in pages may not import all of (pages, not pages/*/@x/**) in a different instance
+    2 files · 0 imports judged · 0 problems · 0 exceptions
+
+fsd-admin/no-public-api-sidestep  archangel.config.ts
+  because: Code outside a slice or segment imports it through its public API, the index file, not its inner files.
+  link: https://feature-sliced.github.io/steiger/rules/no-public-api-sidestep
+  from the preset fsd-admin
+  files in fsd-admin/entities may be imported from outside their instance only through its entry files index.*, @x/**
+  files in fsd-admin/features may be imported from outside their instance only through its entry files index.*, @x/**
+  files in fsd-admin/widgets may be imported from outside their instance only through its entry files index.*, @x/**
+  files in fsd-admin/pages may be imported from outside their instance only through its entry files index.*, @x/**
+  files in all of (shared, not ["shared/*","shared/*/index.*","shared/{ui,lib}/*","shared/{ui,lib}/*/index.*"]) may only be imported by shared
+  files in all of (app, not ["app/*","app/*/index.*"]) may only be imported by app
+    2 files · 1 import judged · 0 problems · 0 exceptions
+
+fsd-admin/public-api  archangel.config.ts
+  because: Each slice, each segment of Shared, and each folder in shared/ui and shared/lib has an index file, its public API.
+  link: https://feature-sliced.github.io/steiger/rules/public-api
+  from the preset fsd-admin
+  each folder in {entities,features,widgets,pages}/*, shared/*, !shared/{ui,lib}, shared/{ui,lib}/* must have a file that matches index.*
+    1 folder · 0 problems
+
+fsd-admin/no-layer-public-api  archangel.config.ts
+  because: A layer other than App has no index file; its slices and segments have them instead.
+  link: https://feature-sliced.github.io/steiger/rules/no-layer-public-api
+  from the preset fsd-admin
+  files in {shared,entities,features,widgets,pages}/index.* must not exist
+    checks nothing: no file is in {shared,entities,features,widgets,pages}/index.*
+
+fsd-admin/no-reserved-folder-names  archangel.config.ts
+  because: A folder inside a segment may not have a name that a segment or @x has, which would be confusing.
+  link: https://feature-sliced.github.io/steiger/rules/no-reserved-folder-names
+  from the preset fsd-admin
+  no folder may be in {shared,app}/*/**/{ui,api,lib,model,config,@x}, {entities,features,widgets,pages}/*/*/**/{ui,api,lib,model,config,@x}
+    0 folders · 0 problems
+
+fsd-admin/no-segmentless-slices  archangel.config.ts
+  because: Each slice divides its code into segments, such as ui, api, lib, model and config.
+  link: https://feature-sliced.github.io/steiger/rules/no-segmentless-slices
+  from the preset fsd-admin
+  each folder in {entities,features,widgets,pages}/* must have a file that matches {ui,api,lib,model,config}.* or {ui,api,lib,model,config}/**
+    1 folder · 0 problems
+
+fsd-admin/no-segments-on-sliced-layers  archangel.config.ts
+  because: A segment belongs inside a slice, not directly in a sliced layer.
+  link: https://feature-sliced.github.io/steiger/rules/no-segments-on-sliced-layers
+  from the preset fsd-admin
+  no folder may be in {entities,features,widgets,pages}/{ui,api,lib,model,config}
+    0 folders · 0 problems
+
+fsd-admin/no-ui-in-app  archangel.config.ts
+  because: The App layer has no ui segment; UI belongs in the layers below it.
+  link: https://feature-sliced.github.io/steiger/rules/no-ui-in-app
+  from the preset fsd-admin
+  no folder may be in app/ui
+  files in app/ui.* must not exist
+    0 folders · 0 problems
+
+fsd-admin/segments-by-purpose  archangel.config.ts
+  because: A segment's name says what its code is for, not what it is, so not utils, components or hooks.
+  link: https://feature-sliced.github.io/steiger/rules/segments-by-purpose
+  from the preset fsd-admin
+  no folder may be in {shared,app}/{component,components,helper,helpers,util,utils,constant,constants,const,consts,type,types,store,stores,modal,modals,service,services,function,functions,class,classes,enum,enums,interface,interfaces,decorator,decorators,schema,schemas,handler,handlers,fixture,fixtures,middleware,middlewares,validator,validators,validation,validations,resolver,resolvers,mutation,mutations,asset,assets,hook,hooks,context,provider,providers,composable,composables,directive,directives,action,actions,reducer,reducers,selector,selectors,effect,effects,saga,sagas,thunk,thunks,pipe,pipes}, {entities,features,widgets,pages}/*/{component,components,helper,helpers,util,utils,constant,constants,const,consts,type,types,store,stores,modal,modals,service,services,function,functions,class,classes,enum,enums,interface,interfaces,decorator,decorators,schema,schemas,handler,handlers,fixture,fixtures,middleware,middlewares,validator,validators,validation,validations,resolver,resolvers,mutation,mutations,asset,assets,hook,hooks,context,provider,providers,composable,composables,directive,directives,action,actions,reducer,reducers,selector,selectors,effect,effects,saga,sagas,thunk,thunks,pipe,pipes}
+  files in {shared,app}/{component,components,helper,helpers,util,utils,constant,constants,const,consts,type,types,store,stores,modal,modals,service,services,function,functions,class,classes,enum,enums,interface,interfaces,decorator,decorators,schema,schemas,handler,handlers,fixture,fixtures,middleware,middlewares,validator,validators,validation,validations,resolver,resolvers,mutation,mutations,asset,assets,hook,hooks,context,provider,providers,composable,composables,directive,directives,action,actions,reducer,reducers,selector,selectors,effect,effects,saga,sagas,thunk,thunks,pipe,pipes}.*, {entities,features,widgets,pages}/*/{component,components,helper,helpers,util,utils,constant,constants,const,consts,type,types,store,stores,modal,modals,service,services,function,functions,class,classes,enum,enums,interface,interfaces,decorator,decorators,schema,schemas,handler,handlers,fixture,fixtures,middleware,middlewares,validator,validators,validation,validations,resolver,resolvers,mutation,mutations,asset,assets,hook,hooks,context,provider,providers,composable,composables,directive,directives,action,actions,reducer,reducers,selector,selectors,effect,effects,saga,sagas,thunk,thunks,pipe,pipes}.* must not exist
+    0 folders · 0 problems
+
+fsd-admin/no-processes  archangel.config.ts
+  because: The Processes layer is deprecated; move its code to Features and App.
+  link: https://feature-sliced.github.io/steiger/rules/no-processes
+  from the preset fsd-admin
+  no folder may be in processes
+    0 folders · 0 problems
+
+fsd-admin/import-locality  archangel.config.ts
+  because: An import inside a slice is relative, and an import from another slice or layer goes through an alias.
+  link: https://feature-sliced.github.io/steiger/rules/import-locality
+  from the preset fsd-admin
+  files in shared may not import entities, features, widgets, pages, app through a relative specifier
+  files in entities may not import shared, features, widgets, pages, app through a relative specifier
+  files in features may not import shared, entities, widgets, pages, app through a relative specifier
+  files in widgets may not import shared, entities, features, pages, app through a relative specifier
+  files in pages may not import shared, entities, features, widgets, app through a relative specifier
+  files in app may not import shared, entities, features, widgets, pages through a relative specifier
+  files in entities may not import entities in a different instance through a relative specifier
+  files in features may not import features in a different instance through a relative specifier
+  files in widgets may not import widgets in a different instance through a relative specifier
+  files in pages may not import pages in a different instance through a relative specifier
+  files in entities may not import entities in the same instance through a alias specifier
+  files in features may not import features in the same instance through a alias specifier
+  files in widgets may not import widgets in the same instance through a alias specifier
+  files in pages may not import pages in the same instance through a alias specifier
+  files in shared may not import shared through a alias specifier
+  files in app may not import app through a alias specifier
+    3 files · 1 import judged · 0 problems · 0 exceptions
+
+fsd-admin/no-wildcard-exports  archangel.config.ts
+  because: An index file names what it exports, so the public API is explicit.
+  link: https://feature-sliced.github.io/steiger/rules/no-wildcard-exports
+  from the preset fsd-admin
+  files in {shared,entities,features,widgets,pages,app}/**/index.* may not have an export *
+    1 file · 0 problems
+
+fsd-admin/typo-in-layer-name  archangel.config.ts
+  because: A folder in the root whose name is close to a layer name is probably that layer, misspelt.
+  link: https://feature-sliced.github.io/steiger/rules/typo-in-layer-name
+  from the preset fsd-admin
+  files in ** must meet the plugin condition fsd/typo-in-layer-name
+    3 files · 0 problems
+
+fsd-admin/ambiguous-slice-names  archangel.config.ts
+  because: A slice named like a segment of Shared could be mistaken for it.
+  link: https://feature-sliced.github.io/steiger/rules/ambiguous-slice-names
+  from the preset fsd-admin
+  files in ** must meet the plugin condition fsd/ambiguous-slice-names
+    3 files · 0 problems
+
+fsd-admin/inconsistent-naming  archangel.config.ts
+  because: The slices of Entities are all plural or all singular.
+  link: https://feature-sliced.github.io/steiger/rules/inconsistent-naming
+  from the preset fsd-admin
+  files in ** must meet the plugin condition fsd/inconsistent-naming
+    3 files · 0 problems
+
+fsd-admin/insignificant-slice  archangel.config.ts
+  because: A slice that at most one other slice uses belongs in that slice.
+  link: https://feature-sliced.github.io/steiger/rules/insignificant-slice
+  from the preset fsd-admin
+  files in ** must meet the plugin condition fsd/insignificant-slice
+    3 files · 1 problem
+
+fsd-admin/repetitive-naming  archangel.config.ts
+  because: Slices that all repeat one word should be a slice group named for it.
+  link: https://feature-sliced.github.io/steiger/rules/repetitive-naming
+  from the preset fsd-admin
+  files in ** must meet the plugin condition fsd/repetitive-naming
+    3 files · 0 problems
+
+fsd-admin/excessive-slicing  archangel.config.ts
+  because: More than 20 slices in a layer or group are hard to find your way in.
+  link: https://feature-sliced.github.io/steiger/rules/excessive-slicing
+  from the preset fsd-admin
+  files in ** must meet the plugin condition fsd/excessive-slicing
+    3 files · 0 problems
+
+fsd-admin/shared-lib-grouping  archangel.config.ts
+  because: More than 15 modules in shared/lib are hard to find your way in.
+  link: https://feature-sliced.github.io/steiger/rules/shared-lib-grouping
+  from the preset fsd-admin
+  files in ** must meet the plugin condition fsd/shared-lib-grouping
+    3 files · 0 problems
+
+Rules that `off` removes: 1
+  fsd/insignificant-slice: files in ** must meet the plugin condition fsd/insignificant-slice
+
+Not judged by any rule: 0 files, 0 imports between repository files.
+Outside packages that no rule names: none.

@@ -66,8 +66,9 @@ most dangerous failure of an architecture tool, because the team believes that i
 So archangel does not let a rule pass in silence:
 
 - Each rule needs a **rejected example**: code that the rule must report. `archangel test` fails
-  for a rule without one.
-- An element or selector that finds no files is the error `selector-empty`.
+  for a rule without one. A table row does not need one, because `archangel rules` shows what it
+  judged, and a table that finds no files is the error `table-empty`.
+- A part or group that finds no files is the error `selector-empty`.
 - An import that archangel cannot resolve is an error, unless the config permits it.
 - A file with a syntax error fails the check, because archangel cannot read its imports.
 
