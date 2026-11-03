@@ -314,6 +314,16 @@ export type ConditionName<P extends Plugins> = {
     : never;
 }[Extract<keyof P, string>];
 
+/** The conditions of the `fsd` preset, which a config that extends it can use with its own files. */
+export type FsdConditionName = `fsd/${
+  | 'typo-in-layer-name'
+  | 'ambiguous-slice-names'
+  | 'inconsistent-naming'
+  | 'insignificant-slice'
+  | 'repetitive-naming'
+  | 'excessive-slicing'
+  | 'shared-lib-grouping'}`;
+
 /** A rule that uses a plugin's condition, whose options the condition's schema checks. */
 export type PluginRule<E extends Elements, S extends Selectors, P extends Plugins> = Omit<
   CommonOptions,
@@ -323,7 +333,7 @@ export type PluginRule<E extends Elements, S extends Selectors, P extends Plugin
   /** The files whose records the condition sees. */
   readonly files: Files<E, S>;
   /** The condition, as `<plugin>/<condition>`. */
-  readonly plugin: NoInfer<ConditionName<P>>;
+  readonly plugin: NoInfer<ConditionName<P>> | FsdConditionName;
   /** The options, which the condition's JSON Schema checks when the config loads. */
   readonly options?: unknown;
 };

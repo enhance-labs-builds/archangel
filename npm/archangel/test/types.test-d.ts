@@ -175,6 +175,16 @@ expectError(
 // Presets.
 defineConfig({ extends: [fsd({ root: 'src' })], off: ['fsd/insignificant-slice'], rules: [] });
 defineConfig({
+  extends: [fsd({ root: 'src', name: 'fsd-app' })],
+  rules: [{ name: 'fsd-app/insignificant-slice', files: 'src/**', plugin: 'fsd/insignificant-slice', options: { root: 'src' } }],
+});
+expectError(
+  defineConfig({
+    extends: [fsd({ root: 'src', name: 'fsd-app' })],
+    rules: [{ name: 'fsd-app/insignificant-slice', files: 'src/**', plugin: 'fsd/insignificant-slices' }],
+  }),
+);
+defineConfig({
   elements: { app: 'src/app/**' },
   extends: [fsd({ root: 'apps/web/src', strict: true }), fsd({ root: 'apps/admin/src', name: 'fsd-admin' }), nextjs()],
   rules: [{ name: 'fsd/public-api', folders: ['src/*', '!src/app'], mustContain: ['index.ts', 'index.tsx'] }],

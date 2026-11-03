@@ -12,6 +12,9 @@ same result.
 
 ### Added
 
+- The npm types accept a condition of the `fsd` preset in a config's own rule, such as
+  `plugin: 'fsd/insignificant-slice'`, so a rule can use it with its own files. The types refuse a
+  misspelt name.
 - `mustBeNamed` takes a list of styles and name patterns, such as
   `mustBeNamed: ['*.view', '*.container', '*.styles']`. A file or folder passes when one entry
   matches. The message of a failing file gives its full name and each entry.
