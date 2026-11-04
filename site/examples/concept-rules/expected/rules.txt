@@ -15,9 +15,9 @@ no-react-in-shared  archangel.config.ts:19
 
 no-utils  archangel.config.ts:27
   because: A name says what the code does, not that it is a utility.
-  files in src/**/utils/** must not exist
+  no folder may be in src/**/utils
   files in src/**/utils.ts must not exist
-    checks nothing: no file is in src/**/utils/**
+    0 folders · 0 problems
 
 Files that no rule judges: 1
   src/app/main.ts

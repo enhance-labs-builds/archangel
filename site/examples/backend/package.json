@@ -6,6 +6,6 @@
     "pg": "8.16.3"
   },
   "devDependencies": {
-    "@enhance-eng/archangel": "0.3.2"
+    "@enhance-eng/archangel": "0.3.3"
   }
 }

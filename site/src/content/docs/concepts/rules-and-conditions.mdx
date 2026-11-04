@@ -40,8 +40,8 @@ your config says:
 - `layers(...)` becomes one sentence for each part after the first.
 - A shorthand without a `name` gets a name from the rule itself, such as
   `layers(app, feature, shared)`.
-- `no-utils` checks nothing in this repository, because no file is in `utils`. That is correct for
-  a rule that says "must not exist". Archangel tells you, so that you can see it.
+- `no-utils` finds 0 folders in this repository, because no folder is named `utils`. That is
+  correct for a rule that says "must not exist". Archangel shows the count, so that you can see it.
 
 ## The conditions
 
@@ -89,12 +89,8 @@ because a chain of type imports never runs.
 | `imports` | `'all'`, `'runtime'` or `'types'`: which imports the rule counts. |
 | `examples` | Code that the rule must accept, and code that it must reject. |
 
-<Aside type="caution" title="A folder rule with mustNotExist">
-  A `mustNotExist` rule on `files` that finds no file is not an error, because no file is the goal.
-  In archangel 0.3.2, a `mustNotExist` rule on `folders` that finds no folder gives
-  [`selector-empty`](/archangel/reference/diagnostics/selector-empty/). To say that a folder must
-  not exist, select its files, for example `files: 'src/**/utils/**'`, as `no-utils` does above.
-</Aside>
+A `mustNotExist` rule passes when it finds nothing, so its `files` or `folders` may match nothing.
+`no-utils` above uses both: a folder named `utils`, and a file named `utils.ts`.
 
 ## One rule, one decision
 

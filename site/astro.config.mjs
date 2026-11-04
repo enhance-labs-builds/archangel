@@ -51,7 +51,7 @@ export default defineConfig({
             operatingSystem: 'macOS, Linux, Windows',
             url: `${site}${base}/`,
             downloadUrl: 'https://www.npmjs.com/package/@enhance-eng/archangel',
-            softwareVersion: '0.3.2',
+            softwareVersion: '0.3.3',
             license: 'https://github.com/enhance-labs-builds/archangel#license',
             offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
           }),
