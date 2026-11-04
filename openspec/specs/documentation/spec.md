@@ -8,7 +8,7 @@ fixture that archangel checks, so an example cannot disagree with what archangel
 
 ### Requirement: Every rule fragment in the docs loads
 
-Each rule written in a TypeScript block, or as inline code, in the README or a page under `docs/` MUST load in a config that declares its names. A test MUST run each one, so that a docs example cannot stop working.
+Each rule written in a TypeScript block, or as inline code, in the README or the npm README MUST load in a config that declares its names. A test MUST run each one, so that a docs example cannot stop working.
 
 #### Scenario: A fragment that does not load
 
@@ -19,14 +19,14 @@ Each rule written in a TypeScript block, or as inline code, in the README or a p
 
 #### Scenario: The fragments of the docs
 
-- **GIVEN** the README and each page under `docs/`
+- **GIVEN** the README and the npm README
 - **WHEN** the test runs each rule fragment in a config
 - **THEN** no fragment gives a config error
 - **TEST** `crates/archangel/tests/doc_examples.rs` › "every_rule_fragment_in_the_docs_loads"
 
 ### Requirement: Every config example in the docs is a checked fixture
 
-Each config example in the README and in the docs folder MUST be the text of a fixture. A fixture MUST hold the config, the source files, and the expected output of each command that the docs show for it. A test MUST run each command on each fixture and compare the output with the expected output. A test MUST read each config block in the README and the docs and find the fixture whose config has the same text.
+Each config example in the README and the npm README MUST be the text of a fixture in `examples/`. A fixture MUST hold the config, the source files, and the expected output of each command that the docs show for it. A test MUST run each command on each fixture and compare the output with the expected output. A test MUST read each config block in the READMEs and find the fixture whose config has the same text.
 
 #### Scenario: An example that disagrees with archangel
 
@@ -37,14 +37,14 @@ Each config example in the README and in the docs folder MUST be the text of a f
 
 #### Scenario: A config block with no fixture
 
-- **GIVEN** a config block in `docs/rules.md` whose text is the text of no fixture
+- **GIVEN** a config block in a README whose text is the text of no fixture
 - **WHEN** the test of the docs runs
 - **THEN** the test fails and names the file and the line of the block
 - **TEST** `crates/archangel/tests/doc_examples.rs` › "every_config_example_in_the_docs_is_a_checked_fixture"
 
 ### Requirement: The small app fixture shows the whole loop
 
-The fixture is `docs/examples/small-app/`, and its config is the one in design.md, "In short". It MUST have features in `src/features/<name>/`, shared code in `src/shared/`, and the two tables `app` and `feature-code`. Its views MUST import only models and shared code, except one view that imports an api file. The README MUST show its config in full, and the error that `archangel check` gives.
+The fixture is `examples/small-app/`, and its config is the one in design.md, "In short". It MUST have features in `src/features/<name>/`, shared code in `src/shared/`, and the two tables `app` and `feature-code`. Its views MUST import only models and shared code, except one view that imports an api file. The README MUST show its config in full, and the error that `archangel check` gives.
 
 #### Scenario: The small app
 
@@ -59,12 +59,12 @@ The fixture is `docs/examples/small-app/`, and its config is the one in design.m
 
 - **GIVEN** the README
 - **WHEN** the test reads it
-- **THEN** it holds one config block whose text is the config of `docs/examples/small-app/`, and one output block whose text is the fixture's expected output of `archangel check`
+- **THEN** it holds one config block whose text is the config of `examples/small-app/`, and one output block whose text is the fixture's expected output of `archangel check`
 - **TEST** `crates/archangel/tests/doc_examples.rs` › "the_readme_shows_the_small_app_and_its_error"
 
 ### Requirement: The monorepo slice fixture checks a monorepo architecture
 
-The fixture is `docs/examples/monorepo-slice/`. It is a small monorepo of apps and packages. It MUST hold a workspace table of its apps and packages, an API domain table, and the rules `frontend-api-types-only` and `domain-not-to-pool`, with a small set of files. Its files MUST include one import that each table refuses.
+The fixture is `examples/monorepo-slice/`. It is a small monorepo of apps and packages. It MUST hold a workspace table of its apps and packages, an API domain table, and the rules `frontend-api-types-only` and `domain-not-to-pool`, with a small set of files. Its files MUST include one import that each table refuses.
 
 #### Scenario: The monorepo slice
 
@@ -73,3 +73,14 @@ The fixture is `docs/examples/monorepo-slice/`. It is a small monorepo of apps a
 - **THEN** `archangel check` gives one violation of `workspace.contract` for an import of `web`, and one violation of `domain.entity` for an import of a use case
 - **AND** each output is the expected output of the fixture
 - **TEST** `crates/archangel/tests/doc_examples.rs` › "the_monorepo_slice_gives_its_documented_output"
+
+### Requirement: Each README sends the reader to the docs site
+
+The README and the npm README MUST link to the docs site above their first section. The full documentation MUST be the site only. The repository MUST NOT hold a second copy of its pages.
+
+#### Scenario: The link to the docs
+
+- **GIVEN** the README and the npm README
+- **WHEN** the test reads each one
+- **THEN** each links to `https://enhancelabs.ai/archangel/` above its first section
+- **TEST** `crates/archangel/tests/doc_examples.rs` › "each_readme_links_to_the_docs_before_its_first_section"
