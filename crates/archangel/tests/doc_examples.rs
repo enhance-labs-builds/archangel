@@ -11,7 +11,7 @@ mod fixtures;
 use std::path::Path;
 
 use archangel_testkit::FixtureRepo;
-use fixtures::{examples_folder, fixture, fixture_names, markdown_files, read_text};
+use fixtures::{examples_folder, fixture, fixture_names, read_text};
 use support::run;
 
 const COMMANDS: [&str; 3] = ["check", "test", "rules"];
@@ -200,12 +200,15 @@ fn a_config_block_with_no_fixture_is_named() {
     );
 }
 
+/// The READMEs in this repository. The full docs are the site, whose own tests run its examples.
+const READMES: [&str; 2] = ["README.md", "npm/archangel/README.md"];
+
 #[test]
 fn every_config_example_in_the_docs_is_a_checked_fixture() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let configs = fixture_configs();
     let mut problems = Vec::new();
-    for doc in std::iter::once(root.join("README.md")).chain(markdown_files(&root.join("docs"))) {
+    for doc in READMES.map(|readme| root.join(readme)) {
         let text = read_text(&doc);
         let shown = doc.strip_prefix(&root).unwrap().display().to_string();
         problems.extend(blocks_without_a_fixture(&shown, &text, &configs));
@@ -229,7 +232,7 @@ fn a_fragment_that_does_not_load_is_named() {
 fn every_rule_fragment_in_the_docs_loads() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut problems = Vec::new();
-    for doc in std::iter::once(root.join("README.md")).chain(markdown_files(&root.join("docs"))) {
+    for doc in READMES.map(|readme| root.join(readme)) {
         let text = read_text(&doc);
         let shown = doc.strip_prefix(&root).unwrap().display().to_string();
         problems.extend(fragments_that_do_not_load(&shown, &text));
@@ -276,6 +279,19 @@ fn the_readme_shows_the_small_app_and_its_error() {
         readme.contains(&format!("```\n{check}```\n")),
         "the README holds the error of the small app"
     );
+}
+
+#[test]
+fn each_readme_links_to_the_docs_before_its_first_section() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    for readme in READMES {
+        let text = read_text(&root.join(readme));
+        let top = text.split("\n## ").next().unwrap_or_default();
+        assert!(
+            top.contains("[Read the docs →](https://enhancelabs.ai/archangel/)"),
+            "{readme} links to the docs above its first section"
+        );
+    }
 }
 
 #[test]

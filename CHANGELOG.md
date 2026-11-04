@@ -64,7 +64,7 @@ same result.
 
 A config can now read as your architecture, and `archangel rules` shows what it does. Each 0.1
 config still loads, with the two changes of result below. Read
-[docs/migrating.md](docs/migrating.md#from-archangel-01).
+[the 0.2.0 upgrade notes](https://github.com/enhance-labs-builds/archangel/blob/v0.2.0/docs/migrating.md#from-archangel-01).
 
 ### Added
 

@@ -452,8 +452,8 @@ expectError(
 );
 
 // "the configs of the checked fixtures type-check with literal names"
-import '../../../docs/examples/small-app/archangel.config.js';
-import '../../../docs/examples/monorepo-slice/archangel.config.js';
+import '../../../examples/small-app/archangel.config.js';
+import '../../../examples/monorepo-slice/archangel.config.js';
 
 // A `mustBeNamed` list with no entry permits no name.
 expectError(

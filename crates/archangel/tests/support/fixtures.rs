@@ -14,7 +14,7 @@ mod install;
 
 /// The folder of the documented fixtures.
 pub(crate) fn examples_folder() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/examples")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples")
 }
 
 /// The text of a file that this repository tracks, which a test compares with what archangel does.
@@ -27,15 +27,6 @@ pub(crate) fn fixture_names() -> Vec<String> {
     std::fs::read_dir(examples_folder())
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-        .collect()
-}
-
-/// The Markdown files directly in a folder.
-pub(crate) fn markdown_files(folder: &Path) -> Vec<PathBuf> {
-    std::fs::read_dir(folder)
-        .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().is_some_and(|extension| extension == "md"))
         .collect()
 }
 

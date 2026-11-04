@@ -35,7 +35,7 @@ if (differ.length > 0) {
   console.error(
     `every version must be ${wanted}, ${whose}, and these are not:\n` +
       differ.map(([place, version]) => `  ${place}: ${version ?? 'missing'}`).join('\n') +
-      '\nSet every version in one commit, then tag that commit. See docs/releasing.md.',
+      '\nSet every version in one commit, then tag that commit. See RELEASING.md.',
   );
   process.exit(1);
 }
