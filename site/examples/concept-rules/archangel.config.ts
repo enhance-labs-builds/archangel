@@ -26,7 +26,7 @@ export default defineConfig({
 
     rule('no-utils', {
       sentences: [
-        { files: 'src/**/utils/**', mustNotExist: true },
+        { folders: 'src/**/utils', mustNotExist: true },
         { files: 'src/**/utils.ts', mustNotExist: true },
       ],
       because: 'A name says what the code does, not that it is a utility.',

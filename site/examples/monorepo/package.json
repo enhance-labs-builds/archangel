@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "devDependencies": {
-    "@enhance-eng/archangel": "0.3.2"
+    "@enhance-eng/archangel": "0.3.3"
   },
   "dependencies": {
     "zod": "4.1.0"

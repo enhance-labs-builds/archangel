@@ -7,7 +7,7 @@
     "react-dom": "19.2.0"
   },
   "devDependencies": {
-    "@enhance-eng/archangel": "0.3.2",
+    "@enhance-eng/archangel": "0.3.3",
     "vitest": "4.0.0"
   }
 }
