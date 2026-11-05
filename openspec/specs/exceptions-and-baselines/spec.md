@@ -9,7 +9,7 @@ violations to hide.
 
 ### Requirement: An exception permits one import to break one rule
 
-An exception MUST be a line comment or a block comment in the form `archangel-allow <rule name>: <reason>`. A run of exception comments on consecutive lines MUST apply to the import on the line after the run. Each exception MUST permit that import to break the named rule only, and the import MUST still be checked against every other rule.
+An exception MUST be a line comment or a block comment in the form `archangel-allow <rule name>: <reason>`. A run of exception comments on consecutive lines MUST apply to the import on the line after the run: the import whose specifier is on that line, or whose statement starts on that line. Each exception MUST permit that import to break the named rule only, and the import MUST still be checked against every other rule.
 
 #### Scenario: An exception above an import
 
@@ -32,6 +32,13 @@ An exception MUST be a line comment or a block comment in the form `archangel-al
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation for that import and no `exception-unused` diagnostic
 - **TEST** `crates/archangel_rules/tests/exceptions.rs` › "consecutive_exceptions_apply_to_the_import_after_them"
+
+#### Scenario: An exception above a multi-line import
+
+- **GIVEN** an exception for `entry(entity)` directly above `import {`, and the specifier that breaks the rule two lines lower, after the closing brace
+- **WHEN** archangel makes a check
+- **THEN** archangel gives no violation of `entry(entity)` and no `exception-unused` diagnostic
+- **TEST** `crates/archangel_rules/tests/exceptions.rs` › "exception_above_a_multi_line_import_permits_it"
 
 #### Scenario: An exception in a block comment
 
