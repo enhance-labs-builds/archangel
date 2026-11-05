@@ -281,7 +281,7 @@ A `mayOnlyBeImportedBy` rule MUST give a violation for each import into a file i
 
 ### Requirement: An import rule can be limited to the names an import brings in
 
-An import rule with `names` MUST apply only to imports that bring in at least one of those names. A default import MUST bring in the name `default`. A namespace import, an `export *`, a dynamic import and a `require` MUST count as bringing in every name of the module, because archangel cannot see which they use. When such an import resolves to a file of a package whose exports archangel can see, every name of the module MUST be the names that file exports, with the names of the files that its relative `export * from` statements reach. When archangel cannot see them all (a CommonJS module, an `export =`, an `export *` from a bare specifier, a Node built-in), the import MUST count as bringing in every name.
+An import rule with `names` MUST apply only to imports that bring in at least one of those names. A default import MUST bring in the name `default`. A namespace import, an `export *`, a dynamic import and a `require` MUST count as bringing in every name of the module, because archangel cannot see which they use.
 
 #### Scenario: Only one name of a module is forbidden
 
@@ -297,6 +297,17 @@ An import rule with `names` MUST apply only to imports that bring in at least on
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation for each of the four imports
 - **TEST** `crates/archangel_rules/tests/conditions.rs` › "an_import_with_unseen_names_brings_in_every_name"
+
+#### Scenario: A default import
+
+- **GIVEN** a rule `{ files: 'src/**', mayNotImport: { packages: ['lodash'] }, names: ['default'] }`, a file with `import _ from 'lodash'` and a file with `import { map } from 'lodash'`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation, for the default import
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "a_default_import_brings_in_default"
+
+### Requirement: An import of every name of a package module brings in the names it exports
+
+When an import that brings in every name resolves to a file of a package whose exports archangel can see, its names MUST be the names that file exports, with those of the files that its relative `export * from` statements reach. When archangel cannot see them all (a CommonJS module, an `export =`, an `export *` from a bare specifier, a Node built-in), the import MUST bring in every name.
 
 #### Scenario: A namespace or dynamic import of a subpath that does not export the name
 
@@ -321,13 +332,6 @@ An import rule with `names` MUST apply only to imports that bring in at least on
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation, for that import
 - **TEST** `crates/archangel_rules/tests/conditions.rs` › "a_module_whose_exports_archangel_cannot_see_brings_in_every_name"
-
-#### Scenario: A default import
-
-- **GIVEN** a rule `{ files: 'src/**', mayNotImport: { packages: ['lodash'] }, names: ['default'] }`, a file with `import _ from 'lodash'` and a file with `import { map } from 'lodash'`
-- **WHEN** archangel makes a check
-- **THEN** archangel gives one violation, for the default import
-- **TEST** `crates/archangel_rules/tests/conditions.rs` › "a_default_import_brings_in_default"
 
 ### Requirement: An import rule can be limited to how the specifier is written
 
