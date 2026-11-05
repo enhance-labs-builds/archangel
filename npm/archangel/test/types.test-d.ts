@@ -16,6 +16,14 @@ expectError(
   }),
 );
 
+// "a tag starts with @"
+expectError(
+  defineConfig({
+    elements: { src: 'src/**' },
+    selectors: { pure: { tag: 'side-effect-free' } },
+  }),
+);
+
 // "rule naming an undeclared element is a type error"
 expectError(
   defineConfig({
@@ -82,6 +90,7 @@ const good = defineConfig({
     view: '**/*.view.tsx',
     test: ['**/*.test.ts', '**/*.test.tsx'],
     client: { directive: 'use client' },
+    pure: { tag: '@side-effect-free' },
     production: { all: ['src/**', { not: 'test' }] },
   },
   rules: ({ layers, isolate, entry, rule }) => [
@@ -89,6 +98,9 @@ const good = defineConfig({
     isolate('feature'),
     entry('feature', 'index.ts'),
     rule({ files: 'shared', mayNotImport: 'react', imports: 'runtime' }),
+    layers(['production', 'shared'], { name: 'layers-of-groups' }),
+    rule({ files: 'pure', mayOnlyImport: 'pure' }),
+    rule({ files: 'feature', mayNotImport: { packages: ['react'] }, transitively: true, imports: 'static' }),
     rule({ name: 'thin-views', files: 'view', mayOnlyImport: ['shared', 'react', '**/*.css'] }),
     rule({ files: { not: 'test' }, mayNotImport: 'test' }),
     rule({ files: 'feature', mayNotImport: 'feature', instance: 'different', specifier: 'relative' }),
@@ -125,6 +137,7 @@ expectType<Config<
     readonly view: '**/*.view.tsx';
     readonly test: readonly ['**/*.test.ts', '**/*.test.tsx'];
     readonly client: { readonly directive: 'use client' };
+    readonly pure: { readonly tag: '@side-effect-free' };
     readonly production: { readonly all: readonly ['src/**', { readonly not: 'test' }] };
   }
 >>(good);

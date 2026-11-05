@@ -85,7 +85,7 @@ it in an externals set and name the set in the cells of the rows that may use it
 | `because` | string | none | The reason, which each problem shows. |
 | `link` | string | none | A link, which each problem shows. |
 | `examples` | object | none | Examples for the whole table. A row needs no written example. |
-| `imports` | `'all'`, `'runtime'`, `'types'` | `'all'` | The kinds of import that each row counts. |
+| `imports` | `'all'`, `'runtime'`, `'static'`, `'types'` | `'all'` | The kinds of import that each row counts. |
 | `names`, `specifier`, `instance`, `dependency` | | none | The same as for an import condition. Each row gets the option. Read [Import options](/archangel/reference/import-options/). |
 
 A row that `everyRowMayImport` names cannot be in `mayNotImportItself`.

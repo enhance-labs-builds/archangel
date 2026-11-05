@@ -289,7 +289,7 @@ impl<'a> Run<'a> {
             };
             for (import, resolution) in facts.imports.iter().zip(entry.resolutions) {
                 if let Some(to) = nodes.of_resolution(resolution)
-                    && covers(imports, import.kind)
+                    && covers(imports, import)
                 {
                     reach.add_import(from, to);
                 }
@@ -321,7 +321,7 @@ impl<'a> Run<'a> {
                         Resolution::File(path) | Resolution::Package(path) => path.as_str(),
                         Resolution::Unresolved(_) => return None,
                     };
-                    (target == chain[1] && covers(rule.imports, import.kind))
+                    (target == chain[1] && covers(rule.imports, import))
                         .then_some((import, occurrence))
                 })?;
         let site = Site {

@@ -183,17 +183,17 @@ fn needs_file_text(config: &Config, rule: &Rule) -> Option<String> {
                 .stop_at
                 .as_ref()
                 .is_some_and(|set| uses_directive(config, set));
-        directive.then(|| "the rule selects files by directive".to_owned())
+        directive.then(|| "the rule selects files by directive or tag".to_owned())
     })
 }
 
-/// Whether a set, or a group that it names at any depth, selects by directive.
+/// Whether a set, or a group that it names at any depth, selects by directive or tag.
 fn uses_directive(config: &Config, set: &FileSet) -> bool {
     let mut pending = vec![set];
     while let Some(next) = pending.pop() {
         for term in &next.terms {
             match term {
-                Term::Directive(_) => return true,
+                Term::Directive(_) | Term::Tag(_) => return true,
                 Term::Selector(id) => pending.extend(
                     config
                         .selectors

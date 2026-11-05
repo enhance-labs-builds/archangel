@@ -13,7 +13,7 @@ Add one of these options to an import condition (`mayNotImport`, `mayOnlyImport`
 | [`instance`](#instance) | `'same'`, `'different'` | imports inside one instance, or between two instances |
 | [`dependency`](#dependency) | `'dev'`, `'undeclared'` | packages with this entry in the nearest `package.json` |
 | [`within`](#within) | set of files | imports into an area, or importers in an area |
-| [`imports`](#imports) | `'all'`, `'runtime'`, `'types'` | imports of this kind |
+| [`imports`](#imports) | `'all'`, `'runtime'`, `'static'`, `'types'` | imports of this kind |
 
 An import that one of these options leaves out does not count as judged by the rule.
 `archangel rules` lists it under the imports that no rule judges.
@@ -26,7 +26,11 @@ rule('no-effects-in-views', { files: 'view', mayNotImport: { packages: ['react']
 
 - A default import brings in the name `default`.
 - A namespace import (`import * as x`), an `export *`, a dynamic `import()` and a `require()` bring
-  in each name, because archangel cannot see which names the code uses.
+  in each name of the module, because archangel cannot see which names the code uses.
+- For a module in a package, archangel reads the names that the module exports, through its
+  relative `export * from` statements too. `import * as fr from 'date-fns/locale/fr'` brings in
+  only the names of that locale. When archangel cannot see every name (a CommonJS module, an
+  `export =`, an `export *` from another package), the import brings in each name there is.
 
 ## `specifier`
 
@@ -96,6 +100,7 @@ rule('entity-imports', { files: 'entity', mayOnlyImport: ['value-object', 'error
 | --- | --- |
 | `'all'` | each import. This is the default. |
 | `'runtime'` | the imports that stay in the compiled code. This is the default for `noCycles` and for a transitive rule. |
+| `'static'` | the runtime imports other than `import()`: the imports that load with the file, in its bundle chunk. A `require()` is static. |
 | `'types'` | only type imports, such as `import type` |
 
 An `import type`, and an import that names only types with `import { type A }`, is a type import.
@@ -120,6 +125,8 @@ rule('client-stays-client', {
 ```
 
 - A chain stops at a package, and at each file in `stopAt`.
+- With `imports: 'static'`, a chain also stops at each `import()`. A bundler starts a new chunk
+  there, so the rule then means "the initial bundle may not reach this".
 - A transitive rule counts only runtime imports by default. `imports: 'types'` is refused, because
   a chain of type imports never runs.
 - A transitive rule cannot also have `names`, `specifier`, `instance`, `dependency` or `within`.

@@ -66,6 +66,8 @@ pub enum GraphProblem {
         path: String,
         /// What is wrong, in plain words.
         reason: String,
+        /// The package that a tsconfig's `extends` names, when it is not installed.
+        missing_package: Option<String>,
     },
 }
 
@@ -283,6 +285,7 @@ impl ImportGraph {
                 GraphProblem::ResolutionFileInvalid {
                     path: problem.path.clone(),
                     reason: problem.reason.clone(),
+                    missing_package: problem.missing_package.clone(),
                 }
             }))
             .collect();
@@ -311,8 +314,9 @@ impl ImportGraph {
         let resolved = resolve_file(&self.resolver, &self.root.join(path), parsed.facts.as_ref());
         work.add(&parsed.work);
         work.resolutions += resolved.resolutions.len() as u64;
+        work.package_modules_parsed += resolved.modules_parsed;
         self.files[index].facts = parsed.facts;
-        self.mark_imports(index, resolved.verbatim_module_syntax);
+        self.mark_imports(index, &resolved);
         self.parse_problems[index] = parsed.problem;
         self.hashes[index] = parsed.hash;
         let old = std::mem::replace(&mut self.resolutions[index], resolved.resolutions);
@@ -325,9 +329,9 @@ impl ImportGraph {
         true
     }
 
-    fn mark_imports(&mut self, index: usize, verbatim_module_syntax: bool) {
+    fn mark_imports(&mut self, index: usize, resolved: &Resolved) {
         if let Some(facts) = &mut self.files[index].facts {
-            facts.mark_imports(verbatim_module_syntax);
+            facts.mark_imports(resolved.verbatim_module_syntax, &resolved.module_names);
         }
     }
 
@@ -418,7 +422,8 @@ impl ImportGraph {
         self.inputs = ResolutionInputs::default();
         for (index, outcome) in resolved.into_iter().enumerate() {
             work.resolutions += outcome.resolutions.len() as u64;
-            self.mark_imports(index, outcome.verbatim_module_syntax);
+            work.package_modules_parsed += outcome.modules_parsed;
+            self.mark_imports(index, &outcome);
             self.resolution_problems.extend(outcome.problems);
             self.inputs.contents.extend(outcome.inputs.contents);
             self.inputs.existence.extend(outcome.inputs.existence);
@@ -773,10 +778,11 @@ struct Collected {
 impl Collected {
     fn add(&mut self, path: String, (mut parsed, resolved): (Parsed, Resolved), work: &mut Work) {
         if let Some(facts) = &mut parsed.facts {
-            facts.mark_imports(resolved.verbatim_module_syntax);
+            facts.mark_imports(resolved.verbatim_module_syntax, &resolved.module_names);
         }
         work.add(&parsed.work);
         work.resolutions += resolved.resolutions.len() as u64;
+        work.package_modules_parsed += resolved.modules_parsed;
         self.parse_problems.push(parsed.problem);
         self.hashes.push(parsed.hash);
         self.file_problems.extend(resolved.problems);
@@ -799,6 +805,7 @@ impl Collected {
                 GraphProblem::ResolutionFileInvalid {
                     path: problem.path,
                     reason: problem.reason,
+                    missing_package: problem.missing_package,
                 }
             }))
             .collect();
@@ -818,6 +825,11 @@ struct Parsed {
 /// What resolving one file's imports gave.
 struct Resolved {
     resolutions: Vec<Resolution>,
+    /// The names of the package module each import brings in every name of, aligned with the
+    /// imports.
+    module_names: Vec<Option<Arc<[String]>>>,
+    /// Package files parsed for those names.
+    modules_parsed: u64,
     problems: BTreeSet<ResolutionFileProblem>,
     inputs: ResolutionInputs,
     /// Whether the file's tsconfig sets `verbatimModuleSyntax`.
@@ -959,6 +971,8 @@ fn resolve_file(resolver: &ImportResolver, file: &Path, facts: Option<&FileFacts
     let Some(facts) = facts else {
         return Resolved {
             resolutions: Vec::new(),
+            module_names: Vec::new(),
+            modules_parsed: 0,
             problems,
             inputs,
             verbatim_module_syntax: false,
@@ -988,20 +1002,42 @@ fn resolve_file(resolver: &ImportResolver, file: &Path, facts: Option<&FileFacts
         file,
         tsconfig: tsconfig.as_deref(),
     };
+    let mut module_names = Vec::with_capacity(facts.imports.len());
+    let mut modules_parsed = 0;
     let resolutions = facts
         .imports
         .iter()
         .map(|import| {
-            let (resolution, problem) = resolver.resolve(&importer, &import.specifier, &mut inputs);
+            let (resolution, problem, package_file) =
+                resolver.resolve_to_file(&importer, &import.specifier, &mut inputs);
             problems.extend(problem);
+            let (names, parsed) = names_brought_in(resolver, import, package_file, &mut inputs);
+            module_names.push(names);
+            modules_parsed += parsed;
             resolution
         })
         .collect();
     Resolved {
         resolutions,
+        module_names,
+        modules_parsed,
         problems,
         inputs,
         verbatim_module_syntax,
+    }
+}
+
+/// The names of the package module that an import of every name brings in, and the package files
+/// parsed to find them.
+fn names_brought_in(
+    resolver: &ImportResolver,
+    import: &imports::Import,
+    package_file: Option<PathBuf>,
+    inputs: &mut ResolutionInputs,
+) -> (Option<Arc<[String]>>, u64) {
+    match package_file {
+        Some(module) if import.brings_in_every_name() => resolver.module_names(&module, inputs),
+        _ => (None, 0),
     }
 }
 

@@ -99,6 +99,9 @@ fn sentences(session: &Session, rule: &Rule) -> Vec<String> {
                 archangel_config::ImportKinds::Runtime if !by_default => {
                     text.push_str(", runtime imports only");
                 }
+                archangel_config::ImportKinds::Static => {
+                    text.push_str(", static imports only, which stop at `import()`");
+                }
                 _ => {}
             }
             text

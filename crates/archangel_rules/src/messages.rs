@@ -180,7 +180,10 @@ impl Texts<'_> {
         parties: &Parties<'_>,
     ) -> (Code, String, String) {
         match &rule.kind {
-            RuleKind::Layers { order } => return self.layers(order, parties),
+            RuleKind::Layers { order, .. } if !order.is_empty() => {
+                return self.layers(order, parties);
+            }
+            RuleKind::Layers { names, .. } => return group_layers(names, sentence, parties),
             RuleKind::Isolate { element } => return self.isolate(*element, parties),
             RuleKind::Entry { files, .. } => return self.entry(files, parties),
             RuleKind::Sentence | RuleKind::TableRow { .. } => {}
@@ -623,5 +626,32 @@ fn imported_by_words(
              \"{files}\" may import files in \"{files}\"{importers}"
         ),
         format!("only {side} and files in \"{files}\" may import files in \"{files}\"{importers}"),
+    )
+}
+
+/// The words of a layers violation when a layer is a group. A file can be in two groups, so the
+/// words name the layer of the sentence that the import breaks, not the file's part.
+fn group_layers(
+    names: &[String],
+    sentence: &Sentence,
+    parties: &Parties<'_>,
+) -> (Code, String, String) {
+    let layer = &sentence.files_text;
+    let earlier = sentence
+        .condition
+        .side()
+        .map_or("", |side| side.text.as_str());
+    let position = names.iter().position(|name| name == layer).unwrap_or(0);
+    let allowed: Vec<String> = names[position..]
+        .iter()
+        .map(|name| format!("\"{name}\""))
+        .collect();
+    (
+        Code::Layers,
+        format!(
+            "\"{layer}\" may not import a file of an earlier layer ({earlier}), through \"{}\"",
+            parties.specifier
+        ),
+        format!("\"{layer}\" may import only {}", allowed.join(", ")),
     )
 }

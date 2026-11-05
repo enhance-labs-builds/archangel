@@ -255,6 +255,7 @@ fn import(kind: ImportKind) -> Import {
         utf16: (0, 0),
         names: vec!["x".to_owned()],
         names_typed: false,
+        module_names: None,
     }
 }
 

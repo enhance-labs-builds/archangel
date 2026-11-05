@@ -329,7 +329,7 @@ For what a code means, run `archangel docs layers`.
 
 $ archangel check --format json
 status: 1
-28341 bytes, FNV-1a 9ed4148a25c85fca
+28374 bytes, FNV-1a 8d6f161f210518b0
 
 $ archangel test
 status: 1
@@ -406,7 +406,8 @@ status: 1
       "examplesChecked": 0,
       "filesWritten": 0,
       "pluginRecordsSent": 0,
-      "pluginChecks": 0
+      "pluginChecks": 0,
+      "packageModulesParsed": 0
     }
   }
 }

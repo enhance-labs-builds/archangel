@@ -86,7 +86,7 @@ because a chain of type imports never runs.
 | `name` | The name in each report, exception and baseline entry. Write it first in `rule('name', { ... })`. |
 | `because` | Your reason. Each report shows it. Tell the next reader why the rule exists. |
 | `link` | A link that each report shows. |
-| `imports` | `'all'`, `'runtime'` or `'types'`: which imports the rule counts. |
+| `imports` | `'all'`, `'runtime'`, `'static'` or `'types'`: which imports the rule counts. |
 | `examples` | Code that the rule must accept, and code that it must reject. |
 
 A `mustNotExist` rule passes when it finds nothing, so its `files` or `folders` may match nothing.

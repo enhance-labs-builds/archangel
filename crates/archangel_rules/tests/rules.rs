@@ -61,6 +61,77 @@ fn rule_without_imports_option_checks_type_imports() {
     );
 }
 
+#[test]
+fn static_rule_skips_dynamic_imports() {
+    let repo = FixtureRepo::new()
+        .file(
+            "web/a.ts",
+            "export const load = () => import('../api/router');\n",
+        )
+        .file("web/b.ts", "require('../api/router');\n")
+        .file("api/router.ts", "export const router = 1;\n");
+    let found = report(
+        &json!([{ "files": "web", "mayNotImport": "api", "imports": "static" }]),
+        &repo,
+    );
+    assert_eq!(
+        violations(&found),
+        [(Code::MayNotImport, "web/b.ts".to_owned())],
+        "a static rule sees the require and not the import()"
+    );
+}
+
+/// Parts for the instances of a feature, and groups for the layers that cut across them.
+fn layer_groups(rules: &Value) -> Report {
+    let repo = FixtureRepo::new()
+        .file("src/shared/a.ts", "import '../pages/home';\n")
+        .file(
+            "src/pages/home.ts",
+            "import '../features/billing/public/index';\n",
+        )
+        .file("src/features/billing/public/index.ts", "");
+    let config = json!({
+        "parts": {
+            "feature": "src/features/{feature}/**",
+            "pages": "src/pages/**",
+            "shared": "src/shared/**",
+        },
+        "groups": {
+            "pagesLayer": "src/pages/**",
+            "featuresLayer": "src/features/**",
+            "sharedLayer": "src/shared/**",
+        },
+        "rules": rules,
+    });
+    support::check(&config, &repo, None).0
+}
+
+#[test]
+fn layers_of_groups_reject_an_import_toward_an_earlier_group() {
+    let found = layer_groups(&json!([
+        { "kind": "layers", "order": ["pagesLayer", "featuresLayer", "sharedLayer"] },
+        { "kind": "entry", "element": "feature", "files": ["public/**"] },
+    ]));
+    assert_eq!(
+        violations(&found),
+        [(Code::Layers, "src/shared/a.ts".to_owned())],
+        "shared may not import pages; pages may import a feature through its entry: {:?}",
+        found.diagnostics
+    );
+    let violation = first(&found);
+    assert_eq!(
+        violation.message,
+        "\"sharedLayer\" may not import a file of an earlier layer (pagesLayer, featuresLayer), \
+         through \"../pages/home\"",
+        "the message names the layers"
+    );
+    assert_eq!(
+        violation.help.as_deref(),
+        Some("\"sharedLayer\" may import only \"sharedLayer\""),
+        "the help names the layers it may import"
+    );
+}
+
 fn layers() -> Value {
     json!([{ "kind": "layers", "order": ["app", "feature", "shared"] }])
 }
@@ -361,6 +432,61 @@ fn permitted_unresolved_specifier_is_counted_not_reported() {
     assert_eq!(
         found.summary.permitted_unresolved, 1,
         "the summary counts it"
+    );
+}
+
+fn missing_base_repo() -> FixtureRepo {
+    FixtureRepo::new()
+        .file("src/a.ts", "export const a = 1;\n")
+        .file(
+            "tools/job/tsconfig.json",
+            "{ \"extends\": \"@tsconfig/missing/tsconfig.json\" }\n",
+        )
+        .file("tools/job/index.ts", "import '../../src/a';\n")
+}
+
+#[test]
+fn permitted_missing_tsconfig_base_is_counted_not_reported() {
+    let config = json!({
+        "elements": { "src": "src/**" },
+        "allowUnresolved": { "@tsconfig/missing": "the job installs its own packages" },
+    });
+    let (found, _) = support::check(&config, &missing_base_repo(), None);
+    assert!(
+        found
+            .diagnostics
+            .iter()
+            .all(|d| d.code != Code::ResolutionFileInvalid),
+        "the permitted base gives no diagnostic: {:?}",
+        found.diagnostics
+    );
+    assert_eq!(
+        found.summary.permitted_unresolved, 1,
+        "the summary counts it"
+    );
+    assert_eq!(
+        found.summary.imports, 1,
+        "the job's import is still checked"
+    );
+}
+
+#[test]
+fn missing_tsconfig_base_names_the_entry_that_permits_it() {
+    let config = json!({ "elements": { "src": "src/**" } });
+    let (found, _) = support::check(&config, &missing_base_repo(), None);
+    let invalid: Vec<_> = found
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == Code::ResolutionFileInvalid)
+        .collect();
+    assert_eq!(invalid.len(), 1, "one diagnostic: {:?}", found.diagnostics);
+    assert_eq!(
+        invalid[0].help.as_deref(),
+        Some(
+            "install `@tsconfig/missing`, or add \"@tsconfig/missing\" to the config's \
+             allowUnresolved with the reason it is not installed"
+        ),
+        "the help names the package to install and the entry that permits it"
     );
 }
 

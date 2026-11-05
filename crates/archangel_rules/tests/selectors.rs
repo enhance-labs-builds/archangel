@@ -171,6 +171,40 @@ fn a_directive_selector_selects_files_by_their_first_statement() {
 }
 
 #[test]
+fn a_tag_selector_selects_files_by_their_docblock_tag() {
+    let config = json!({
+        "elements": { "src": "src/**" },
+        "selectors": { "pure": { "tag": "@side-effect-free" } },
+    });
+    let repo = FixtureRepo::new()
+        .file(
+            "src/a.ts",
+            "// Copyright the authors.\n/**\n * Helpers.\n * @side-effect-free\n */\nexport const a = 1;\n",
+        )
+        .file("src/b.ts", "/** Helpers. */\nexport const b = 1;\n")
+        .file(
+            "src/c.ts",
+            "export const c = 1;\n/** @side-effect-free */\nexport const d = 2;\n",
+        )
+        .file("src/d.ts", "/** @side-effect-free-ish */\nexport const e = 1;\n");
+    assert_eq!(
+        selectors_of(&config, &repo, "src/a.ts"),
+        ["pure"],
+        "the tag in the docblock after a license comment counts"
+    );
+    for (file, why) in [
+        ("src/b.ts", "a docblock without the tag"),
+        ("src/c.ts", "a tag after the first statement"),
+        ("src/d.ts", "a longer tag that starts with the same letters"),
+    ] {
+        assert!(
+            selectors_of(&config, &repo, file).is_empty(),
+            "{file} has {why}, so it is not selected"
+        );
+    }
+}
+
+#[test]
 fn a_directive_counts_only_as_the_first_statement() {
     let repo = FixtureRepo::new()
         .file("app/c.tsx", "\"use client\";\nexport const C = 1;\n")

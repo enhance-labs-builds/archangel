@@ -117,6 +117,7 @@ impl Architecture {
             }
             Term::AnyElement => "any element".to_owned(),
             Term::Directive(text) => format!("'{text}' files"),
+            Term::Tag(tag) => format!("files tagged {tag}"),
             Term::Selector(id) => self.config.selectors[id.0 as usize].name.clone(),
             Term::Kind { kind, .. } => kind.clone(),
             Term::AnyKind(table) => {

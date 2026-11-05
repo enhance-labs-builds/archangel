@@ -420,23 +420,24 @@ impl<'a> Run<'a> {
     fn watch(&mut self, edge: &Edge<'_>) {
         if let Some((rules, considered)) = &mut self.watched {
             *considered |= rules.iter().any(|rule| {
-                covers(
-                    self.architecture.config.rules[*rule].imports,
-                    edge.import.kind,
-                ) && self.architecture.looks_at(*rule, edge, self.classes)
+                covers(self.architecture.config.rules[*rule].imports, edge.import)
+                    && self.architecture.looks_at(*rule, edge, self.classes)
             });
         }
     }
 
-    fn unresolved(&mut self, site: &Site<'_>, reason: &UnresolvedReason) {
-        let specifier = &site.import.specifier;
-        if self
-            .architecture
+    /// Whether an `allowUnresolved` entry permits a specifier, or a package that is not installed.
+    fn permits_unresolved(&self, specifier: &str) -> bool {
+        self.architecture
             .config
             .allow_unresolved
             .iter()
             .any(|allowed| allowed.permits(specifier))
-        {
+    }
+
+    fn unresolved(&mut self, site: &Site<'_>, reason: &UnresolvedReason) {
+        let specifier = &site.import.specifier;
+        if self.permits_unresolved(specifier) {
             self.summary.permitted_unresolved += 1;
             return;
         }
@@ -566,7 +567,7 @@ impl<'a> Run<'a> {
                 continue;
             };
             for (import, resolution) in facts.imports.iter().zip(resolutions) {
-                if let (true, Resolution::File(path)) = (covers(imports, import.kind), resolution)
+                if let (true, Resolution::File(path)) = (covers(imports, import), resolution)
                     && let Some(&to) = index.get(path.as_str())
                     && selected[to]
                 {
@@ -792,7 +793,7 @@ impl<'a> Run<'a> {
             .collect();
         for file in self.graph.files() {
             let Some(facts) = &file.facts else { continue };
-            for exception in exceptions::read(&facts.allow_comments) {
+            for exception in exceptions::read(&facts.allow_comments, &facts.imports) {
                 if let Some(problem) = exception_problem(&exception, &rule_names) {
                     self.other.push(problem.at(&file.path, exception.line, 1));
                 } else {
@@ -849,13 +850,34 @@ impl<'a> Run<'a> {
 
     pub(crate) fn problems(&mut self, problems: &[GraphProblem]) {
         for problem in problems {
+            if let GraphProblem::ResolutionFileInvalid {
+                missing_package: Some(package),
+                ..
+            } = problem
+                && self.permits_unresolved(package)
+            {
+                self.summary.permitted_unresolved += 1;
+                continue;
+            }
             self.other.push(match problem {
                 GraphProblem::FileUnreadable { path, reason } => {
                     Diagnostic::new(Code::FileUnreadable, reason.clone()).at(path, 0, 0)
                 }
                 GraphProblem::ParseFailed { path, failure } => parse_failed(path, failure),
-                GraphProblem::ResolutionFileInvalid { path, reason } => {
-                    Diagnostic::new(Code::ResolutionFileInvalid, reason.clone()).at(path, 0, 0)
+                GraphProblem::ResolutionFileInvalid {
+                    path,
+                    reason,
+                    missing_package,
+                } => {
+                    let mut diagnostic =
+                        Diagnostic::new(Code::ResolutionFileInvalid, reason.clone()).at(path, 0, 0);
+                    diagnostic.help = missing_package.as_ref().map(|package| {
+                        format!(
+                            "install `{package}`, or add \"{package}\" to the config's \
+                             allowUnresolved with the reason it is not installed"
+                        )
+                    });
+                    diagnostic
                 }
                 GraphProblem::IgnoreLineInvalid { line, reason } => Diagnostic::new(
                     Code::IgnoreLineInvalid,

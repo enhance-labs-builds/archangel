@@ -92,6 +92,7 @@ fn distinct(start: u64) -> Work {
         files_written: start + 15,
         plugin_records_sent: start + 16,
         plugin_checks: start + 17,
+        package_modules_parsed: start + 18,
     }
 }
 
@@ -118,6 +119,7 @@ fn counts_name_every_counter_in_the_order_of_the_spec() {
             ("filesWritten", 25),
             ("pluginRecordsSent", 26),
             ("pluginChecks", 27),
+            ("packageModulesParsed", 28),
         ],
         "each counter under its name in output"
     );
@@ -146,6 +148,7 @@ fn counts_json_is_an_object_keyed_by_the_names_in_output() {
             "filesWritten": 25,
             "pluginRecordsSent": 26,
             "pluginChecks": 27,
+            "packageModulesParsed": 28,
         }),
         "one key per counter"
     );
@@ -176,6 +179,7 @@ fn adding_counts_sums_each_counter_with_its_own() {
             files_written: 43,
             plugin_records_sent: 45,
             plugin_checks: 47,
+            package_modules_parsed: 49,
         },
         "the counts of a parallel stage add up field by field"
     );

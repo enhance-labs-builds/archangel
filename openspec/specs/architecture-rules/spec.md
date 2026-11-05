@@ -9,7 +9,7 @@ from the config alone.
 
 ### Requirement: A rule applies to the import kinds that it names
 
-Each import rule MUST have the option `imports`, with the value `all`, `runtime` or `types`, and MUST check only the imports of that kind. The default MUST be `all`, except for a `noCycles` rule and a transitive rule, whose default MUST be `runtime`.
+Each import rule MUST have the option `imports`, with the value `all`, `runtime`, `static` or `types`, and MUST check only the imports of that kind. `static` MUST mean the runtime imports other than `import()`, so that a transitive rule with it stops each chain at an `import()`. The default MUST be `all`, except for a `noCycles` rule and a transitive rule, whose default MUST be `runtime`.
 
 #### Scenario: A rule that checks runtime imports only
 
@@ -27,9 +27,26 @@ Each import rule MUST have the option `imports`, with the value `all`, `runtime`
 - **THEN** archangel gives one violation of the rule for that import
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "rule_without_imports_option_checks_type_imports"
 
+#### Scenario: A rule that checks static imports only
+
+- **GIVEN** a rule `{ files: 'web', mayNotImport: 'api', imports: 'static' }`
+- **AND** a file in "web" with `import('../api/a')`, and another with `require('../api/a')`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation, for the `require`
+- **TEST** `crates/archangel_rules/tests/rules.rs` › "static_rule_skips_dynamic_imports"
+
+#### Scenario: A transitive rule that stops at `import()`
+
+- **GIVEN** a rule `{ files: 'entry', mayNotImport: { packages: ['carousel'] }, transitively: true, imports: 'static' }`
+- **AND** `src/entry/main.ts` that imports `src/lib/viewer.ts`, which has `import('./gallery')`, and `src/lib/gallery.ts` that imports `carousel`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives no violation
+- **AND** when `src/entry/main.ts` also imports `src/lib/gallery.ts` statically, archangel gives one violation
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "a_static_transitive_rule_stops_at_a_dynamic_import"
+
 ### Requirement: A layers rule permits imports only toward later elements in its list
 
-A layers rule MUST have an ordered list of elements. An import from a file in a listed element into a file or package in an earlier listed element MUST be a violation. The rule MUST NOT check an import when either end is in no listed element. Imports within one element and toward later elements MUST be permitted.
+A layers rule MUST have an ordered list of parts, package parts or groups. An import from a file in a listed layer into a file or package in an earlier listed layer MUST be a violation. The rule MUST NOT check an import when either end is in no listed layer. Imports within one layer and toward later layers MUST be permitted. A file in two layers MUST be judged as a file of each.
 
 #### Scenario: An import toward an earlier element in the list
 
@@ -54,6 +71,14 @@ A layers rule MUST have an ordered list of elements. An import from a file in a 
 - **WHEN** archangel makes a check
 - **THEN** archangel gives no violation of the layers rule
 - **TEST** `crates/archangel_rules/tests/rules.rs` › "layers_does_not_apply_to_elements_outside_its_list"
+
+#### Scenario: Layers of groups
+
+- **GIVEN** a part `feature` for `src/features/{feature}/**`, groups "pagesLayer", "featuresLayer" and "sharedLayer", and a layers rule with that list of groups
+- **AND** a file in "sharedLayer" that imports a file in "pagesLayer", and a file in "pagesLayer" that imports a file in "featuresLayer"
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one `layers` violation, for the import from "sharedLayer", whose message names "sharedLayer" and the earlier layers
+- **TEST** `crates/archangel_rules/tests/rules.rs` › "layers_of_groups_reject_an_import_toward_an_earlier_group"
 
 ### Requirement: An isolate rule keeps instances of one element apart
 
@@ -256,7 +281,7 @@ A `mayOnlyBeImportedBy` rule MUST give a violation for each import into a file i
 
 ### Requirement: An import rule can be limited to the names an import brings in
 
-An import rule with `names` MUST apply only to imports that bring in at least one of those names. A default import MUST bring in the name `default`. A namespace import, an `export *`, a dynamic import and a `require` MUST count as bringing in every name, because archangel cannot see which they use.
+An import rule with `names` MUST apply only to imports that bring in at least one of those names. A default import MUST bring in the name `default`. A namespace import, an `export *`, a dynamic import and a `require` MUST count as bringing in every name of the module, because archangel cannot see which they use.
 
 #### Scenario: Only one name of a module is forbidden
 
@@ -279,6 +304,34 @@ An import rule with `names` MUST apply only to imports that bring in at least on
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one violation, for the default import
 - **TEST** `crates/archangel_rules/tests/conditions.rs` › "a_default_import_brings_in_default"
+
+### Requirement: An import of every name of a package module brings in the names it exports
+
+When an import that brings in every name resolves to a file of a package whose exports archangel can see, its names MUST be the names that file exports, with those of the files that its relative `export * from` statements reach. When archangel cannot see them all (a CommonJS module, an `export =`, an `export *` from a bare specifier, a Node built-in), the import MUST bring in every name.
+
+#### Scenario: A namespace or dynamic import of a subpath that does not export the name
+
+- **GIVEN** a rule `{ files: 'src', mayNotImport: { packages: ['dates'] }, names: ['format'] }`, a package `dates` whose root exports `format` and whose `locale/fr.js` exports only `fr`
+- **AND** files with `import * as loc from 'dates/locale/fr'`, `import('dates/locale/fr')` and `import * as d from 'dates'`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation, for the namespace import of `dates`
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "an_import_of_every_name_of_a_package_module_brings_in_its_exports"
+
+#### Scenario: A subpath that re-exports the name
+
+- **GIVEN** the same rule, and `dates/fp.js` with `export * from './format.js'`, whose file exports `format`
+- **AND** a file with `import * as fp from 'dates/fp'`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation, for that import
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "a_module_that_re_exports_a_name_brings_it_in"
+
+#### Scenario: A module whose exports archangel cannot see
+
+- **GIVEN** the same rule, and `dates/cjs.js` with `exports.fr = {}`
+- **AND** a file with `import * as c from 'dates/cjs'`
+- **WHEN** archangel makes a check
+- **THEN** archangel gives one violation, for that import
+- **TEST** `crates/archangel_rules/tests/conditions.rs` › "a_module_whose_exports_archangel_cannot_see_brings_in_every_name"
 
 ### Requirement: An import rule can be limited to how the specifier is written
 
@@ -745,3 +798,14 @@ A package that an area names MUST give the `element-empty` diagnostic that a pac
 - **WHEN** archangel makes a check
 - **THEN** archangel gives one `element-empty` diagnostic that names the rule and `zodd`
 - **TEST** `crates/archangel_rules/tests/conditions.rs` › "an_area_package_that_no_import_uses_and_no_manifest_lists_is_an_error"
+
+### Requirement: Archangel parses each package module once
+
+In one resolution of the repository, archangel MUST read and parse each package file whose names it needs one time, however many imports bring it in.
+
+#### Scenario: Two files import one subpath
+
+- **GIVEN** two source files with `import * as loc from 'dates/locale/fr'`
+- **WHEN** archangel builds the import graph
+- **THEN** the work counts one package module parsed
+- **TEST** `crates/archangel_graph/tests/resolve.rs` › "a_package_module_is_parsed_once"

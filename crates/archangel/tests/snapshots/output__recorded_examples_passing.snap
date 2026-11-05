@@ -39,7 +39,8 @@ status: 0
       "examplesChecked": 0,
       "filesWritten": 0,
       "pluginRecordsSent": 0,
-      "pluginChecks": 0
+      "pluginChecks": 0,
+      "packageModulesParsed": 0
     }
   }
 }
@@ -177,7 +178,8 @@ status: 0
       "examplesChecked": 4,
       "filesWritten": 0,
       "pluginRecordsSent": 0,
-      "pluginChecks": 0
+      "pluginChecks": 0,
+      "packageModulesParsed": 0
     }
   }
 }

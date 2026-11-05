@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 
 use crate::model::{
     Condition, DependencyKind, Element, ElementId, ElementKind, ExportKind, FileSet, Folders,
-    ImportKinds, ImportOptions, InstanceMatch, NameRule, Rule, RuleKind, Sentence, Side,
+    ImportKinds, ImportOptions, InstanceMatch, Layer, NameRule, Rule, RuleKind, Sentence, Side,
     SpecifierForm, Term,
 };
 use crate::must_be_named::must_be_named;
@@ -17,7 +17,7 @@ use crate::pattern::Pattern;
 use crate::plugins::plugin_use;
 use crate::problem::{ConfigProblem, ProblemCode};
 use crate::selectors::{Names, Placement, written};
-use crate::shorthand::{KIND_LIST, element_names, layer_sentences, or_list, removed_kind};
+use crate::shorthand::{KIND_LIST, layer_list, layer_sentences, or_list, removed_kind};
 
 const COMMON_FIELDS: [&str; 6] = ["name", "reason", "because", "link", "imports", "examples"];
 
@@ -160,14 +160,24 @@ impl Input<'_> {
         let kind = self.shorthand_kind(kind, problems)?;
         match kind {
             "layers" => {
-                let elements = names.elements;
-                let order = self.element_list("order", names, problems);
-                let name = format!("layers({})", element_names(&order, elements).join(", "));
+                let (order, layer_names) =
+                    layer_list(self.object.get("order"), &self.at("order"), names, problems);
+                let name = format!("layers({})", layer_names.join(", "));
+                let sentences = layer_sentences(&order, &layer_names, names.elements);
+                let parts = order
+                    .iter()
+                    .map(|layer| match layer {
+                        Layer::Element(id) => Some(*id),
+                        Layer::Selector(_) => None,
+                    })
+                    .collect::<Option<Vec<_>>>()
+                    .unwrap_or_default();
                 Some((
                     RuleKind::Layers {
-                        order: order.clone(),
+                        order: parts,
+                        names: layer_names,
                     },
-                    layer_sentences(&order, elements),
+                    sentences,
                     name,
                     false,
                 ))
@@ -916,6 +926,7 @@ impl Input<'_> {
             Some(Value::String(value)) => match value.as_str() {
                 "all" => Some(ImportKinds::All),
                 "runtime" => Some(ImportKinds::Runtime),
+                "static" => Some(ImportKinds::Static),
                 "types" => Some(ImportKinds::Types),
                 _ => None,
             },
@@ -926,7 +937,7 @@ impl Input<'_> {
                 problems.push(invalid(
                     &self.at("imports"),
                     "a transitive rule follows chains that run, and a chain of type imports never \
-                     runs, because TypeScript removes type imports; use 'runtime' or 'all'",
+                     runs, because TypeScript removes type imports; use 'runtime', 'static' or 'all'",
                 ));
                 default
             }
@@ -934,7 +945,7 @@ impl Input<'_> {
             None => {
                 problems.push(invalid(
                     &self.at("imports"),
-                    "must be 'all', 'runtime' or 'types'",
+                    "must be 'all', 'runtime', 'static' or 'types'",
                 ));
                 default
             }
@@ -954,23 +965,6 @@ impl Input<'_> {
             problems.push(invalid(&field, "must name one element"));
             None
         }
-    }
-
-    fn element_list(
-        &self,
-        key: &str,
-        names: &Names<'_>,
-        problems: &mut Vec<ConfigProblem>,
-    ) -> Vec<ElementId> {
-        let field = self.at(key);
-        let found = string_list(self.object.get(key), &field, problems);
-        if found.is_empty() && self.object.get(key).is_none_or(Value::is_array) {
-            problems.push(invalid(&field, "must name at least one element"));
-        }
-        found
-            .iter()
-            .filter_map(|name| resolve(names.elements, &names.scope.name(name), &field, problems))
-            .collect()
     }
 }
 

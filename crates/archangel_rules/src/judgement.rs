@@ -236,7 +236,7 @@ impl Judged<'_> {
         if about_target && !in_files(compiled, to) {
             return skip(&format!("the target is not in {}", sentence.files_text));
         }
-        if !covers(rule.imports, self.import.kind) {
+        if !covers(rule.imports, self.import) {
             return skip("the rule does not count this kind of import");
         }
         let other_end = if about_target { self.from } else { to };
@@ -433,6 +433,6 @@ fn exceptions_of(graph: &ImportGraph, path: &str) -> Vec<exceptions::Exception> 
     graph
         .file(path)
         .and_then(|file| file.facts.as_ref())
-        .map(|facts| exceptions::read(&facts.allow_comments))
+        .map(|facts| exceptions::read(&facts.allow_comments, &facts.imports))
         .unwrap_or_default()
 }

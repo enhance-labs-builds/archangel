@@ -235,6 +235,12 @@ An import that archangel cannot resolve is the error
 [`import-unresolved`](/archangel/reference/diagnostics/import-unresolved/), because archangel cannot
 judge it. A specifier in `allowUnresolved` gives no error, and the summary counts these imports.
 
+An entry that names a package also permits a tsconfig whose `extends` names that package when it
+is not installed, such as a sub-project that installs its own packages. `'@tsconfig/node20': 'the
+worker installs its own packages'` stops the
+[`resolution-file-invalid`](/archangel/reference/diagnostics/resolution-file-invalid/) error for it.
+The files below that tsconfig are still checked.
+
 ## How archangel resolves imports
 
 Archangel resolves each import as TypeScript does:
