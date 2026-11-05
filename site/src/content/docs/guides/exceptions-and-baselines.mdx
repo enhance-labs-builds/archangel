@@ -26,8 +26,9 @@ The example is a shop whose features must not import each other:
 
 ## Write an exception
 
-An exception is a comment directly above the import. It names the rule, and it gives the reason
-after a colon:
+An exception is a comment directly above the import: above the line of its specifier, or above
+the first line of its statement when the statement takes more than one line. It names the rule,
+and it gives the reason after a colon:
 
 ```ts
 // archangel-allow app.feature: checkout shows the cart total until the total moves to shared

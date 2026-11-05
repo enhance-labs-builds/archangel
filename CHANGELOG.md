@@ -5,6 +5,25 @@ and archangel follows [semantic versioning](https://semver.org/) for its command
 its JSON output (`schemaVersion`) and its language server. The library crates have no stability
 guarantee.
 
+## 0.3.4 - 2026-11-05
+
+### Fixed
+
+- A rule with `names` judges a namespace or dynamic import of a package module by the names that
+  the module exports. Before, `import * as loc from 'dates/locale/fr'` broke a rule that bans
+  `format`, although the locale exports only `fr`. When archangel cannot see every name, the import
+  still brings in each name. (#35)
+- An `archangel-allow` comment above the first line of a multi-line import permits the import.
+  Before, it was `exception-unused`, and it worked only inside the braces. (#38)
+- An `allowUnresolved` entry for a package permits a tsconfig whose `extends` names it when it is
+  not installed. Before, nothing could permit it, and `resolution-file-invalid` failed the check.
+  The diagnostic now says which entry to add. (#39)
+
+### Added
+
+- `summary.work.packageModulesParsed` counts the package files that archangel parses for those
+  names.
+
 ## 0.3.3 - 2026-11-04
 
 ### Fixed

@@ -132,6 +132,8 @@ pub fn describe_resolve_error(error: &ResolveError) -> UnresolvedReason {
 pub(crate) struct ResolutionFileProblem {
     pub path: String,
     pub reason: String,
+    /// The package that a tsconfig's `extends` names, when it is not installed.
+    pub missing_package: Option<String>,
 }
 
 /// The files that resolutions depend on. Hash sets, because every import adds the paths it tried and
@@ -157,6 +159,9 @@ pub(crate) struct ImportResolver {
     reads: Arc<std::sync::Mutex<BTreeSet<PathBuf>>>,
     /// The reads `files_read` has already returned, so each edit looks only at what is new.
     reported: std::sync::Mutex<HashSet<PathBuf>>,
+    /// The names of each package module whose names an import needed, with the files read for
+    /// them, kept for the life of the resolver.
+    modules: std::sync::Mutex<HashMap<PathBuf, ModuleNames>>,
     /// The Plug'n'Play file, which the resolver reads through its own loader.
     pnp: Option<PathBuf>,
     root: PathBuf,
@@ -214,6 +219,7 @@ impl ImportResolver {
             resolver: ResolverGeneric::new_with_file_system(overlay, options),
             reads,
             reported: std::sync::Mutex::default(),
+            modules: std::sync::Mutex::default(),
             pnp: yarn_pnp.then(|| repository.join(".pnp.cjs")),
             root: root.to_path_buf(),
         }
@@ -279,6 +285,7 @@ impl ImportResolver {
                 } else {
                     format!("archangel cannot read it: {error}")
                 },
+                missing_package: None,
             })
     }
 
@@ -289,6 +296,17 @@ impl ImportResolver {
         specifier: &str,
         inputs: &mut ResolutionInputs,
     ) -> (Resolution, Option<ResolutionFileProblem>) {
+        let (resolution, problem, _) = self.resolve_to_file(importer, specifier, inputs);
+        (resolution, problem)
+    }
+
+    /// Resolves one import from a file, with the package file it resolves to, if any.
+    pub(crate) fn resolve_to_file(
+        &self,
+        importer: &Importer<'_>,
+        specifier: &str,
+        inputs: &mut ResolutionInputs,
+    ) -> (Resolution, Option<ResolutionFileProblem>, Option<PathBuf>) {
         let Importer { file, tsconfig } = *importer;
         let folder = file.parent().unwrap_or(&self.root);
         let mut context = ResolveContext::default();
@@ -302,20 +320,22 @@ impl ImportResolver {
         inputs.existence.extend(context.file_dependencies);
         inputs.existence.extend(context.missing_dependencies);
         match result {
-            Ok(resolution) => (
-                self.place(
+            Ok(resolution) => {
+                let place = self.place(
                     resolution.path(),
                     resolution.package_json().and_then(|p| p.name()),
-                ),
-                None,
-            ),
+                );
+                let package_file = matches!(place, Resolution::Package(_))
+                    .then(|| resolution.path().to_path_buf());
+                (place, None, package_file)
+            }
             Err(ResolveError::Builtin { resolved, .. }) => {
                 let name = if resolved.starts_with("node:") {
                     resolved
                 } else {
                     format!("node:{resolved}")
                 };
-                (Resolution::Package(name), None)
+                (Resolution::Package(name), None, None)
             }
             Err(error) => {
                 let mut reason = describe_resolve_error(&error);
@@ -327,9 +347,32 @@ impl ImportResolver {
                 }
                 let problem = (reason == UnresolvedReason::ResolutionFile)
                     .then(|| self.file_problem(file, &error));
-                (Resolution::Unresolved(reason), problem)
+                (Resolution::Unresolved(reason), problem, None)
             }
         }
+    }
+
+    /// The names that a package module exports, and how many package files this call parsed to
+    /// find them. Each file it reads decides the names, so it joins the resolution inputs.
+    pub(crate) fn module_names(
+        &self,
+        module: &Path,
+        inputs: &mut ResolutionInputs,
+    ) -> (Option<Arc<[String]>>, u64) {
+        let Ok(mut modules) = self.modules.lock() else {
+            return (None, 0);
+        };
+        let mut parsed = 0;
+        let found = modules.entry(module.to_path_buf()).or_insert_with(|| {
+            let (names, read) = module_reach(self, module);
+            parsed = read.len() as u64;
+            ModuleNames {
+                names: names.map(Arc::from),
+                read,
+            }
+        });
+        inputs.contents.extend(found.read.iter().cloned());
+        (found.names.clone(), parsed)
     }
 
     /// A repository file, or a package when the path is inside `node_modules` or Yarn's cache.
@@ -345,6 +388,10 @@ impl ImportResolver {
     }
 
     fn file_problem(&self, file: &Path, error: &ResolveError) -> ResolutionFileProblem {
+        let missing_package = match error {
+            ResolveError::TsconfigNotFound(path) => extends_package(path),
+            _ => None,
+        };
         let (path, reason) = match error {
             ResolveError::Json(json) => (
                 json.path.clone(),
@@ -393,6 +440,7 @@ impl ImportResolver {
         ResolutionFileProblem {
             path: relative(&self.root, &path),
             reason,
+            missing_package,
         }
     }
 
@@ -403,6 +451,75 @@ impl ImportResolver {
             .find(|candidate| candidate.is_file())
             .unwrap_or_else(|| self.root.join("tsconfig.json"))
     }
+}
+
+/// The names of a package module, with the files read to find them.
+#[derive(Debug, Clone)]
+struct ModuleNames {
+    /// `None` when archangel cannot see every name.
+    names: Option<Arc<[String]>>,
+    read: Vec<PathBuf>,
+}
+
+/// The most package files that one module's names may take to read.
+const MODULE_FILES_LIMIT: usize = 64;
+
+/// The names that `module` exports, through its relative `export * from` statements, with the
+/// files read to find them. The names are `None` when archangel cannot see them all: a file shows
+/// no ESM export (a `CommonJS` module, `export =`, or no export at all) or does not parse, an
+/// `export *` names a bare specifier or does not resolve, or the walk needs more than
+/// `MODULE_FILES_LIMIT` files.
+fn module_reach(resolver: &ImportResolver, module: &Path) -> (Option<Vec<String>>, Vec<PathBuf>) {
+    let mut read: Vec<PathBuf> = Vec::new();
+    let mut pending = vec![module.to_path_buf()];
+    let mut names = Vec::new();
+    for _ in 0..=MODULE_FILES_LIMIT {
+        let Some(next) = pending.pop() else {
+            names.sort();
+            names.dedup();
+            return (Some(names), read);
+        };
+        if read.len() == MODULE_FILES_LIMIT {
+            break;
+        }
+        let exports = own_exports(resolver, &next);
+        read.push(next);
+        let Some((own, targets)) = exports else {
+            return (None, read);
+        };
+        names.extend(own);
+        for target in targets {
+            if !read.contains(&target) && !pending.contains(&target) {
+                pending.push(target);
+            }
+        }
+    }
+    (None, read)
+}
+
+/// The names that one package file exports itself, and the files that its `export * from`
+/// statements name, or `None` when archangel cannot see them all.
+fn own_exports(resolver: &ImportResolver, module: &Path) -> Option<(Vec<String>, Vec<PathBuf>)> {
+    let text = std::fs::read_to_string(module).ok()?;
+    let facts = crate::imports::extract_file(&module.to_string_lossy(), &text).ok()?;
+    if facts.exports.entries.is_empty() {
+        return None;
+    }
+    let folder = module.parent()?;
+    let targets = facts
+        .exports
+        .star_from
+        .iter()
+        .map(|specifier| {
+            is_relative(specifier).then_some(())?;
+            resolver
+                .resolver
+                .resolve_with_context(folder, specifier, None, &mut ResolveContext::default())
+                .ok()
+                .map(|target| target.path().to_path_buf())
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some((facts.exports.names, targets))
 }
 
 fn is_relative(specifier: &str) -> bool {
@@ -428,6 +545,22 @@ fn package_from_path(path: &Path) -> String {
         }
         Some(name) => name.clone(),
         None => path.display().to_string(),
+    }
+}
+
+/// The package that a missing `extends` names, which the resolver reports as written: `@scope/name`
+/// or `name` from a bare specifier, and nothing for a relative or absolute path.
+fn extends_package(written: &Path) -> Option<String> {
+    let text = written.to_string_lossy().replace('\\', "/");
+    if is_relative(&text) || written.is_absolute() {
+        return None;
+    }
+    let mut parts = text.split('/');
+    let first = parts.next()?;
+    if first.starts_with('@') {
+        parts.next().map(|name| format!("{first}/{name}"))
+    } else {
+        Some(first.to_owned())
     }
 }
 

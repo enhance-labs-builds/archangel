@@ -83,6 +83,20 @@ fn consecutive_exceptions_apply_to_the_import_after_them() {
 }
 
 #[test]
+fn exception_above_a_multi_line_import_permits_it() {
+    let report = check(
+        "// archangel-allow entry(entity): the migration reads the raw store\nimport {\n  store,\n} from '../entities/ledger/model/store';\n",
+    );
+    let found = codes(&report);
+    assert!(
+        found
+            .iter()
+            .all(|(code, _)| *code != Code::Entry && *code != Code::ExceptionUnused),
+        "the exception above `import {{` permits the import: {found:?}"
+    );
+}
+
+#[test]
 fn exception_in_a_block_comment_permits_the_import() {
     let report = check(&format!(
         "/* archangel-allow entry(entity): generated code */\n{PAST_ENTRY}"

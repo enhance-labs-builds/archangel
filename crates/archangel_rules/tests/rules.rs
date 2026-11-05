@@ -364,6 +364,61 @@ fn permitted_unresolved_specifier_is_counted_not_reported() {
     );
 }
 
+fn missing_base_repo() -> FixtureRepo {
+    FixtureRepo::new()
+        .file("src/a.ts", "export const a = 1;\n")
+        .file(
+            "tools/job/tsconfig.json",
+            "{ \"extends\": \"@tsconfig/missing/tsconfig.json\" }\n",
+        )
+        .file("tools/job/index.ts", "import '../../src/a';\n")
+}
+
+#[test]
+fn permitted_missing_tsconfig_base_is_counted_not_reported() {
+    let config = json!({
+        "elements": { "src": "src/**" },
+        "allowUnresolved": { "@tsconfig/missing": "the job installs its own packages" },
+    });
+    let (found, _) = support::check(&config, &missing_base_repo(), None);
+    assert!(
+        found
+            .diagnostics
+            .iter()
+            .all(|d| d.code != Code::ResolutionFileInvalid),
+        "the permitted base gives no diagnostic: {:?}",
+        found.diagnostics
+    );
+    assert_eq!(
+        found.summary.permitted_unresolved, 1,
+        "the summary counts it"
+    );
+    assert_eq!(
+        found.summary.imports, 1,
+        "the job's import is still checked"
+    );
+}
+
+#[test]
+fn missing_tsconfig_base_names_the_entry_that_permits_it() {
+    let config = json!({ "elements": { "src": "src/**" } });
+    let (found, _) = support::check(&config, &missing_base_repo(), None);
+    let invalid: Vec<_> = found
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == Code::ResolutionFileInvalid)
+        .collect();
+    assert_eq!(invalid.len(), 1, "one diagnostic: {:?}", found.diagnostics);
+    assert_eq!(
+        invalid[0].help.as_deref(),
+        Some(
+            "install `@tsconfig/missing`, or add \"@tsconfig/missing\" to the config's \
+             allowUnresolved with the reason it is not installed"
+        ),
+        "the help names the package to install and the entry that permits it"
+    );
+}
+
 #[test]
 fn summary_counts_parsed_files_their_imports_and_computed_specifiers() {
     let repo = FixtureRepo::new()

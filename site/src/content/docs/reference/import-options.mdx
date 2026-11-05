@@ -26,7 +26,11 @@ rule('no-effects-in-views', { files: 'view', mayNotImport: { packages: ['react']
 
 - A default import brings in the name `default`.
 - A namespace import (`import * as x`), an `export *`, a dynamic `import()` and a `require()` bring
-  in each name, because archangel cannot see which names the code uses.
+  in each name of the module, because archangel cannot see which names the code uses.
+- For a module in a package, archangel reads the names that the module exports, through its
+  relative `export * from` statements too. `import * as fr from 'date-fns/locale/fr'` brings in
+  only the names of that locale. When archangel cannot see every name (a CommonJS module, an
+  `export =`, an `export *` from another package), the import brings in each name there is.
 
 ## `specifier`
 

@@ -262,7 +262,7 @@ fn invalid_tsconfig_gives_one_diagnostic_on_that_file() {
         1,
         "one diagnostic for the tsconfig, found {found:?}"
     );
-    let GraphProblem::ResolutionFileInvalid { path, reason } = found[0] else {
+    let GraphProblem::ResolutionFileInvalid { path, reason, .. } = found[0] else {
         panic!("the problem is a resolution-file problem");
     };
     assert_eq!(
@@ -292,7 +292,7 @@ fn tsconfig_extending_a_missing_package_gives_one_diagnostic() {
         .filter(|p| matches!(p, GraphProblem::ResolutionFileInvalid { .. }))
         .collect();
     assert_eq!(found.len(), 1, "one diagnostic, found {found:?}");
-    let GraphProblem::ResolutionFileInvalid { path, reason } = found[0] else {
+    let GraphProblem::ResolutionFileInvalid { path, reason, .. } = found[0] else {
         panic!("the problem is a resolution-file problem");
     };
     assert_eq!(path, "tsconfig.json", "the diagnostic is on the tsconfig");
@@ -320,7 +320,7 @@ fn unreadable_tsconfig_is_resolution_file_invalid() {
         .unreadable("apps/web/tsconfig.json");
     let graph = build(&repo);
     let found = graph.problems().iter().find_map(|problem| match problem {
-        GraphProblem::ResolutionFileInvalid { path, reason }
+        GraphProblem::ResolutionFileInvalid { path, reason, .. }
             if path == "apps/web/tsconfig.json" =>
         {
             Some(reason.clone())
@@ -579,7 +579,7 @@ fn resolution_file_problems(graph: &ImportGraph) -> Vec<(&str, &str)> {
         .problems()
         .iter()
         .filter_map(|problem| match problem {
-            GraphProblem::ResolutionFileInvalid { path, reason } => {
+            GraphProblem::ResolutionFileInvalid { path, reason, .. } => {
                 Some((path.as_str(), reason.as_str()))
             }
             _ => None,
@@ -882,4 +882,53 @@ fn resolution_inputs_hold_every_folder_up_when_no_tsconfig_is_in_use() {
             "{candidate:?}: {existence:?}"
         );
     }
+}
+
+#[test]
+fn a_package_module_is_parsed_once() {
+    let repo = FixtureRepo::new()
+        .file(
+            "node_modules/dates/package.json",
+            &package("dates", "index.js"),
+        )
+        .file("node_modules/dates/index.js", "export const format = 1;\n")
+        .file("node_modules/dates/locale/fr.js", "export const fr = {};\n")
+        .file(".gitignore", "node_modules/\n")
+        .file("src/a.ts", "import * as loc from 'dates/locale/fr';\n")
+        .file(
+            "src/b.ts",
+            "export const load = () => import('dates/locale/fr');\n",
+        )
+        .file("src/c.ts", "import { fr } from 'dates/locale/fr';\n");
+    let mut work = Work::default();
+    let graph = ImportGraph::build(repo.path(), &GraphOptions::default(), &mut work);
+    assert_eq!(
+        work.package_modules_parsed, 1,
+        "one parse for the two imports of every name"
+    );
+    let names = |file: &str| {
+        graph
+            .file(file)
+            .and_then(|f| f.facts.as_ref())
+            .expect("facts")
+            .imports[0]
+            .module_names
+            .as_deref()
+            .map(<[String]>::to_vec)
+    };
+    assert_eq!(
+        names("src/a.ts"),
+        Some(vec!["fr".to_owned()]),
+        "the namespace import brings in the names of the locale"
+    );
+    assert_eq!(
+        names("src/b.ts"),
+        Some(vec!["fr".to_owned()]),
+        "the dynamic import brings in the names of the locale"
+    );
+    assert_eq!(
+        names("src/c.ts"),
+        None,
+        "a named import names what it brings in"
+    );
 }

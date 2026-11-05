@@ -68,25 +68,21 @@ fn declared_as(edge: &Edge<'_>, kind: DependencyKind) -> bool {
     }
 }
 
-/// Whether an import brings in one of the names. An import whose names archangel cannot see brings
-/// in every name; a side-effect import brings in none.
+/// Whether an import brings in one of the names. An import that does not name what it uses brings
+/// in every name of its module: the names the module exports when archangel sees them all, and
+/// otherwise every name there is. A side-effect import brings in none.
 fn brings_in(import: &Import, names: &[String]) -> bool {
-    match import.form {
-        ImportForm::Static if import.names.is_empty() => false,
-        ImportForm::Static | ImportForm::ExportFrom => {
-            import.names.is_empty()
-                || import
-                    .names
-                    .iter()
-                    .any(|name| name == "*" || names.contains(name))
-        }
-        ImportForm::Dynamic
-        | ImportForm::Require
-        | ImportForm::ImportEquals
-        | ImportForm::ImportType
-        | ImportForm::TripleSlashPath
-        | ImportForm::TripleSlashTypes => true,
+    if import.form == ImportForm::Static && import.names.is_empty() {
+        return false;
     }
+    if import.names.iter().any(|name| names.contains(name)) {
+        return true;
+    }
+    import.brings_in_every_name()
+        && import
+            .module_names
+            .as_deref()
+            .is_none_or(|exported| exported.iter().any(|name| names.contains(name)))
 }
 
 /// Whether an import's specifier is written in a form.

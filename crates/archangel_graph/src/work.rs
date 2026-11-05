@@ -41,12 +41,14 @@ pub struct Work {
     pub plugin_records_sent: u64,
     /// Plugin conditions that the plugin process ran, one per plugin rule in each batch.
     pub plugin_checks: u64,
+    /// Package files parsed for the names that an import of every name brings in.
+    pub package_modules_parsed: u64,
 }
 
 impl Work {
     /// Each counter with its name in output, in the order the spec lists them.
     #[must_use]
-    pub fn counts(&self) -> [(&'static str, u64); 18] {
+    pub fn counts(&self) -> [(&'static str, u64); 19] {
         [
             ("filesFound", self.files_found),
             ("filesRead", self.files_read),
@@ -66,6 +68,7 @@ impl Work {
             ("filesWritten", self.files_written),
             ("pluginRecordsSent", self.plugin_records_sent),
             ("pluginChecks", self.plugin_checks),
+            ("packageModulesParsed", self.package_modules_parsed),
         ]
     }
 
@@ -100,5 +103,6 @@ impl Work {
         self.files_written += other.files_written;
         self.plugin_records_sent += other.plugin_records_sent;
         self.plugin_checks += other.plugin_checks;
+        self.package_modules_parsed += other.package_modules_parsed;
     }
 }

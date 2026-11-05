@@ -256,6 +256,65 @@ fn an_import_with_unseen_names_brings_in_every_name() {
     );
 }
 
+/// A package `dates` whose root exports `format`, whose locale exports only `fr`, whose `fp`
+/// re-exports `format` through a relative `export *`, and whose `cjs` module uses `exports`.
+fn dates(repo: FixtureRepo) -> FixtureRepo {
+    repo.file(
+        "node_modules/dates/package.json",
+        r#"{ "name": "dates", "type": "module", "main": "index.js" }"#,
+    )
+    .file("node_modules/dates/index.js", "export const format = 1;\n")
+    .file("node_modules/dates/locale/fr.js", "export const fr = {};\n")
+    .file("node_modules/dates/fp.js", "export * from './format.js';\n")
+    .file("node_modules/dates/format.js", "export const format = 1;\n")
+    .file("node_modules/dates/cjs.js", "exports.fr = {};\n")
+    .file(".gitignore", "node_modules/\n")
+}
+
+fn no_formatters() -> Value {
+    src_only(
+        &json!([{ "files": "src/**", "mayNotImport": { "packages": ["dates"] }, "names": ["format"] }]),
+    )
+}
+
+#[test]
+fn an_import_of_every_name_of_a_package_module_brings_in_its_exports() {
+    let repo = dates(
+        FixtureRepo::new()
+            .file("src/a.ts", "import * as loc from 'dates/locale/fr';\n")
+            .file(
+                "src/b.ts",
+                "export const load = () => import('dates/locale/fr');\n",
+            )
+            .file("src/c.ts", "import * as d from 'dates';\n"),
+    );
+    assert_eq!(
+        sites(&report_with(&no_formatters(), &repo)),
+        [site("src/c.ts", "dates")],
+        "the locale exports only fr, so only the import of the root brings in format"
+    );
+}
+
+#[test]
+fn a_module_that_re_exports_a_name_brings_it_in() {
+    let repo = dates(FixtureRepo::new().file("src/a.ts", "import * as fp from 'dates/fp';\n"));
+    assert_eq!(
+        sites(&report_with(&no_formatters(), &repo)),
+        [site("src/a.ts", "dates/fp")],
+        "dates/fp re-exports format from ./format.js"
+    );
+}
+
+#[test]
+fn a_module_whose_exports_archangel_cannot_see_brings_in_every_name() {
+    let repo = dates(FixtureRepo::new().file("src/a.ts", "import * as c from 'dates/cjs';\n"));
+    assert_eq!(
+        sites(&report_with(&no_formatters(), &repo)),
+        [site("src/a.ts", "dates/cjs")],
+        "a CommonJS module shows no exports, so the import brings in every name"
+    );
+}
+
 #[test]
 fn a_default_import_brings_in_default() {
     let repo = installed(

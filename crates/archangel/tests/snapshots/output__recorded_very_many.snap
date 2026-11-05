@@ -8,7 +8,7 @@ status: 1
 
 $ archangel check --format json
 status: 1
-3383292 bytes, FNV-1a 5f86fba41b6a48e4
+3383325 bytes, FNV-1a 61faa82e0d1ff422
 
 $ archangel test
 status: 1
@@ -85,7 +85,8 @@ status: 1
       "examplesChecked": 0,
       "filesWritten": 0,
       "pluginRecordsSent": 0,
-      "pluginChecks": 0
+      "pluginChecks": 0,
+      "packageModulesParsed": 0
     }
   }
 }

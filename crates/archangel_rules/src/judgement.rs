@@ -433,6 +433,6 @@ fn exceptions_of(graph: &ImportGraph, path: &str) -> Vec<exceptions::Exception> 
     graph
         .file(path)
         .and_then(|file| file.facts.as_ref())
-        .map(|facts| exceptions::read(&facts.allow_comments))
+        .map(|facts| exceptions::read(&facts.allow_comments, &facts.imports))
         .unwrap_or_default()
 }

@@ -1,6 +1,7 @@
 //! Finding the imports, exported names and exception comments of one source file.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
@@ -74,18 +75,49 @@ pub struct Import {
     /// Whether every name has its own `type` modifier and the statement has none, so that the
     /// tsconfig of the file decides the mark.
     pub names_typed: bool,
+    /// The names of the package module that an import of every name brings in, when archangel
+    /// sees all of them; `None` when it does not, or when the import names what it brings in.
+    pub module_names: Option<Arc<[String]>>,
+}
+
+impl Import {
+    /// Whether the import brings in every name of its module, because it does not name the ones
+    /// it uses: a namespace import, an `export *`, a dynamic import, a `require` and the like.
+    #[must_use]
+    pub fn brings_in_every_name(&self) -> bool {
+        match self.form {
+            ImportForm::Static => self.names.iter().any(|name| name == "*"),
+            ImportForm::ExportFrom => {
+                self.names.is_empty() || self.names.iter().any(|name| name == "*")
+            }
+            ImportForm::Dynamic
+            | ImportForm::Require
+            | ImportForm::ImportEquals
+            | ImportForm::ImportType
+            | ImportForm::TripleSlashPath
+            | ImportForm::TripleSlashTypes => true,
+        }
+    }
 }
 
 impl FileFacts {
-    /// Sets the mark of each import that the file's tsconfig decides: `verbatimModuleSyntax` makes
-    /// TypeScript keep a statement whose names all have the `type` modifier, so the module runs.
-    pub(crate) fn mark_imports(&mut self, verbatim_module_syntax: bool) {
-        for import in self.imports.iter_mut().filter(|import| import.names_typed) {
-            import.kind = if verbatim_module_syntax {
-                ImportKind::Runtime
-            } else {
-                ImportKind::Type
-            };
+    /// Sets what resolution decides about each import: the mark that the file's tsconfig decides,
+    /// because `verbatimModuleSyntax` makes TypeScript keep a statement whose names all have the
+    /// `type` modifier, and the names of the package module that each import resolves to.
+    pub(crate) fn mark_imports(
+        &mut self,
+        verbatim_module_syntax: bool,
+        module_names: &[Option<Arc<[String]>>],
+    ) {
+        for (index, import) in self.imports.iter_mut().enumerate() {
+            if import.names_typed {
+                import.kind = if verbatim_module_syntax {
+                    ImportKind::Runtime
+                } else {
+                    ImportKind::Type
+                };
+            }
+            import.module_names = module_names.get(index).cloned().flatten();
         }
     }
 }
@@ -268,6 +300,7 @@ impl Source<'_> {
             utf16: self.lines.utf16(self.text, span.start, span.end),
             names: Vec::new(),
             names_typed: false,
+            module_names: None,
         }
     }
 

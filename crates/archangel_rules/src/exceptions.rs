@@ -1,6 +1,6 @@
 //! Exception comments: `// archangel-allow <rule name>: <reason>` above an import.
 
-use archangel_graph::CommentText;
+use archangel_graph::{CommentText, Import};
 
 /// One exception, read from a comment.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,9 +18,10 @@ pub struct Exception {
 const MARKER: &str = "archangel-allow";
 
 /// The exceptions in a file's `archangel-allow` comments. A run of comments on consecutive lines
-/// applies to the line after the run.
+/// applies to the import on the line after the run: the import whose specifier is on that line, or
+/// whose statement starts there.
 #[must_use]
-pub fn read(comments: &[CommentText]) -> Vec<Exception> {
+pub fn read(comments: &[CommentText], imports: &[Import]) -> Vec<Exception> {
     let mut found: Vec<Exception> = Vec::new();
     let mut run_start = 0;
     for (index, comment) in comments.iter().enumerate() {
@@ -33,6 +34,14 @@ pub fn read(comments: &[CommentText]) -> Vec<Exception> {
         }
         if let Some(exception) = parse(comment) {
             found.push(exception);
+        }
+    }
+    for exception in &mut found {
+        if let Some(import) = imports
+            .iter()
+            .find(|import| import.statement_line == exception.target_line)
+        {
+            exception.target_line = import.line;
         }
     }
     found
