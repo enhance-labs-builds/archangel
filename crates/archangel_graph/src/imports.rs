@@ -31,6 +31,9 @@ pub struct FileFacts {
     pub unfollowed: Vec<u32>,
     /// The directive that is the file's first statement, such as `use client`, without quotes.
     pub directive: Option<String>,
+    /// The docblock tags of the comments before the first statement or directive, such as
+    /// `@side-effect-free`, each once, in the order they appear.
+    pub tags: Vec<String>,
     /// The first top-level statement that is the file's own: anything but an import, an export
     /// from another file, a directive, or an `export { … }` of names the file imported.
     pub own_statement: Option<OwnStatement>,
@@ -378,8 +381,21 @@ impl Source<'_> {
         let first_statement = program.body.first().map_or(u32::MAX, |statement| {
             oxc_span::GetSpan::span(statement).start
         });
+        let first_code = program
+            .directives
+            .first()
+            .map_or(first_statement, |directive| {
+                directive.span.start.min(first_statement)
+            });
         for comment in &program.comments {
             let body = self.slice(comment.content_span());
+            if comment.span.end <= first_code {
+                for tag in tags(body) {
+                    if !facts.tags.iter().any(|seen| seen == tag) {
+                        facts.tags.push(tag.to_owned());
+                    }
+                }
+            }
             if comment.span.end <= first_statement
                 && let Some((form, specifier)) = triple_slash(body)
             {
@@ -398,6 +414,18 @@ impl Source<'_> {
             }
         }
     }
+}
+
+/// The docblock tags of a comment's text: each `@name` at the start of a line, after whitespace and
+/// `*`, up to whitespace or the end of the line.
+fn tags(body: &str) -> impl Iterator<Item = &str> {
+    body.lines().filter_map(|line| {
+        let rest = line.trim_start_matches(|c: char| c.is_whitespace() || c == '*');
+        rest.starts_with('@')
+            .then(|| rest.split(char::is_whitespace).next().unwrap_or(rest))
+            .map(|tag| tag.trim_end_matches(['*', '/']))
+            .filter(|tag| tag.len() > 1)
+    })
 }
 
 impl Import {

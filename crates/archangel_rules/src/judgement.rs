@@ -236,7 +236,7 @@ impl Judged<'_> {
         if about_target && !in_files(compiled, to) {
             return skip(&format!("the target is not in {}", sentence.files_text));
         }
-        if !covers(rule.imports, self.import.kind) {
+        if !covers(rule.imports, self.import) {
             return skip("the rule does not count this kind of import");
         }
         let other_end = if about_target { self.from } else { to };

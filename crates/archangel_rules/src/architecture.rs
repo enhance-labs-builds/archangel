@@ -6,7 +6,7 @@ use archangel_config::{
     Classification, Condition, Config, ElementId, ElementMatcher, FileSet, ImportKinds,
     OwnInstance, Pattern, RuleKind, Sentence, Side, TableId, Term, package_matches,
 };
-use archangel_graph::{Import, ImportGraph, ImportKind, Manifests, Resolution, Work};
+use archangel_graph::{Import, ImportForm, ImportGraph, ImportKind, Manifests, Resolution, Work};
 
 use crate::classes::{ClassKey, Classes, Lookup};
 
@@ -429,7 +429,7 @@ impl Architecture {
             .iter()
             .filter(|check| {
                 let rule = &self.config.rules[self.sentences[check.sentence].rule];
-                covers(rule.imports, edge.import.kind)
+                covers(rule.imports, edge.import)
             })
             .filter(|check| self.test(check, edge, classes))
             .map(|check| check.sentence)
@@ -529,7 +529,7 @@ impl Architecture {
             }
         }
         match &self.config.rules[rule].kind {
-            RuleKind::Layers { order } => {
+            RuleKind::Layers { order, .. } if !order.is_empty() => {
                 elements(from).iter().any(|f| order.contains(f))
                     && elements(to).iter().any(|t| order.contains(t))
             }
@@ -537,7 +537,7 @@ impl Architecture {
                 elements(from).contains(e) && elements(to).contains(e)
             }
             RuleKind::Entry { element: e, .. } => elements(to).contains(e),
-            RuleKind::Sentence | RuleKind::TableRow { .. } => self
+            RuleKind::Layers { .. } | RuleKind::Sentence | RuleKind::TableRow { .. } => self
                 .sentences
                 .iter()
                 .filter(|compiled| compiled.rule == rule)
@@ -699,12 +699,15 @@ fn is_entry(sentence: &Sentence, to: &End<'_>) -> bool {
         .any(|pattern| pattern.matches(inside).is_some())
 }
 
-/// Whether a rule that counts `imports` counts an import of `kind`.
-pub(crate) fn covers(imports: ImportKinds, kind: ImportKind) -> bool {
+/// Whether a rule that counts `imports` counts an import.
+pub(crate) fn covers(imports: ImportKinds, import: &Import) -> bool {
     match imports {
         ImportKinds::All => true,
-        ImportKinds::Runtime => kind == ImportKind::Runtime,
-        ImportKinds::Types => kind == ImportKind::Type,
+        ImportKinds::Runtime => import.kind == ImportKind::Runtime,
+        ImportKinds::Static => {
+            import.kind == ImportKind::Runtime && import.form != ImportForm::Dynamic
+        }
+        ImportKinds::Types => import.kind == ImportKind::Type,
     }
 }
 

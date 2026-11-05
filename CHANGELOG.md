@@ -21,6 +21,13 @@ guarantee.
 
 ### Added
 
+- The `order` of a `layers` rule can name groups, so a file can be in a layer and in a part of its
+  own, such as a feature with an `entry` rule. (#47)
+- `imports: 'static'` counts the runtime imports other than `import()`. A transitive rule with it
+  stops each chain at an `import()`, which is where a bundler starts a new chunk, so it can say
+  "the initial bundle may not reach this". (#48)
+- A `{ tag: '@side-effect-free' }` selector selects the files whose comments before the first
+  statement carry that JSDoc tag. (#49)
 - `summary.work.packageModulesParsed` counts the package files that archangel parses for those
   names.
 

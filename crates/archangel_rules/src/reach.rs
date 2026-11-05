@@ -222,7 +222,7 @@ impl Tally<'_> {
         let edge = edge_of(self.graph, classes, (path, from, to), (import, resolution));
         let mut in_a_rule = false;
         for rule in of_pair.iter() {
-            if covers(architecture.config.rules[*rule].imports, import.kind)
+            if covers(architecture.config.rules[*rule].imports, import)
                 && architecture.judges(*rule, &edge, classes)
             {
                 self.imports[*rule] += 1;

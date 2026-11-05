@@ -229,3 +229,31 @@ fn each_selector_comes_once_in_the_order_after_the_selectors_it_refers_to() {
         "tests before the two that refer to it, and once, though two refer to it"
     );
 }
+
+#[test]
+fn a_tag_without_at_is_config_invalid() {
+    let problem = only_problem(&json!({
+        "elements": declared_elements(),
+        "selectors": { "pure": { "tag": "side-effect-free" } },
+    }));
+    assert_eq!(problem.code, ProblemCode::ConfigInvalid, "{problem:?}");
+    assert!(
+        problem.message.contains("'@side-effect-free'"),
+        "the message gives the tag with its @: {}",
+        problem.message
+    );
+}
+
+#[test]
+fn isolate_still_refuses_a_group() {
+    let problem = only_problem(&json!({
+        "elements": declared_elements(),
+        "selectors": { "layer": "src/shared/**" },
+        "rules": [{ "kind": "isolate", "element": "layer" }],
+    }));
+    assert_eq!(
+        problem.code,
+        ProblemCode::RuleUnknownElement,
+        "isolate needs a part with a capture, so a group is refused: {problem:?}"
+    );
+}

@@ -102,7 +102,7 @@
         "oneOf": [
           {
             "type": "object",
-            "description": "Each listed element may import only itself and later listed elements.",
+            "description": "Each listed part or group may import only itself and later listed ones.",
             "additionalProperties": false,
             "required": [
               "kind",
@@ -132,9 +132,10 @@
                 "enum": [
                   "all",
                   "runtime",
+                  "static",
                   "types"
                 ],
-                "description": "Which imports the rule checks: all of them, those that stay at runtime, or type imports."
+                "description": "Which imports the rule checks: all of them, those that stay at runtime, the runtime imports other than `import()`, or type imports."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -146,7 +147,7 @@
                   "minLength": 1
                 },
                 "minItems": 1,
-                "description": "Each listed element may import only itself and later listed elements."
+                "description": "Each listed part or group may import only itself and later listed ones."
               }
             }
           },
@@ -182,9 +183,10 @@
                 "enum": [
                   "all",
                   "runtime",
+                  "static",
                   "types"
                 ],
-                "description": "Which imports the rule checks: all of them, those that stay at runtime, or type imports."
+                "description": "Which imports the rule checks: all of them, those that stay at runtime, the runtime imports other than `import()`, or type imports."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -229,9 +231,10 @@
                 "enum": [
                   "all",
                   "runtime",
+                  "static",
                   "types"
                 ],
-                "description": "Which imports the rule checks: all of them, those that stay at runtime, or type imports."
+                "description": "Which imports the rule checks: all of them, those that stay at runtime, the runtime imports other than `import()`, or type imports."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -322,9 +325,10 @@
                 "enum": [
                   "all",
                   "runtime",
+                  "static",
                   "types"
                 ],
-                "description": "Which imports the rule checks: all of them, those that stay at runtime, or type imports."
+                "description": "Which imports the rule checks: all of them, those that stay at runtime, the runtime imports other than `import()`, or type imports."
               },
               "names": {
                 "type": "array",
@@ -395,9 +399,10 @@
                 "enum": [
                   "all",
                   "runtime",
+                  "static",
                   "types"
                 ],
-                "description": "Which imports the rule checks: all of them, those that stay at runtime, or type imports."
+                "description": "Which imports the rule checks: all of them, those that stay at runtime, the runtime imports other than `import()`, or type imports."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -474,7 +479,8 @@
                 "imports": {
                   "enum": [
                     "all",
-                    "runtime"
+                    "runtime",
+                    "static"
                   ]
                 },
                 "names": false,
@@ -517,9 +523,10 @@
                 "enum": [
                   "all",
                   "runtime",
+                  "static",
                   "types"
                 ],
-                "description": "Which imports the rule checks: all of them, those that stay at runtime, or type imports."
+                "description": "Which imports the rule checks: all of them, those that stay at runtime, the runtime imports other than `import()`, or type imports."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -607,9 +614,10 @@
                 "enum": [
                   "all",
                   "runtime",
+                  "static",
                   "types"
                 ],
-                "description": "Which imports the rule checks: all of them, those that stay at runtime, or type imports."
+                "description": "Which imports the rule checks: all of them, those that stay at runtime, the runtime imports other than `import()`, or type imports."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -1126,9 +1134,10 @@
                 "enum": [
                   "all",
                   "runtime",
+                  "static",
                   "types"
                 ],
-                "description": "Which imports the rule checks: all of them, those that stay at runtime, or type imports."
+                "description": "Which imports the rule checks: all of them, those that stay at runtime, the runtime imports other than `import()`, or type imports."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -1168,9 +1177,10 @@
                 "enum": [
                   "all",
                   "runtime",
+                  "static",
                   "types"
                 ],
-                "description": "Which imports the rule's import sentences check: all of them, those that stay at runtime, or type imports."
+                "description": "Which imports the rule's import sentences check: all of them, those that stay at runtime, the runtime imports other than `import()`, or type imports."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -1377,6 +1387,20 @@
               "type": "string",
               "minLength": 1,
               "description": "The files that start with this directive, such as `use client`."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tag"
+          ],
+          "properties": {
+            "tag": {
+              "type": "string",
+              "pattern": "^@.",
+              "description": "The files whose comments before the first statement carry this JSDoc tag, such as `@side-effect-free`."
             }
           }
         }

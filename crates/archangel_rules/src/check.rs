@@ -420,10 +420,8 @@ impl<'a> Run<'a> {
     fn watch(&mut self, edge: &Edge<'_>) {
         if let Some((rules, considered)) = &mut self.watched {
             *considered |= rules.iter().any(|rule| {
-                covers(
-                    self.architecture.config.rules[*rule].imports,
-                    edge.import.kind,
-                ) && self.architecture.looks_at(*rule, edge, self.classes)
+                covers(self.architecture.config.rules[*rule].imports, edge.import)
+                    && self.architecture.looks_at(*rule, edge, self.classes)
             });
         }
     }
@@ -569,7 +567,7 @@ impl<'a> Run<'a> {
                 continue;
             };
             for (import, resolution) in facts.imports.iter().zip(resolutions) {
-                if let (true, Resolution::File(path)) = (covers(imports, import.kind), resolution)
+                if let (true, Resolution::File(path)) = (covers(imports, import), resolution)
                     && let Some(&to) = index.get(path.as_str())
                     && selected[to]
                 {

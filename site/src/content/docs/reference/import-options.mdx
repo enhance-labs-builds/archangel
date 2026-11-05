@@ -13,7 +13,7 @@ Add one of these options to an import condition (`mayNotImport`, `mayOnlyImport`
 | [`instance`](#instance) | `'same'`, `'different'` | imports inside one instance, or between two instances |
 | [`dependency`](#dependency) | `'dev'`, `'undeclared'` | packages with this entry in the nearest `package.json` |
 | [`within`](#within) | set of files | imports into an area, or importers in an area |
-| [`imports`](#imports) | `'all'`, `'runtime'`, `'types'` | imports of this kind |
+| [`imports`](#imports) | `'all'`, `'runtime'`, `'static'`, `'types'` | imports of this kind |
 
 An import that one of these options leaves out does not count as judged by the rule.
 `archangel rules` lists it under the imports that no rule judges.
@@ -100,6 +100,7 @@ rule('entity-imports', { files: 'entity', mayOnlyImport: ['value-object', 'error
 | --- | --- |
 | `'all'` | each import. This is the default. |
 | `'runtime'` | the imports that stay in the compiled code. This is the default for `noCycles` and for a transitive rule. |
+| `'static'` | the runtime imports other than `import()`: the imports that load with the file, in its bundle chunk. A `require()` is static. |
 | `'types'` | only type imports, such as `import type` |
 
 An `import type`, and an import that names only types with `import { type A }`, is a type import.
@@ -124,6 +125,8 @@ rule('client-stays-client', {
 ```
 
 - A chain stops at a package, and at each file in `stopAt`.
+- With `imports: 'static'`, a chain also stops at each `import()`. A bundler starts a new chunk
+  there, so the rule then means "the initial bundle may not reach this".
 - A transitive rule counts only runtime imports by default. `imports: 'types'` is refused, because
   a chain of type imports never runs.
 - A transitive rule cannot also have `names`, `specifier`, `instance`, `dependency` or `within`.

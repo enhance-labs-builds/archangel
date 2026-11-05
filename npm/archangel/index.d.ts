@@ -79,7 +79,9 @@ export type SelectorObject<N extends string, F extends string = N> =
       readonly directive?: never;
     }
   /** The files that start with a directive, such as `'use client'`. */
-  | { readonly directive: string; readonly element?: never };
+  | { readonly directive: string; readonly element?: never; readonly tag?: never }
+  /** The files whose comments before the first statement carry a JSDoc tag, such as `'@side-effect-free'`. */
+  | { readonly tag: `@${string}`; readonly element?: never; readonly directive?: never };
 
 /** The selectors, by name. */
 export type Selectors = Record<string, SelectorDefinition<string>>;
@@ -135,7 +137,8 @@ export interface CommonOptions {
   /** Where to read more, shown with each violation. */
   readonly link?: string;
   /** Which imports the rule checks: all of them, those that stay at runtime, or type imports. */
-  readonly imports?: 'all' | 'runtime' | 'types';
+  /** `'static'` is the runtime imports other than `import()`: a transitive rule then stops at each `import()`. */
+  readonly imports?: 'all' | 'runtime' | 'static' | 'types';
   /** Examples that the rule must accept and must reject, which `archangel test` checks. */
   readonly examples?: Examples;
 }
@@ -244,7 +247,7 @@ export type Sentence<E extends Elements, S extends Selectors> = Omit<CommonOptio
           /** Files where a chain ends, such as `{ directive: 'use server' }`. */
           readonly stopAt?: Files<E, S>;
           /** A chain of type imports never runs, so a transitive rule checks no type imports. */
-          readonly imports?: 'all' | 'runtime';
+          readonly imports?: 'all' | 'runtime' | 'static';
         })
     | (Only<Side<E, S>, 'mayOnlyImport'> & ImportLimits & NoChains & Area<E, S> & Pick<CommonOptions, 'imports'>)
     | (Only<Side<E, S>, 'mayOnlyBeImportedBy'> &
@@ -287,8 +290,8 @@ export type FolderSentence = Omit<CommonOptions, 'imports'> & Because & {
 type InnerSentence<T> = T extends unknown ? Omit<T, 'name' | 'reason' | 'because' | 'link' | 'examples' | 'imports'> : never;
 
 /** A shorthand as one sentence of a rule of several sentences. */
-type InnerShorthand<E extends Elements> =
-  | { readonly kind: 'layers'; readonly order: readonly NoInfer<ElementName<E>>[] }
+type InnerShorthand<E extends Elements, S extends Selectors> =
+  | { readonly kind: 'layers'; readonly order: readonly NoInfer<ElementName<E> | Extract<keyof S, string>>[] }
   | { readonly kind: 'isolate'; readonly element: NoInfer<CapturedElement<E>> }
   | { readonly kind: 'entry'; readonly element: NoInfer<ElementName<E>>; readonly files: readonly string[] };
 
@@ -299,7 +302,7 @@ export type SeveralSentences<E extends Elements, S extends Selectors> = Omit<Com
   /** The rule's name, for exceptions and the baseline. */
   readonly name: string;
   /** The sentences, each about `files` or `folders` with one condition, or a shorthand. */
-  readonly sentences: readonly (InnerSentence<Sentence<E, S> | FolderSentence> | InnerShorthand<E>)[];
+  readonly sentences: readonly (InnerSentence<Sentence<E, S> | FolderSentence> | InnerShorthand<E, S>)[];
 };
 
 /** The plugins a config loads, by the name its rules use them by. */
@@ -404,7 +407,7 @@ type Body<T> = T extends unknown ? Omit<T, 'name'> & { readonly name?: never } :
 
 /** A rule, as an object: one of the three shorthands, a table, a sentence, or a plugin rule. */
 export type Rule<E extends Elements, S extends Selectors = {}, P extends Plugins = {}> =
-  | (RuleOptions & { readonly kind: 'layers'; readonly order: readonly NoInfer<ElementName<E>>[] })
+  | (RuleOptions & { readonly kind: 'layers'; readonly order: readonly NoInfer<ElementName<E> | Extract<keyof S, string>>[] })
   | (RuleOptions & { readonly kind: 'isolate'; readonly element: NoInfer<CapturedElement<E>> })
   | (RuleOptions & {
       readonly kind: 'entry';
@@ -427,9 +430,9 @@ export interface RuleBuilders<
   P extends Plugins = {},
   X extends string = string,
 > {
-  /** Each listed element may import only itself and later listed elements. */
+  /** Each listed element or group may import only itself and later listed ones. */
   readonly layers: <const N extends string = string>(
-    order: readonly NoInfer<ElementName<E>>[],
+    order: readonly NoInfer<ElementName<E> | Extract<keyof S, string>>[],
     options?: RuleOptions & Named<N, X>,
   ) => Rule<E, S, P>;
   /** The instances of the element may not import each other. */

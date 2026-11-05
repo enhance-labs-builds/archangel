@@ -310,6 +310,9 @@ pub enum Term {
     AnyElement,
     /// The files whose first statement is this directive, such as `use client`.
     Directive(String),
+    /// The files whose comments before the first statement carry this docblock tag, such as
+    /// `@side-effect-free`.
+    Tag(String),
     /// The files of a declared selector.
     Selector(SelectorId),
     /// The files that a table's kind pattern gives this kind.
@@ -414,6 +417,7 @@ impl FileSet {
                 | Term::Instance { .. }
                 | Term::AnyElement
                 | Term::Directive(_)
+                | Term::Tag(_)
                 | Term::Selector(_)
                 | Term::Kind { .. }
                 | Term::AnyKind(_) => index,
@@ -775,8 +779,19 @@ pub enum ImportKinds {
     All,
     /// Imports that stay in the compiled JavaScript.
     Runtime,
+    /// Runtime imports other than `import()`: those that load with the file, in its bundle chunk.
+    Static,
     /// Type imports only.
     Types,
+}
+
+/// One layer of a `layers` rule: a part, a package part or a group.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Layer {
+    /// A part or a package part.
+    Element(ElementId),
+    /// A group.
+    Selector(SelectorId),
 }
 
 /// One rule, validated.
@@ -831,8 +846,11 @@ impl Rule {
 pub enum RuleKind {
     /// Each listed element may import only itself and later listed elements.
     Layers {
-        /// The elements, first to last.
+        /// The elements, first to last, when every layer is a part; empty when a layer is a group,
+        /// and the rule's sentences then say what it looks at.
         order: Vec<ElementId>,
+        /// The name of each layer, first to last.
+        names: Vec<String>,
     },
     /// Instances of one element may not import each other.
     Isolate {

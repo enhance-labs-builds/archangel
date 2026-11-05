@@ -20,6 +20,7 @@ on the other side of an import condition, in `within`, in `stopAt`, and in a tab
 | `{ element: 'feature', capture: { feature: 'login' } }` | the files of one instance of a part |
 | `{ element: '*' }` | each file that is in a part |
 | `{ directive: 'use client' }` | the files that start with this directive |
+| `{ tag: '@side-effect-free' }` | the files whose comments before the first statement carry this JSDoc tag |
 
 On the other side of an import condition, you can also write packages:
 
@@ -78,8 +79,17 @@ rule('client-has-no-db', {
 })
 ```
 
-A rule that selects files by directive cannot use a [one-line example](/archangel/reference/examples/),
-because the text of the file decides the result.
+## Tags
+
+`{ tag: '@side-effect-free' }` finds each file whose comments before its first statement carry that
+JSDoc tag, such as `/** @side-effect-free */`. A tag is the word that starts with `@` at the start
+of a comment line, after any `*`. A license comment above the docblock does not hide it, and a tag
+in a comment after the first statement does not count. Use it to check what a tag that a bundler
+acts on promises: a rule whose `files` and `mayOnlyImport` are both `{ tag: '@side-effect-free' }`
+keeps tagged files from importing untagged ones.
+
+A rule that selects files by directive or by tag cannot use a
+[one-line example](/archangel/reference/examples/), because the text of the file decides the result.
 
 ## A set that finds no file
 

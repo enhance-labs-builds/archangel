@@ -61,6 +61,77 @@ fn rule_without_imports_option_checks_type_imports() {
     );
 }
 
+#[test]
+fn static_rule_skips_dynamic_imports() {
+    let repo = FixtureRepo::new()
+        .file(
+            "web/a.ts",
+            "export const load = () => import('../api/router');\n",
+        )
+        .file("web/b.ts", "require('../api/router');\n")
+        .file("api/router.ts", "export const router = 1;\n");
+    let found = report(
+        &json!([{ "files": "web", "mayNotImport": "api", "imports": "static" }]),
+        &repo,
+    );
+    assert_eq!(
+        violations(&found),
+        [(Code::MayNotImport, "web/b.ts".to_owned())],
+        "a static rule sees the require and not the import()"
+    );
+}
+
+/// Parts for the instances of a feature, and groups for the layers that cut across them.
+fn layer_groups(rules: &Value) -> Report {
+    let repo = FixtureRepo::new()
+        .file("src/shared/a.ts", "import '../pages/home';\n")
+        .file(
+            "src/pages/home.ts",
+            "import '../features/billing/public/index';\n",
+        )
+        .file("src/features/billing/public/index.ts", "");
+    let config = json!({
+        "parts": {
+            "feature": "src/features/{feature}/**",
+            "pages": "src/pages/**",
+            "shared": "src/shared/**",
+        },
+        "groups": {
+            "pagesLayer": "src/pages/**",
+            "featuresLayer": "src/features/**",
+            "sharedLayer": "src/shared/**",
+        },
+        "rules": rules,
+    });
+    support::check(&config, &repo, None).0
+}
+
+#[test]
+fn layers_of_groups_reject_an_import_toward_an_earlier_group() {
+    let found = layer_groups(&json!([
+        { "kind": "layers", "order": ["pagesLayer", "featuresLayer", "sharedLayer"] },
+        { "kind": "entry", "element": "feature", "files": ["public/**"] },
+    ]));
+    assert_eq!(
+        violations(&found),
+        [(Code::Layers, "src/shared/a.ts".to_owned())],
+        "shared may not import pages; pages may import a feature through its entry: {:?}",
+        found.diagnostics
+    );
+    let violation = first(&found);
+    assert_eq!(
+        violation.message,
+        "\"sharedLayer\" may not import a file of an earlier layer (pagesLayer, featuresLayer), \
+         through \"../pages/home\"",
+        "the message names the layers"
+    );
+    assert_eq!(
+        violation.help.as_deref(),
+        Some("\"sharedLayer\" may import only \"sharedLayer\""),
+        "the help names the layers it may import"
+    );
+}
+
 fn layers() -> Value {
     json!([{ "kind": "layers", "order": ["app", "feature", "shared"] }])
 }

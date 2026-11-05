@@ -346,7 +346,7 @@ fn a_field_after_a_number_or_a_boolean_has_its_own_line_and_column() {
                 ProblemCode::ConfigInvalid,
                 "rules[1].imports",
                 (5, 44),
-                "must be 'all', 'runtime' or 'types'"
+                "must be 'all', 'runtime', 'static' or 'types'"
             ),
             at(
                 ProblemCode::ConfigInvalid,
@@ -524,7 +524,7 @@ fn each_rule_kind_parses_to_its_kind_and_default_name() {
     );
     let kinds = &config.rules;
     assert!(
-        matches!(&kinds[0].kind, RuleKind::Layers { order } if *order == [id("entity"), id("shared")])
+        matches!(&kinds[0].kind, RuleKind::Layers { order, .. } if *order == [id("entity"), id("shared")])
             && matches!(&kinds[1].kind, RuleKind::Isolate { element } if *element == id("entity"))
             && matches!(&kinds[2].kind, RuleKind::Entry { element, files }
                 if *element == id("entity") && files.len() == 1 && files[0].source() == "index.ts")

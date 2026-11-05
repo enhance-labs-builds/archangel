@@ -983,3 +983,54 @@ fn an_area_package_that_no_import_uses_and_no_manifest_lists_is_an_error() {
     assert_eq!(empty.len(), 1, "{found:?}");
     assert_eq!(empty[0].rule.as_deref(), Some("entities"), "{empty:?}");
 }
+
+fn carousel_rule() -> Value {
+    json!({
+        "elements": { "entry": "src/entry/**", "lib": "src/lib/**" },
+        "rules": [{
+            "name": "initial-bundle-no-carousel",
+            "files": "entry",
+            "mayNotImport": { "packages": ["carousel"] },
+            "transitively": true,
+            "imports": "static",
+        }],
+    })
+}
+
+fn lazy_gallery(main: &str) -> FixtureRepo {
+    installed(
+        FixtureRepo::new()
+            .file("src/entry/main.ts", main)
+            .file(
+                "src/lib/viewer.ts",
+                "export const open = async () => import('./gallery');\n",
+            )
+            .file("src/lib/gallery.ts", "import 'carousel';\n"),
+        "carousel",
+    )
+}
+
+#[test]
+fn a_static_transitive_rule_stops_at_a_dynamic_import() {
+    let lazy = report_with(&carousel_rule(), &lazy_gallery("import '../lib/viewer';\n"));
+    assert_eq!(
+        rule_violations(&lazy),
+        Vec::<&archangel_rules::Diagnostic>::new(),
+        "the chain stops at import(), so carousel is not in the initial bundle"
+    );
+    let eager = report_with(
+        &carousel_rule(),
+        &lazy_gallery("import '../lib/viewer';\nimport '../lib/gallery';\n"),
+    );
+    let chains: Vec<_> = rule_violations(&eager)
+        .iter()
+        .map(|d| d.chain.clone())
+        .collect();
+    assert_eq!(
+        chains,
+        [["src/entry/main.ts", "src/lib/gallery.ts", "carousel"]
+            .map(str::to_owned)
+            .to_vec()],
+        "a static import of the gallery puts carousel in the initial bundle"
+    );
+}

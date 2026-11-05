@@ -66,10 +66,11 @@ impl<'a> Lookup<'a> {
     }
 }
 
-/// A file to put in its class: its path, its directive, and whether the counts hold it.
+/// A file to put in its class: its path, its directive and tags, and whether the counts hold it.
 struct Placed<'p> {
     path: &'p str,
     directive: Option<&'p str>,
+    tags: &'p [String],
     counted: bool,
     source: bool,
 }
@@ -190,6 +191,7 @@ impl Classes {
         let placed = Placed {
             path: &file.path,
             directive: file.facts.as_ref().and_then(|f| f.directive.as_deref()),
+            tags: file.facts.as_ref().map_or(&[], |f| f.tags.as_slice()),
             counted: false,
             source: true,
         };
@@ -224,6 +226,9 @@ impl Classes {
             directive: source
                 .and_then(|file| file.facts.as_ref())
                 .and_then(|facts| facts.directive.as_deref()),
+            tags: source
+                .and_then(|file| file.facts.as_ref())
+                .map_or(&[], |facts| facts.tags.as_slice()),
             counted: source.is_some() || lookup.graph.is_some_and(|g| g.is_other(path)),
             source: source.is_some(),
         };
@@ -251,6 +256,7 @@ impl Classes {
             kinds: &kinds,
             classification: found.classification.as_ref(),
             directive: placed.directive,
+            tags: placed.tags,
             selectors: vec![false; architecture.config.selectors.len()],
         };
         let bits = set_bits(architecture, place);
@@ -446,6 +452,7 @@ struct Place<'a> {
     kinds: &'a [Option<KindPlace>],
     classification: Option<&'a Classification>,
     directive: Option<&'a str>,
+    tags: &'a [String],
     /// Whether the file is in each declared selector, filled in the order that puts each selector
     /// after those it refers to.
     selectors: Vec<bool>,
@@ -490,6 +497,7 @@ impl Place<'_> {
                 }),
             Term::AnyElement => self.classification.is_some(),
             Term::Directive(text) => self.directive == Some(text.as_str()),
+            Term::Tag(tag) => self.tags.contains(tag),
             Term::Selector(id) => self.selectors[id.0 as usize],
             Term::Kind { table, kind } => self.kinds[table.index()]
                 .as_ref()

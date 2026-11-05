@@ -305,16 +305,8 @@ impl<'a> Names<'a> {
                     .push(Step::Read(&object["not"], format!("{field}.not")));
                 None
             }
-            ["directive"] => match &object["directive"] {
-                Value::String(text) if !text.is_empty() => Some(Term::Directive(text.clone())),
-                _ => {
-                    problems.push(invalid(
-                        &format!("{field}.directive"),
-                        "must be the directive's text, such as 'use client'",
-                    ));
-                    None
-                }
-            },
+            ["directive"] => directive_term(&object["directive"], field, problems),
+            ["tag"] => tag_term(&object["tag"], field, problems),
             ["element"] | ["capture" | "element", "element" | "capture"] => {
                 self.element_term(object, field, problems)
             }
@@ -544,7 +536,44 @@ fn packages(
 }
 
 const SET_FORMS: &str = "must be a name, a pattern, a list of them, `{ all: [...] }`, \
-                         `{ any: [...] }`, `{ not: ... }`, `{ element: ... }` or `{ directive: ... }`";
+                         `{ any: [...] }`, `{ not: ... }`, `{ element: ... }`, `{ directive: ... }` or \
+                         `{ tag: ... }`";
+
+/// `{ directive: 'use client' }`.
+fn directive_term(value: &Value, field: &str, problems: &mut Vec<ConfigProblem>) -> Option<Term> {
+    match value {
+        Value::String(text) if !text.is_empty() => Some(Term::Directive(text.clone())),
+        _ => {
+            problems.push(invalid(
+                &format!("{field}.directive"),
+                "must be the directive's text, such as 'use client'",
+            ));
+            None
+        }
+    }
+}
+
+/// `{ tag: '@side-effect-free' }`, whose message gives the tag with its `@` when it lacks one.
+fn tag_term(value: &Value, field: &str, problems: &mut Vec<ConfigProblem>) -> Option<Term> {
+    if let Value::String(tag) = value
+        && tag.len() > 1
+        && tag.starts_with('@')
+    {
+        return Some(Term::Tag(tag.clone()));
+    }
+    let fix = value
+        .as_str()
+        .filter(|text| !text.is_empty() && !text.starts_with('@'))
+        .map_or_else(
+            || "such as '@side-effect-free'".to_owned(),
+            |text| format!("so write '@{text}'"),
+        );
+    problems.push(invalid(
+        &format!("{field}.tag"),
+        &format!("must be a docblock tag that starts with @, {fix}"),
+    ));
+    None
+}
 
 fn invalid(field: &str, message: &str) -> ConfigProblem {
     ConfigProblem::new(ProblemCode::ConfigInvalid, message).at(field)
@@ -564,6 +593,8 @@ pub(crate) fn written(value: &Value) -> String {
                 format!("not {}", compact(inner))
             } else if let Some(Value::String(directive)) = object.get("directive") {
                 format!("'{directive}' files")
+            } else if let Some(Value::String(tag)) = object.get("tag") {
+                format!("files tagged {tag}")
             } else if let Some(Value::Array(names)) = object.get("packages") {
                 names.iter().map(compact).collect::<Vec<_>>().join(" | ")
             } else if let Some(Value::String(element)) = object.get("element") {
