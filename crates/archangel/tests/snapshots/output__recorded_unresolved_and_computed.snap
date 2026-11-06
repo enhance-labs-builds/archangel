@@ -6,7 +6,9 @@ $ archangel check
 status: 0
 checked 2 files and 2 imports: no problems
   2 unresolved imports permitted by allowUnresolved
-  2 imports with a computed specifier, which archangel cannot follow; `archangel explain` lists them
+  2 imports with a computed specifier, which archangel cannot follow:
+    src/a.ts:3
+    src/a.ts:4
 
 $ archangel check --format json
 status: 0
@@ -16,10 +18,21 @@ status: 0
   "summary": {
     "files": 2,
     "imports": 2,
+    "warnings": 0,
     "exceptions": {},
     "baselined": {},
     "permittedUnresolved": 2,
     "unfollowed": 2,
+    "unfollowedImports": [
+      {
+        "file": "src/a.ts",
+        "line": 3
+      },
+      {
+        "file": "src/a.ts",
+        "line": 4
+      }
+    ],
     "linksNotFollowed": [],
     "nestedRepositories": [],
     "presetNamesMatchingNothing": [],
@@ -55,6 +68,7 @@ $ archangel test --format json
 status: 0
 {
   "schemaVersion": 1,
+  "diagnostics": [],
   "examples": [],
   "unproven": [],
   "summary": {

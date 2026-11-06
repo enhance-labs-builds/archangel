@@ -40,7 +40,14 @@ One JSON document, for programs. `check`, `test`, `rules`, `explain` and `why` w
   occurrence. It does not hold the line, so it stays the same when the line moves.
 - `cycle`, `group` and `chain` hold the files of a cycle or of a chain of imports.
 - `fix` holds a fix that archangel checked, when it has one.
+- `severity` is `error`, or `warning` for a rule with `severity: 'warn'`. `summary.warnings` counts
+  the warnings.
+- `summary.unfollowedImports` lists each import whose specifier is computed, by `file` and `line`.
+  The text output lists them under the count.
 - `summary.work` holds the work counts.
+- `test --format json` lists each failed example and each unproven rule under `diagnostics` too.
+- When the config stops a command, the JSON document goes to standard output, as each other
+  document does.
 
 `explain` with a line writes each rule and its verdict:
 
@@ -101,9 +108,12 @@ time changes from run to run.
 
 | Code | Meaning |
 | --- | --- |
-| `0` | The command succeeded, and found no problem. |
+| `0` | The command succeeded, and found no problem, or only warnings. |
 | `1` | Archangel found a problem, or the answer is no. |
 | `2` | Archangel could not run: the config, the baseline or the command line has an error. |
+
+A warning does not change the exit code, unless `check --max-warnings <count>` is given and there
+are more warnings than the count: then the check exits with 1.
 
 A config error stops the check before archangel reads the code. It exits with 2:
 

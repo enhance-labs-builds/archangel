@@ -87,6 +87,41 @@ pub(crate) fn walk(config_dir: &Path, ignore_lines: &[String]) -> SourceSet {
     set
 }
 
+/// The source files that the config's ignore list leaves out, each with the first line that does,
+/// sorted by path. It walks the repository again without that list, so it is for the messages of
+/// a set that matches nothing, never for a check.
+pub(crate) fn left_out_by_ignore(
+    config_dir: &Path,
+    ignore_lines: &[String],
+) -> Vec<(String, String)> {
+    if ignore_lines.is_empty() {
+        return Vec::new();
+    }
+    let lines: Vec<(&String, Gitignore)> = ignore_lines
+        .iter()
+        .filter_map(|line| {
+            let mut builder = GitignoreBuilder::new(config_dir);
+            builder.add_line(None, line).ok()?;
+            builder.build().ok().map(|matcher| (line, matcher))
+        })
+        .collect();
+    walk(config_dir, &[])
+        .files
+        .into_iter()
+        .filter_map(|file| {
+            let path = config_dir.join(&file);
+            lines
+                .iter()
+                .find(|(_, matcher)| {
+                    matcher
+                        .matched_path_or_any_parents(&path, false)
+                        .is_ignore()
+                })
+                .map(|(line, _)| (file, (*line).clone()))
+        })
+        .collect()
+}
+
 fn record(config_dir: &Path, entry: Result<ignore::DirEntry, ignore::Error>, set: &mut SourceSet) {
     let entry = match entry {
         Ok(entry) => entry,

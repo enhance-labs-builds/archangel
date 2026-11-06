@@ -259,7 +259,7 @@ impl Architecture {
     }
 
     /// The bits of a repository file's class, classified alone.
-    fn bits_of(&self, graph: &ImportGraph, path: &str) -> Vec<bool> {
+    pub(crate) fn bits_of(&self, graph: &ImportGraph, path: &str) -> Vec<bool> {
         let mut classes = Classes::new();
         let (class, _) = classes.file(Lookup::new(self, graph), path, &mut Work::default());
         match classes.key(class) {
@@ -513,7 +513,7 @@ impl Architecture {
         self.config_file.as_deref() == Some(path)
     }
 
-    /// Whether a package's name is named by an inline package name.
+    /// Whether a module of a package is named by an inline package name.
     pub(crate) fn package_named(&self, index: usize, name: &str) -> bool {
         package_matches(&self.package_names[index], name)
     }
@@ -754,5 +754,14 @@ impl SentenceAbout {
             (true, false) => "its imports",
             _ => "imports of it",
         }
+    }
+}
+
+/// The module that an import of a package names, which package patterns judge: the package, and
+/// the subpath that the specifier writes after it, such as `lodash-es/get`.
+pub(crate) fn module_of<'a>(specifier: &'a str, package: &'a str) -> &'a str {
+    match specifier.strip_prefix(package) {
+        Some(rest) if rest.len() > 1 && rest.starts_with('/') => specifier,
+        _ => package,
     }
 }

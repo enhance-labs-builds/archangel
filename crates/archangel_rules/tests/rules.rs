@@ -9,7 +9,7 @@ mod support;
 
 use layered::report;
 
-use archangel_rules::{Code, Report, Summary};
+use archangel_rules::{Code, Report, Summary, Unfollowed};
 use archangel_testkit::FixtureRepo;
 use serde_json::{Value, json};
 
@@ -505,7 +505,10 @@ fn summary_counts_parsed_files_their_imports_and_computed_specifiers() {
         Summary {
             files: 2,
             imports: 2,
-            unfollowed: 1,
+            unfollowed: vec![Unfollowed {
+                file: "src/a.ts".to_owned(),
+                line: 3,
+            }],
             ..Summary::default()
         },
         "c.ts does not parse, so it adds no file and no imports"

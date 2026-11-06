@@ -5,6 +5,37 @@ and archangel follows [semantic versioning](https://semver.org/) for its command
 its JSON output (`schemaVersion`) and its language server. The library crates have no stability
 guarantee.
 
+## 0.3.5 - 2026-11-06
+
+### Fixed
+
+- A type import of a package that only `@types` installs, such as `import type { Point } from
+  'geojson'`, resolves to that package, as TypeScript does. A runtime import of a package that is
+  not installed is still unresolved. (#36)
+- A part can leave files out with a `!` pattern in its list, so nested parts can be separated.
+  `part-overlap` now says so, not to use `not`. (#37)
+- When the config's `ignore` list empties a group or a part, its error names the line, and says
+  when a line matches at any depth. (#40)
+- `./app.config.ts` names the file at the root; before, it matched nothing. A bare file name's
+  error suggests it. (#41)
+- `test --format json` lists its problems under `diagnostics`, as `check` does. When the config
+  stops a command, its JSON or SARIF document goes to standard output. (#44)
+- The summary lists each import with a computed specifier by file and line, in text and in
+  `summary.unfollowedImports`, instead of pointing to `archangel explain`. (#45)
+
+### Added
+
+- A package pattern can name a subpath: `lodash-es/*` bans deep imports and permits the root. A
+  transitive rule refuses one, because a chain ends at a package. (#34)
+- `severity: 'warn'` on a rule reports its violations as warnings, in every format and in the
+  editor, and the check passes. `check --max-warnings <count>` fails past a count. Each JSON
+  diagnostic has `severity`, and the summary has `warnings`. (#42)
+- The entry fix reaches an entry file in a sibling folder: `@/shared/ui/components/Button` becomes
+  `@/shared/ui/public`. (#43)
+- An `import()` of a template literal with a static relative start and a written extension is an
+  import of each file that it can load, as bundlers treat it. A template that matches no file is
+  `import-unresolved`. (#46)
+
 ## 0.3.4 - 2026-11-05
 
 ### Fixed

@@ -184,7 +184,9 @@ fn text_summary_counts_permitted_unresolved_and_computed_imports() {
         found.stdout,
         "checked 2 files and 2 imports: no problems\n  \
          2 unresolved imports permitted by allowUnresolved\n  \
-         2 imports with a computed specifier, which archangel cannot follow; `archangel explain` lists them\n",
+         2 imports with a computed specifier, which archangel cannot follow:\n    \
+         src/a.ts:3\n    \
+         src/a.ts:4\n",
         "what the config permitted and what archangel could not follow, after the count"
     );
 }

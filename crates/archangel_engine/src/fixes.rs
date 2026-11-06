@@ -68,6 +68,7 @@ impl<'a> Fixer<'a> {
         let Resolution::File(target) = resolution else {
             return Err(None);
         };
+        no_template(import)?;
         let patterns = self.entry_patterns(rule).ok_or(None)?;
         let root = self
             .architecture
@@ -76,7 +77,9 @@ impl<'a> Fixer<'a> {
             .ok_or(None)?
             .root;
         let entries = self.entries_of(&root, patterns);
-        let (specifier, entry) = shorter(&import.specifier)
+        let mut candidates = shorter(&import.specifier);
+        candidates.extend(toward_entries(&import.specifier, target, &entries));
+        let (specifier, entry) = candidates
             .into_iter()
             .find_map(|candidate| match graph.resolve(file, &candidate) {
                 Resolution::File(path) if entries.contains(&path) => Some((candidate, path)),
@@ -143,6 +146,18 @@ impl<'a> Fixer<'a> {
     }
 }
 
+/// Why a template import has no fix: one specifier cannot replace a template.
+fn no_template(import: &Import) -> Result<(), Option<String>> {
+    match import.template {
+        Some(_) => Err(Some(
+            "the template can load files past the entry files, and one specifier cannot replace \
+             it; load each file through an entry file that exports it"
+                .to_owned(),
+        )),
+        None => Ok(()),
+    }
+}
+
 /// Why an entry file cannot take an import's names: one it does not export, or one an `export *`
 /// from a package or an unresolved specifier may or may not pass on.
 fn missing_export(
@@ -181,6 +196,40 @@ fn shorter(specifier: &str) -> Vec<String> {
         .map(|keep| segments[..keep].join("/"))
         .filter(|candidate| !candidate.chars().all(|c| c == '.' || c == '/'))
         .collect()
+}
+
+/// Specifiers that reach an entry file in a sibling folder, as `@/shared/ui/components/Button`
+/// reaches `src/shared/ui/public/index.ts` through `@/shared/ui/public`: the specifier keeps its
+/// leading segments, and the segments that it drops lead from the folder they named to the entry
+/// file, without its extension, and without a last `index`. Shortest first.
+fn toward_entries(specifier: &str, target: &str, entries: &[String]) -> Vec<String> {
+    let segments: Vec<&str> = specifier.split('/').collect();
+    let folders: Vec<&str> = target.split('/').collect();
+    let mut found: Vec<String> = Vec::new();
+    for keep in 1..segments.len() {
+        let dropped = segments.len() - keep;
+        let Some(base) = folders.len().checked_sub(dropped) else {
+            continue;
+        };
+        let prefix = segments[..keep].join("/");
+        let folder = format!("{}/", folders[..base].join("/"));
+        if prefix.chars().all(|c| c == '.' || c == '/') {
+            continue;
+        }
+        for entry in entries {
+            let Some(inside) = entry.strip_prefix(&folder) else {
+                continue;
+            };
+            let stem = inside.rsplit_once('.').map_or(inside, |(stem, _)| stem);
+            if stem != "index" {
+                let module = stem.strip_suffix("/index").unwrap_or(stem);
+                found.push(format!("{prefix}/{module}"));
+            }
+        }
+    }
+    found.sort_by_key(String::len);
+    found.dedup();
+    found
 }
 
 /// The `engine::reparse_per_fix` fail point: parses a file again for each fix, for the fault

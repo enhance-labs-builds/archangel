@@ -212,6 +212,10 @@ Lines in `.gitignore` syntax. Archangel does not read a file that a line matches
 ignore: ['src/generated/', '**/*.stories.tsx'],
 ```
 
+A line with no `/` except at its end matches at any depth, as in `.gitignore`: `'public/'` leaves out
+every folder named `public`. Write `'/public/'` for the folder at the top only. When a part or a
+group matches no file because of a line, its error names the line.
+
 Archangel already skips each file that a `.gitignore` file in the repository ignores. It uses only
 the `.gitignore` files of the repository. It does not use your global Git ignore file,
 `.git/info/exclude` or `.ignore` files, so each machine gets the same files. A line that is not
@@ -234,6 +238,9 @@ allowUnresolved: {
 An import that archangel cannot resolve is the error
 [`import-unresolved`](/archangel/reference/diagnostics/import-unresolved/), because archangel cannot
 judge it. A specifier in `allowUnresolved` gives no error, and the summary counts these imports.
+
+A type import, such as `import type { Point } from 'geojson'`, of a package that only `@types`
+installs resolves to that package, as TypeScript resolves it, so it needs no entry here.
 
 An entry that names a package also permits a tsconfig whose `extends` names that package when it
 is not installed, such as a sub-project that installs its own packages. `'@tsconfig/node20': 'the

@@ -46,7 +46,12 @@ pub(crate) fn diagnostics_over(
 }
 
 fn group<'a>(diagnostic: &'a Diagnostic, source: Option<&'a str>) -> Group<'a> {
-    let title = Level::ERROR
+    let level = if diagnostic.warning {
+        Level::WARNING
+    } else {
+        Level::ERROR
+    };
+    let title = level
         .primary_title(diagnostic.message.as_str())
         .id(diagnostic.code.as_str());
     // @justified warning
@@ -85,6 +90,25 @@ fn group<'a>(diagnostic: &'a Diagnostic, source: Option<&'a str>) -> Group<'a> {
         ),
     };
     notes(group, diagnostic)
+}
+
+/// What a check found, in words: its problems and its warnings.
+fn found(shown: &[Diagnostic]) -> String {
+    let warnings = shown.iter().filter(|d| d.warning).count();
+    let count = |n: usize, word: &str| match n {
+        1 => format!("1 {word}"),
+        n => format!("{n} {word}s"),
+    };
+    match (shown.len() - warnings, warnings) {
+        (0, 0) => "no problems".to_owned(),
+        (problems, 0) => count(problems, "problem"),
+        (0, warnings) => count(warnings, "warning"),
+        (problems, warnings) => format!(
+            "{} and {}",
+            count(problems, "problem"),
+            count(warnings, "warning")
+        ),
+    }
 }
 
 /// The lines under an error: what to do, its rule, its reason and its link.
@@ -136,16 +160,12 @@ pub(crate) fn gone(diagnostic: &Diagnostic) -> String {
 }
 
 /// The closing summary: what was checked, what the config permitted, and how many problems.
-pub(crate) fn summary(summary: &Summary, problems: usize) -> String {
+pub(crate) fn summary(summary: &Summary, shown: &[Diagnostic]) -> String {
     let mut out = format!(
         "checked {} files and {} imports: {}\n",
         summary.files,
         summary.imports,
-        match problems {
-            0 => "no problems".to_owned(),
-            1 => "1 problem".to_owned(),
-            n => format!("{n} problems"),
-        }
+        found(shown)
     );
     let rules: std::collections::BTreeSet<&String> = summary
         .exceptions
@@ -167,12 +187,15 @@ pub(crate) fn summary(summary: &Summary, problems: usize) -> String {
             summary.permitted_unresolved
         );
     }
-    if summary.unfollowed > 0 {
+    if !summary.unfollowed.is_empty() {
         let _ = writeln!(
             out,
-            "  {} imports with a computed specifier, which archangel cannot follow; `archangel explain` lists them",
-            summary.unfollowed
+            "  {} imports with a computed specifier, which archangel cannot follow:",
+            summary.unfollowed.len()
         );
+        for site in &summary.unfollowed {
+            let _ = writeln!(out, "    {}:{}", site.file, site.line);
+        }
     }
     for link in &summary.links_not_followed {
         let _ = writeln!(

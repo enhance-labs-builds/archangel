@@ -234,8 +234,18 @@ impl Session {
             resolved.extend(moved.iter().cloned());
             again.extend(moved);
         }
+        let mut others_changed = false;
         for (path, present) in &plan.others {
-            paths |= self.graph.set_other(path, *present);
+            others_changed |= self.graph.set_other(path, *present);
+        }
+        paths |= others_changed;
+        // A template import can reach a file that is not source, such as a locale's JSON.
+        if others_changed && !plan.needs(Step::Walk) && self.graph.has_template_imports() {
+            let before = self.resolutions();
+            self.graph.resolve_all_again(work);
+            let moved = self.moved_since(&before);
+            resolved.extend(moved.iter().cloned());
+            again.extend(moved);
         }
         if plan.needs(Step::Manifests) {
             let changed = self.graph.reread_manifests();

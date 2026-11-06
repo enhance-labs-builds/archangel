@@ -766,3 +766,70 @@ fn an_unknown_name_in_a_config_with_no_names_does_not_list_nothing() {
     assert!(!all.contains("packages: ['routes']"), "{all}");
     assert!(all.contains("only in its table"), "{all}");
 }
+
+/// A deprecation ban that warns, and a file that breaks it.
+fn deprecation() -> FixtureRepo {
+    FixtureRepo::new()
+        .file("src/app/a.ts", "import '../legacy/button';\n")
+        .file("src/legacy/button.ts", "export {};\n")
+        .json_config(&json!({
+            "elements": { "app": "src/app/**", "legacy": "src/legacy/**" },
+            "rules": [{
+                "name": "no-legacy-button", "files": "app", "mayNotImport": "legacy",
+                "severity": "warn",
+                "examples": { "rejected": ["src/app/x.ts imports src/legacy/y.ts"] },
+            }],
+        }))
+}
+
+#[test]
+fn a_rule_that_warns_reports_and_passes() {
+    let found = run(&deprecation(), &["check"]);
+    assert_eq!(
+        found.status, 0,
+        "a warning does not fail the check: {}",
+        found.stdout
+    );
+    assert!(
+        found.stdout.starts_with("warning[may-not-import]: "),
+        "the text shows a warning: {}",
+        found.stdout
+    );
+    assert!(
+        found
+            .stdout
+            .contains("checked 2 files and 1 imports: 1 warning\n"),
+        "the summary counts it as a warning: {}",
+        found.stdout
+    );
+    let json = run(&deprecation(), &["check", "--format", "json"]);
+    let document: Value = serde_json::from_str(&json.stdout).expect("a JSON document");
+    assert_eq!(
+        (
+            &document["diagnostics"][0]["severity"],
+            &document["summary"]["warnings"]
+        ),
+        (&json!("warning"), &json!(1)),
+        "JSON gives the severity and the count"
+    );
+    let github = run(&deprecation(), &["check", "--format", "github"]);
+    assert!(
+        github.stdout.starts_with("::warning "),
+        "GitHub shows a warning: {}",
+        github.stdout
+    );
+}
+
+#[test]
+fn max_warnings_fails_the_check_past_its_count() {
+    assert_eq!(
+        run(&deprecation(), &["check", "--max-warnings", "1"]).status,
+        0,
+        "one warning is within one"
+    );
+    assert_eq!(
+        run(&deprecation(), &["check", "--max-warnings", "0"]).status,
+        1,
+        "one warning is past none"
+    );
+}

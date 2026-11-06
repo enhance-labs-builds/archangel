@@ -26,12 +26,15 @@ mod rules;
 mod selectors;
 mod shorthand;
 mod tables;
+mod words;
 
 pub use load::{
     CONFIG_NAMES, LOADER, discover, from_loader, is_json, load_json, load_stopped, missing,
     node_missing, node_version_problem,
 };
-pub use matcher::{Classification, ElementMatcher, PathMatch, package_matches};
+pub use matcher::{
+    Classification, ElementMatcher, PathMatch, names_a_subpath, package_matches, package_of_module,
+};
 pub use model::{
     AllowUnresolved, Condition, Config, DependencyKind, Element, ElementId, ElementKind,
     ExampleFiles, Examples, ExportKind, FileSet, Folders, ImportKinds, ImportOptions,

@@ -8,7 +8,7 @@ status: 1
 
 $ archangel check --format json
 status: 1
-3383325 bytes, FNV-1a 61faa82e0d1ff422
+3518400 bytes, FNV-1a 2784bea5b494bf51
 
 $ archangel test
 status: 1
@@ -26,10 +26,10 @@ $ archangel test --format json
 status: 1
 {
   "schemaVersion": 1,
-  "examples": [],
-  "unproven": [
+  "diagnostics": [
     {
       "code": "rule-unproven",
+      "severity": "error",
       "rule": "layers",
       "file": null,
       "line": 0,
@@ -48,6 +48,48 @@ status: 1
     },
     {
       "code": "rule-unproven",
+      "severity": "error",
+      "rule": "no-cycles",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"no-cycles\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
+  "examples": [],
+  "unproven": [
+    {
+      "code": "rule-unproven",
+      "severity": "error",
+      "rule": "layers",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"layers\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "rule-unproven",
+      "severity": "error",
       "rule": "no-cycles",
       "file": null,
       "line": 0,

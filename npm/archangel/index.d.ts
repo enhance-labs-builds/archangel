@@ -136,6 +136,8 @@ export interface CommonOptions {
   readonly name?: string;
   /** Where to read more, shown with each violation. */
   readonly link?: string;
+  /** `'error'`, the default, fails the check; `'warn'` reports each violation and passes, as for a deprecation. */
+  readonly severity?: 'error' | 'warn';
   /** Which imports the rule checks: all of them, those that stay at runtime, or type imports. */
   /** `'static'` is the runtime imports other than `import()`: a transitive rule then stops at each `import()`. */
   readonly imports?: 'all' | 'runtime' | 'static' | 'types';

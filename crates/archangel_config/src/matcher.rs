@@ -70,6 +70,8 @@ pub struct ElementMatcher {
     sets: Vec<(u32, bool)>,
     /// For each element, whether it is an externals set.
     externals: Vec<bool>,
+    /// For each element, the patterns of the files that its `!` patterns leave out.
+    left_out: Vec<Vec<Pattern>>,
 }
 
 /// What one pass of every pattern found in a path.
@@ -172,6 +174,7 @@ impl ElementMatcher {
             file_patterns,
             packages,
             sets: config.elements.iter().map(|e| (e.set, e.part)).collect(),
+            left_out: config.elements.iter().map(|e| e.not.clone()).collect(),
             externals: config.elements.iter().map(|e| e.externals).collect(),
         }
     }
@@ -218,6 +221,12 @@ impl ElementMatcher {
         let mut overlap: Vec<ElementId> = Vec::new();
         for &index in found.iter().take_while(|&&index| index < elements) {
             let (element, pattern) = &self.file_patterns[index];
+            if self.left_out[element.index()]
+                .iter()
+                .any(|not| not.matches(path).is_some())
+            {
+                continue;
+            }
             let (set, part) = self.sets[element.index()];
             let first = places
                 .iter()
@@ -300,9 +309,37 @@ fn joined(mut places: Vec<Classification>) -> Option<Classification> {
     Some(first)
 }
 
-/// Whether a package name pattern names a package: `*` names every package, a scope ending in
-/// `/*` every package in it, and `node:*` every built-in module.
+/// Whether a package name pattern names the module that an import names: `*` names every package,
+/// a scope ending in `/*` every package in it, and `node:*` every built-in module. A pattern of a
+/// package, such as `lodash-es`, names it and each of its subpaths; a pattern of a subpath, such as
+/// `lodash-es/*`, names only the subpaths that it matches.
 #[must_use]
-pub fn package_matches(pattern: &Pattern, name: &str) -> bool {
-    pattern.source() == "*" || pattern.matches(name).is_some()
+pub fn package_matches(pattern: &Pattern, module: &str) -> bool {
+    if pattern.source() == "*" {
+        return true;
+    }
+    let named = if names_a_subpath(pattern.source()) {
+        module
+    } else {
+        package_of_module(module)
+    };
+    pattern.matches(named).is_some()
+}
+
+/// Whether a package pattern names a subpath, such as `lodash-es/*` or `@scope/tokens/core/*`:
+/// more than the one name of a package, or the two of a scoped one.
+#[must_use]
+pub fn names_a_subpath(source: &str) -> bool {
+    let names = if source.starts_with('@') { 2 } else { 1 };
+    source.split('/').count() > names
+}
+
+/// The package of a module that an import names: `@scope/name` or `name`, without the subpath.
+#[must_use]
+pub fn package_of_module(module: &str) -> &str {
+    let names = if module.starts_with('@') { 2 } else { 1 };
+    module
+        .match_indices('/')
+        .nth(names - 1)
+        .map_or(module, |(end, _)| &module[..end])
 }

@@ -13,6 +13,7 @@ pub(crate) const SCHEMA_VERSION: u32 = 1;
 pub(crate) fn diagnostic(diagnostic: &Diagnostic) -> Value {
     json!({
         "code": diagnostic.code.as_str(),
+        "severity": if diagnostic.warning { "warning" } else { "error" },
         "rule": diagnostic.rule,
         "file": diagnostic.file,
         "line": diagnostic.line,
@@ -58,10 +59,16 @@ pub(crate) fn check_document(
     let mut summary = json!({
         "files": summary.files,
         "imports": summary.imports,
+        "warnings": diagnostics.iter().filter(|d| d.warning).count(),
         "exceptions": summary.exceptions,
         "baselined": summary.baselined,
         "permittedUnresolved": summary.permitted_unresolved,
-        "unfollowed": summary.unfollowed,
+        "unfollowed": summary.unfollowed.len(),
+        "unfollowedImports": summary
+            .unfollowed
+            .iter()
+            .map(|site| json!({ "file": site.file, "line": site.line }))
+            .collect::<Vec<_>>(),
         "linksNotFollowed": summary.links_not_followed,
         "nestedRepositories": summary.nested_repositories,
         "presetNamesMatchingNothing": summary.preset_names_matching_nothing,
@@ -148,8 +155,16 @@ pub(crate) fn test_document(report: &ExampleReport) -> String {
             found
         })
         .collect();
+    let problems: Vec<Value> = report
+        .runs
+        .iter()
+        .filter_map(|run| run.outcome.failure.as_ref())
+        .chain(&report.unproven)
+        .map(diagnostic)
+        .collect();
     document(&json!({
         "schemaVersion": SCHEMA_VERSION,
+        "diagnostics": problems,
         "examples": examples,
         "unproven": report.unproven.iter().map(diagnostic).collect::<Vec<_>>(),
         "summary": { "passed": report.passed(), "work": report.work.counts_json() },

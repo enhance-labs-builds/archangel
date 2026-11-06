@@ -1,6 +1,6 @@
 ---
 title: Rule options
-description: "The options that every rule, table and shorthand can have: name, because, link, imports and examples, with their types and defaults."
+description: "The options that every rule, table and shorthand can have: name, because, link, severity, imports and examples, with their types and defaults."
 ---
 
 Each rule can have these options. A table and a shorthand can have them too, except `name` on a
@@ -11,6 +11,7 @@ table, which is its first argument.
 | `name` | string | from the condition | The name in each report, in `off`, in exception comments and in the baseline. |
 | `because` | string | none | The reason. Each report shows it. |
 | `link` | string | none | A link. Each report shows it. |
+| `severity` | `'error'`, `'warn'` | `'error'` | `'warn'` reports each violation as a warning, and the check passes, as for a deprecation. `check --max-warnings <count>` fails past a count. |
 | `imports` | `'all'`, `'runtime'`, `'static'`, `'types'` | `'all'` | The imports that the rule counts. `'runtime'` for `noCycles` and a transitive rule. |
 | `examples` | `{ accepted, rejected }` | none | Code that the rule must accept, and code that it must reject. |
 

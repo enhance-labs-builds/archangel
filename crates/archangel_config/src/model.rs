@@ -721,6 +721,8 @@ pub struct Element {
     pub name: String,
     /// What the element matches.
     pub kind: ElementKind,
+    /// The files that a `!` pattern in its list leaves out, though its patterns match them.
+    pub not: Vec<Pattern>,
     /// The set of elements it belongs to: a file is in one element of each set. Set 0 is the
     /// config's own; with `parts`, each preset has a set of its own.
     pub set: u32,
@@ -809,6 +811,8 @@ pub struct Rule {
     pub because: bool,
     /// Where to read more.
     pub link: Option<String>,
+    /// Whether a violation only warns: it is reported, and it does not fail the check.
+    pub warns: bool,
     /// Which imports the rule checks.
     pub imports: ImportKinds,
     /// Files the rule must accept and must reject.

@@ -16,7 +16,7 @@ use crate::problem::{ConfigProblem, ProblemCode};
 use crate::rules::Input;
 use crate::selectors::Names;
 
-const FIELDS: [&str; 17] = [
+const FIELDS: [&str; 18] = [
     "kind",
     "name",
     "rows",
@@ -28,6 +28,7 @@ const FIELDS: [&str; 17] = [
     "because",
     "reason",
     "link",
+    "severity",
     "imports",
     "names",
     "specifier",
@@ -78,6 +79,7 @@ struct Shared {
     reason: Option<String>,
     because: bool,
     link: Option<String>,
+    warns: bool,
     imports: ImportKinds,
 }
 
@@ -211,6 +213,7 @@ impl<'v> Reading<'_, 'v, '_> {
             reason: optional_string(object, reason_key, &self.input.field, self.problems),
             because: reason_key == "because",
             link: optional_string(object, "link", &self.input.field, self.problems),
+            warns: crate::words::severity(object, &self.input.field, self.problems),
             imports: self.input.imports(&[], false, self.problems),
         }
     }
@@ -554,6 +557,7 @@ impl Shared {
             reason: self.reason.clone(),
             because: self.because,
             link: self.link.clone(),
+            warns: self.warns,
             imports: self.imports,
             examples: Examples::default(),
             source: self.source.clone(),

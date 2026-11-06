@@ -181,6 +181,7 @@ impl ImportGraph {
         let read_and_parsed = started.elapsed();
         let started = std::time::Instant::now();
         let resolver = ImportResolver::new(&root, &files::repository_folder(&root), HashMap::new());
+        resolver.set_listing(set.files.iter().chain(&set.others).cloned().collect());
         let outcomes = run_in(pool.as_deref(), || {
             resolve_files(&resolver, &root, &set.files, &parsed)
         });
@@ -331,7 +332,11 @@ impl ImportGraph {
 
     fn mark_imports(&mut self, index: usize, resolved: &Resolved) {
         if let Some(facts) = &mut self.files[index].facts {
-            facts.mark_imports(resolved.verbatim_module_syntax, &resolved.module_names);
+            facts.mark_imports(
+                resolved.verbatim_module_syntax,
+                &resolved.module_names,
+                resolved.imports.clone(),
+            );
         }
     }
 
@@ -414,6 +419,7 @@ impl ImportGraph {
             &files::repository_folder(&self.root),
             HashMap::new(),
         ));
+        self.resolver.set_listing(self.listing());
         let resolved = run_in(self.pool.as_deref(), || {
             resolve_all(&self.resolver, &self.root, &self.files)
         });
@@ -532,6 +538,26 @@ impl ImportGraph {
             .is_ok()
     }
 
+    /// Every file the walk visited, source files and others, which template imports are matched
+    /// against.
+    fn listing(&self) -> Vec<String> {
+        self.files
+            .iter()
+            .map(|file| file.path.clone())
+            .chain(self.others.iter().cloned())
+            .collect()
+    }
+
+    /// Whether a file has a template import, whose files change when any file appears or
+    /// disappears.
+    #[must_use]
+    pub fn has_template_imports(&self) -> bool {
+        self.files
+            .iter()
+            .filter_map(|file| file.facts.as_ref())
+            .any(|facts| facts.imports.iter().any(|import| import.template.is_some()))
+    }
+
     /// Records that a file that is not source appeared or disappeared, without a walk. Returns
     /// whether the graph's list changed.
     pub fn set_other(&mut self, path: &str, present: bool) -> bool {
@@ -550,6 +576,13 @@ impl ImportGraph {
             }
             _ => false,
         }
+    }
+
+    /// The source files that the config's ignore list leaves out, each with the first line that
+    /// does. It walks the repository again, so only the messages of an empty set ask for it.
+    #[must_use]
+    pub fn left_out_by_ignore(&self) -> Vec<(String, String)> {
+        files::left_out_by_ignore(&self.root, &self.ignore)
     }
 
     /// The ignore lines the graph was walked with.
@@ -682,6 +715,9 @@ impl ImportGraph {
             .collect();
         let repository = files::repository_folder(&self.root);
         let resolver = ImportResolver::new(&self.root, &repository, in_memory);
+        let mut listing = self.listing();
+        listing.extend(files.keys().cloned());
+        resolver.set_listing(listing);
         let mut allocator = Allocator::default();
         let mut collected = Collected::default();
         let mut others = Vec::new();
@@ -778,7 +814,11 @@ struct Collected {
 impl Collected {
     fn add(&mut self, path: String, (mut parsed, resolved): (Parsed, Resolved), work: &mut Work) {
         if let Some(facts) = &mut parsed.facts {
-            facts.mark_imports(resolved.verbatim_module_syntax, &resolved.module_names);
+            facts.mark_imports(
+                resolved.verbatim_module_syntax,
+                &resolved.module_names,
+                resolved.imports.clone(),
+            );
         }
         work.add(&parsed.work);
         work.resolutions += resolved.resolutions.len() as u64;
@@ -823,8 +863,12 @@ struct Parsed {
 }
 
 /// What resolving one file's imports gave.
+#[derive(Default)]
 struct Resolved {
     resolutions: Vec<Resolution>,
+    /// The imports, when a template import stands for one import of each file it reaches, aligned
+    /// with the resolutions.
+    imports: Option<Vec<imports::Import>>,
     /// The names of the package module each import brings in every name of, aligned with the
     /// imports.
     module_names: Vec<Option<Arc<[String]>>>,
@@ -965,82 +1009,6 @@ fn parse_twice() -> bool {
     false
 }
 
-fn resolve_file(resolver: &ImportResolver, file: &Path, facts: Option<&FileFacts>) -> Resolved {
-    let mut problems = BTreeSet::new();
-    let mut inputs = ResolutionInputs::default();
-    let Some(facts) = facts else {
-        return Resolved {
-            resolutions: Vec::new(),
-            module_names: Vec::new(),
-            modules_parsed: 0,
-            problems,
-            inputs,
-            verbatim_module_syntax: false,
-        };
-    };
-    let (tsconfig, problem) = resolver.tsconfig(file);
-    problems.extend(problem);
-    // A tsconfig that appears in a folder nearer than the one in use, or the first one anywhere,
-    // decides for this file from then on.
-    let found = tsconfig.as_ref().map(|found| found.path.as_path());
-    inputs.existence.extend(
-        file.ancestors()
-            .skip(1)
-            .map(|folder| folder.join("tsconfig.json"))
-            .take_while(|candidate| Some(candidate.as_path()) != found),
-    );
-    if let Some(tsconfig) = &tsconfig {
-        inputs.contents.insert(tsconfig.path.clone());
-        inputs
-            .contents
-            .extend(tsconfig.references_resolved.iter().map(|r| r.path.clone()));
-    }
-    let verbatim_module_syntax = tsconfig
-        .as_ref()
-        .is_some_and(|found| found.compiler_options.verbatim_module_syntax == Some(true));
-    let importer = Importer {
-        file,
-        tsconfig: tsconfig.as_deref(),
-    };
-    let mut module_names = Vec::with_capacity(facts.imports.len());
-    let mut modules_parsed = 0;
-    let resolutions = facts
-        .imports
-        .iter()
-        .map(|import| {
-            let (resolution, problem, package_file) =
-                resolver.resolve_to_file(&importer, &import.specifier, &mut inputs);
-            problems.extend(problem);
-            let (names, parsed) = names_brought_in(resolver, import, package_file, &mut inputs);
-            module_names.push(names);
-            modules_parsed += parsed;
-            resolution
-        })
-        .collect();
-    Resolved {
-        resolutions,
-        module_names,
-        modules_parsed,
-        problems,
-        inputs,
-        verbatim_module_syntax,
-    }
-}
-
-/// The names of the package module that an import of every name brings in, and the package files
-/// parsed to find them.
-fn names_brought_in(
-    resolver: &ImportResolver,
-    import: &imports::Import,
-    package_file: Option<PathBuf>,
-    inputs: &mut ResolutionInputs,
-) -> (Option<Arc<[String]>>, u64) {
-    match package_file {
-        Some(module) if import.brings_in_every_name() => resolver.module_names(&module, inputs),
-        _ => (None, 0),
-    }
-}
-
 /// For each file, the files whose imports resolve to it, each once, in path order.
 fn importers(index: &HashMap<String, usize>, resolutions: &[Vec<Resolution>]) -> Vec<Vec<usize>> {
     let mut importers = vec![Vec::new(); resolutions.len()];
@@ -1115,5 +1083,8 @@ fn manifest_of(path: &str, text: &str) -> (String, Manifest) {
     (folder, manifest)
 }
 
+mod each_file;
+
+use each_file::resolve_file;
 #[cfg(test)]
 mod tests;

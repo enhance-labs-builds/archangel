@@ -4,7 +4,7 @@
 use archangel_config::{Classification, Condition, Rule, RuleKind, Sentence};
 use archangel_graph::{Import, ImportGraph, Resolution, Work};
 
-use crate::architecture::{Architecture, Compiled, Edge, End, covers, in_files};
+use crate::architecture::{Architecture, Compiled, Edge, End, covers, in_files, module_of};
 use crate::check::Report;
 use crate::classes::{ClassKey, Classes, Lookup};
 use crate::exceptions;
@@ -82,7 +82,8 @@ impl Architecture {
         let mut work = Work::default();
         let lookup = Lookup::new(self, graph);
         let (from_class, from) = classes.file(lookup, path, &mut work);
-        let (to_class, to, to_path, package) = self.target(&mut classes, lookup, resolution);
+        let (to_class, to, to_path, package) =
+            self.target(&mut classes, lookup, (import, resolution));
         if let Some(to_class) = to_class {
             classes.fill_cell(self, from_class, to_class);
         }
@@ -134,7 +135,7 @@ impl Architecture {
         &self,
         classes: &mut Classes,
         lookup: Lookup<'_>,
-        resolution: &'r Resolution,
+        (import, resolution): (&Import, &'r Resolution),
     ) -> (
         Option<u32>,
         Option<Classification>,
@@ -147,7 +148,7 @@ impl Architecture {
                 (Some(class), found, Some(to.as_str()), None)
             }
             Resolution::Package(name) => {
-                let (class, found) = classes.package(self, name);
+                let (class, found) = classes.package(self, module_of(&import.specifier, name));
                 (Some(class), found, None, Some(name.as_str()))
             }
             Resolution::Unresolved(_) => (None, None, None, None),

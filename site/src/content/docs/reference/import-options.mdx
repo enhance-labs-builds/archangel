@@ -125,6 +125,8 @@ rule('client-stays-client', {
 ```
 
 - A chain stops at a package, and at each file in `stopAt`.
+- A transitive rule's side cannot name a package subpath, such as `lodash-es/*`, because a chain
+  ends at a package.
 - With `imports: 'static'`, a chain also stops at each `import()`. A bundler starts a new chunk
   there, so the rule then means "the initial bundle may not reach this".
 - A transitive rule counts only runtime imports by default. `imports: 'types'` is refused, because

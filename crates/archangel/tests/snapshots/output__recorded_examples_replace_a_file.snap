@@ -14,10 +14,12 @@ status: 0
   "summary": {
     "files": 2,
     "imports": 0,
+    "warnings": 0,
     "exceptions": {},
     "baselined": {},
     "permittedUnresolved": 0,
     "unfollowed": 0,
+    "unfollowedImports": [],
     "linksNotFollowed": [],
     "nestedRepositories": [],
     "presetNamesMatchingNothing": [],
@@ -65,6 +67,46 @@ $ archangel test --format json
 status: 1
 {
   "schemaVersion": 1,
+  "diagnostics": [
+    {
+      "code": "example-failed",
+      "severity": "error",
+      "rule": "forbid",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "\"layers\" rejected the example, but \"forbid\" did not; make the example break \"forbid\" alone",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "rule-unproven",
+      "severity": "error",
+      "rule": "layers",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"layers\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
   "examples": [
     {
       "rule": "forbid",
@@ -76,6 +118,7 @@ status: 1
       "passed": false,
       "failure": {
         "code": "example-failed",
+        "severity": "error",
         "rule": "forbid",
         "file": null,
         "line": 0,
@@ -95,6 +138,7 @@ status: 1
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/s.ts",
           "line": 1,
@@ -125,6 +169,7 @@ status: 1
   "unproven": [
     {
       "code": "rule-unproven",
+      "severity": "error",
       "rule": "layers",
       "file": null,
       "line": 0,

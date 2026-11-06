@@ -257,3 +257,49 @@ fn isolate_still_refuses_a_group() {
         "isolate needs a part with a capture, so a group is refused: {problem:?}"
     );
 }
+
+#[test]
+fn a_root_file_is_named_with_dot_slash() {
+    let config = valid(&json!({
+        "elements": declared_elements(),
+        "selectors": { "configs": ["./app.config.ts", "./src/**"] },
+    }));
+    let sources: Vec<&str> = config
+        .patterns
+        .iter()
+        .map(archangel_config::Pattern::source)
+        .collect();
+    assert_eq!(
+        sources,
+        ["app.config.ts", "src/**"],
+        "`./` names the config folder, so the pattern is the root file"
+    );
+}
+
+#[test]
+fn a_bare_file_name_suggests_dot_slash() {
+    let problem = only_problem(&json!({
+        "elements": declared_elements(),
+        "selectors": { "configs": ["app.config.ts"] },
+    }));
+    assert!(
+        problem
+            .message
+            .ends_with(", so a file at the root is written './app.config.ts'"),
+        "the message says how to name the file: {}",
+        problem.message
+    );
+}
+
+#[test]
+fn a_transitive_rule_refuses_a_package_subpath() {
+    let problem = only_problem(&json!({
+        "elements": declared_elements(),
+        "rules": [{ "files": "shared", "mayNotImport": { "packages": ["lodash-es/*"] }, "transitively": true }],
+    }));
+    assert!(
+        problem.message.contains("`lodash-es/*` cannot end a chain"),
+        "a chain ends at a package, so the subpath is refused: {}",
+        problem.message
+    );
+}

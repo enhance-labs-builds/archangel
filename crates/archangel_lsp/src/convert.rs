@@ -96,7 +96,11 @@ fn diagnostic(diagnostic: &Diagnostic) -> lsp_types::Diagnostic {
     };
     lsp_types::Diagnostic {
         range: range(diagnostic),
-        severity: Some(DiagnosticSeverity::ERROR),
+        severity: Some(if diagnostic.warning {
+            DiagnosticSeverity::WARNING
+        } else {
+            DiagnosticSeverity::ERROR
+        }),
         code: Some(NumberOrString::String(diagnostic.code.as_str().to_owned())),
         code_description: diagnostic
             .link

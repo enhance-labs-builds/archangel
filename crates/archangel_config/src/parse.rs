@@ -372,6 +372,7 @@ fn externals_field(
         let name = source.scope.name(written);
         elements.push(Element {
             kind: ElementKind::Packages(patterns(&name, &field, &texts, problems)),
+            not: Vec::new(),
             name,
             set,
             part: false,
@@ -599,28 +600,30 @@ fn finish(config: Config, problems: Vec<ConfigProblem>) -> Result<Config, Vec<Co
     }
 }
 
-/// What one entry of `parts` or `elements` finds, or `None` with a problem.
+/// What one entry of `parts` or `elements` finds, with the files that its `!` patterns leave out,
+/// or `None` with a problem.
 fn element_kind(
     (source, key): (&ConfigPart<'_>, &str),
     (name, field): (&str, &str),
     spec: &Value,
     problems: &mut Vec<ConfigProblem>,
-) -> Option<ElementKind> {
+) -> Option<(ElementKind, Vec<Pattern>)> {
+    // `./` names the config folder, so `./app.config.ts` is the file at its root.
+    let placed = |text: &str| source.scope.path(text.strip_prefix("./").unwrap_or(text));
     match spec {
-        Value::String(pattern) => Some(ElementKind::Files(patterns(
-            name,
-            field,
-            &[source.scope.path(pattern).as_str()],
-            problems,
-        ))),
+        Value::String(pattern) => Some((
+            ElementKind::Files(patterns(name, field, &[placed(pattern).as_str()], problems)),
+            Vec::new(),
+        )),
         Value::Array(items) => {
-            let texts = strings(items, field, problems);
-            if texts.is_empty() {
-                problems.push(invalid(field, "lists no patterns"));
-            }
-            let texts: Vec<String> = texts.iter().map(|t| source.scope.path(t)).collect();
-            let texts: Vec<&str> = texts.iter().map(String::as_str).collect();
-            Some(ElementKind::Files(patterns(name, field, &texts, problems)))
+            let texts: Vec<String> = strings(items, field, problems)
+                .iter()
+                .map(|text| match text.strip_prefix('!') {
+                    Some(left_out) => format!("!{}", placed(left_out)),
+                    None => placed(text),
+                })
+                .collect();
+            Some(files_of_list(name, field, &texts, problems))
         }
         Value::Object(_) if key == "parts" => {
             problems.push(invalid(
@@ -641,9 +644,10 @@ fn element_kind(
                 problems.push(invalid(&format!("{field}.packages"), "lists no packages"));
             }
             let texts: Vec<&str> = packages.iter().map(String::as_str).collect();
-            Some(ElementKind::Packages(patterns(
-                name, field, &texts, problems,
-            )))
+            Some((
+                ElementKind::Packages(patterns(name, field, &texts, problems)),
+                Vec::new(),
+            ))
         }
         _ => {
             problems.push(invalid(
@@ -653,6 +657,35 @@ fn element_kind(
             None
         }
     }
+}
+
+/// The files of a part's list, and the files that its `!` patterns leave out.
+fn files_of_list(
+    name: &str,
+    field: &str,
+    texts: &[String],
+    problems: &mut Vec<ConfigProblem>,
+) -> (ElementKind, Vec<Pattern>) {
+    let (left_out, kept): (Vec<&str>, Vec<&str>) = texts
+        .iter()
+        .map(String::as_str)
+        .partition(|text| text.starts_with('!'));
+    if kept.is_empty() {
+        problems.push(invalid(
+            field,
+            if left_out.is_empty() {
+                "lists no patterns"
+            } else {
+                "lists only `!` patterns, which leave files out; add a pattern of the files the \
+                 part holds"
+            },
+        ));
+    }
+    let left_out: Vec<&str> = left_out.iter().map(|text| &text[1..]).collect();
+    (
+        ElementKind::Files(patterns(name, field, &kept, problems)),
+        patterns(name, field, &left_out, problems),
+    )
 }
 
 fn parse_elements(
@@ -668,12 +701,13 @@ fn parse_elements(
         }
         let name = &source.scope.name(written);
         let field = source.at(&format!("{key}.{written}"));
-        let Some(kind) = element_kind((source, key), (name, &field), spec, problems) else {
+        let Some((kind, not)) = element_kind((source, key), (name, &field), spec, problems) else {
             continue;
         };
         elements.push(Element {
             name: name.clone(),
             kind,
+            not,
             set,
             part: key == "parts" && source.scope.prefix.is_none(),
             externals: false,
@@ -690,19 +724,22 @@ pub(crate) fn patterns(
 ) -> Vec<Pattern> {
     texts
         .iter()
-        .filter_map(|text| match Pattern::parse(text) {
-            Ok(pattern) => Some(pattern),
-            Err(error) => {
-                problems.push(
-                    ConfigProblem::new(
-                        ProblemCode::PatternInvalid,
-                        format!("the pattern `{text}` of \"{element}\" is invalid: {error}"),
-                    )
-                    .at(field),
-                );
-                None
-            }
-        })
+        // `./` names the config folder, so `./app.config.ts` is the file at its root.
+        .filter_map(
+            |text| match Pattern::parse(text.strip_prefix("./").unwrap_or(text)) {
+                Ok(pattern) => Some(pattern),
+                Err(error) => {
+                    problems.push(
+                        ConfigProblem::new(
+                            ProblemCode::PatternInvalid,
+                            format!("the pattern `{text}` of \"{element}\" is invalid: {error}"),
+                        )
+                        .at(field),
+                    );
+                    None
+                }
+            },
+        )
         .collect()
 }
 

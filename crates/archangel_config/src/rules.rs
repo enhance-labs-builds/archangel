@@ -4,9 +4,8 @@
 use serde_json::{Map, Value};
 
 use crate::model::{
-    Condition, DependencyKind, Element, ElementId, ElementKind, ExportKind, FileSet, Folders,
-    ImportKinds, ImportOptions, InstanceMatch, Layer, NameRule, Rule, RuleKind, Sentence, Side,
-    SpecifierForm, Term,
+    Condition, Element, ElementId, ElementKind, ExportKind, FileSet, Folders, ImportKinds,
+    ImportOptions, InstanceMatch, Layer, NameRule, Rule, RuleKind, Sentence, Side, Term,
 };
 use crate::must_be_named::must_be_named;
 use crate::names::NamePattern;
@@ -18,75 +17,10 @@ use crate::plugins::plugin_use;
 use crate::problem::{ConfigProblem, ProblemCode};
 use crate::selectors::{Names, Placement, written};
 use crate::shorthand::{KIND_LIST, layer_list, layer_sentences, or_list, removed_kind};
-
-const COMMON_FIELDS: [&str; 6] = ["name", "reason", "because", "link", "imports", "examples"];
-
-const SHORTHANDS: [&str; 3] = ["layers", "isolate", "entry"];
-
-/// The fields of a rule that uses a plugin condition.
-const PLUGIN_FIELDS: [&str; 8] = [
-    "files", "plugin", "options", "name", "reason", "because", "link", "examples",
-];
-
-/// The conditions about imports, which the import options limit.
-const IMPORT_CONDITIONS: [&str; 3] = ["mayNotImport", "mayOnlyImport", "mayOnlyBeImportedBy"];
-
-/// The conditions a rule about folders takes.
-const FOLDER_CONDITIONS: [&str; 3] = ["mustBeNamed", "mustContain", "mustNotExist"];
-
-/// The fields of a rule written as several sentences, which belong to the rule, not to one of
-/// its sentences.
-const SENTENCES_FIELDS: [&str; 7] = [
-    "name",
-    "reason",
-    "because",
-    "link",
-    "imports",
-    "examples",
-    "sentences",
-];
-
-/// Every condition the rule language names, so that a rule with two of them is refused as one
-/// mistake, whichever two they are.
-const CONDITIONS: [&str; 10] = [
-    "mayNotImport",
-    "mayOnlyImport",
-    "mayOnlyBeImportedBy",
-    "mustBeNamed",
-    "mustContain",
-    "mustNotExist",
-    "mustExport",
-    "mayNotExport",
-    "mustOnlyReExport",
-    "noCycles",
-];
-
-const SPECIFIERS: [(&str, SpecifierForm); 4] = [
-    ("relative", SpecifierForm::Relative),
-    ("parent", SpecifierForm::Parent),
-    ("alias", SpecifierForm::Alias),
-    ("package", SpecifierForm::Package),
-];
-
-const INSTANCES: [(&str, InstanceMatch); 2] = [
-    ("same", InstanceMatch::Same),
-    ("different", InstanceMatch::Different),
-];
-
-const DEPENDENCIES: [(&str, DependencyKind); 2] = [
-    ("dev", DependencyKind::Dev),
-    ("undeclared", DependencyKind::Undeclared),
-];
-
-const OPTIONS: [&str; 7] = [
-    "names",
-    "specifier",
-    "instance",
-    "dependency",
-    "transitively",
-    "stopAt",
-    "within",
-];
+use crate::words::{
+    COMMON_FIELDS, CONDITIONS, DEPENDENCIES, FOLDER_CONDITIONS, IMPORT_CONDITIONS, INSTANCES,
+    OPTIONS, PLUGIN_FIELDS, SENTENCES_FIELDS, SHORTHANDS, SPECIFIERS, severity,
+};
 
 /// One rule object, with its location in the config.
 pub(crate) struct Input<'a> {
@@ -124,6 +58,7 @@ pub(crate) fn parse_rule(
         .map_or("reason", |(key, _)| key);
     let reason = optional_string(object, reason_key, &input.field, problems);
     let link = optional_string(object, "link", &input.field, problems);
+    let warns = severity(object, &input.field, problems);
     let examples = parse_examples(object.get("examples"), &input.field, problems);
     let (kind, sentences, default_name, transitive) = parsed?;
     let imports = input.imports(&sentences, transitive, problems);
@@ -137,6 +72,7 @@ pub(crate) fn parse_rule(
         reason,
         because: reason_key == "because",
         link,
+        warns,
         imports,
         examples,
         source: crate::parse::rule_source(object),
@@ -351,7 +287,7 @@ impl Input<'_> {
                 continue;
             };
             for key in [
-                "name", "reason", "because", "link", "imports", "examples", "plugin",
+                "name", "reason", "because", "link", "severity", "imports", "examples", "plugin",
             ] {
                 if object.contains_key(key) {
                     problems.push(invalid(
@@ -416,6 +352,9 @@ impl Input<'_> {
         let condition = self.condition(condition_name, folder_rule, names, problems);
         let options = self.options(condition_name, files.as_ref(), names, problems);
         let (files, condition, options) = (files?, condition?, options?);
+        if self.chains_to_a_subpath((&options, &condition), names.elements, problems) {
+            return None;
+        }
         if let (Condition::MustContain(_), None) = (&condition, &folders)
             && !captured_element(&files, names.elements)
         {
@@ -839,6 +778,30 @@ impl Input<'_> {
         }
     }
 
+    /// Refuses a transitive rule whose side names a package subpath, which no chain ends at.
+    fn chains_to_a_subpath(
+        &self,
+        (options, condition): (&ImportOptions, &Condition),
+        elements: &[Element],
+        problems: &mut Vec<ConfigProblem>,
+    ) -> bool {
+        let subpath = options
+            .transitively
+            .then(|| condition.side().and_then(|side| subpath_of(side, elements)))
+            .flatten();
+        if let Some(subpath) = &subpath {
+            problems.push(invalid(
+                &self.at("transitively"),
+                &format!(
+                    "a transitive rule ends each chain at a package, not at a subpath of one, so \
+                     `{subpath}` cannot end a chain; name the package, or write a rule of direct \
+                     imports for the subpath"
+                ),
+            ));
+        }
+        subpath.is_some()
+    }
+
     /// Refuses options that cannot hold together, or that need what `files` does not give.
     fn options_agree(
         &self,
@@ -966,6 +929,23 @@ impl Input<'_> {
             None
         }
     }
+}
+
+/// The first package pattern of a side that names a subpath, inline or in a package element.
+fn subpath_of(side: &Side, elements: &[Element]) -> Option<String> {
+    let of_elements = side
+        .elements
+        .iter()
+        .flat_map(|id| match &elements[id.index()].kind {
+            ElementKind::Packages(patterns) => patterns.as_slice(),
+            ElementKind::Files(_) => &[],
+        });
+    side.packages
+        .iter()
+        .chain(of_elements)
+        .map(Pattern::source)
+        .find(|source| crate::matcher::names_a_subpath(source))
+        .map(str::to_owned)
 }
 
 fn default_kinds(runtime: bool) -> ImportKinds {

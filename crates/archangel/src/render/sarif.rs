@@ -49,7 +49,7 @@ fn result(dir: &Path, diagnostic: &Diagnostic) -> Value {
     let mut result = json!({
         "ruleId": diagnostic.code.as_str(),
         "ruleIndex": diagnostic.code as usize,
-        "level": "error",
+        "level": if diagnostic.warning { "warning" } else { "error" },
         "message": { "text": message },
     });
     if let Some(file) = diagnostic.file.as_deref() {

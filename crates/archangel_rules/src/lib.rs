@@ -29,7 +29,7 @@ mod words;
 
 pub use architecture::{Architecture, SentenceAbout, Target};
 pub use baseline::{Baseline, BaselineEntry, BaselineError};
-pub use check::{FileCheck, Report, Results, Summary};
+pub use check::{FileCheck, Report, Results, Summary, Unfollowed};
 pub use classes::{Classes, Lookup};
 pub use cycles::CycleGraph;
 pub use diagnostic::{Code, Diagnostic, Fix, ViolationId};

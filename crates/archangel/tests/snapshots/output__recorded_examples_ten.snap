@@ -14,10 +14,12 @@ status: 0
   "summary": {
     "files": 2,
     "imports": 0,
+    "warnings": 0,
     "exceptions": {},
     "baselined": {},
     "permittedUnresolved": 0,
     "unfollowed": 0,
+    "unfollowedImports": [],
     "linksNotFollowed": [],
     "nestedRepositories": [],
     "presetNamesMatchingNothing": [],
@@ -63,6 +65,7 @@ $ archangel test --format json
 status: 0
 {
   "schemaVersion": 1,
+  "diagnostics": [],
   "examples": [
     {
       "rule": "layers",
@@ -76,6 +79,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/e0.ts",
           "line": 1,
@@ -114,6 +118,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/e1.ts",
           "line": 1,
@@ -152,6 +157,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/e2.ts",
           "line": 1,
@@ -190,6 +196,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/e3.ts",
           "line": 1,
@@ -228,6 +235,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/e4.ts",
           "line": 1,
@@ -266,6 +274,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/e5.ts",
           "line": 1,
@@ -304,6 +313,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/e6.ts",
           "line": 1,
@@ -342,6 +352,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/e7.ts",
           "line": 1,
@@ -380,6 +391,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/e8.ts",
           "line": 1,
@@ -418,6 +430,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/s.ts",
           "line": 1,

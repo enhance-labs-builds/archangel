@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use archangel_config::{Condition, Rule, RuleKind, TableId};
 use archangel_graph::{Import, ImportGraph, Resolution, SourceFile, Work};
 
-use crate::architecture::{Architecture, Edge, End, covers, in_files};
+use crate::architecture::{Architecture, Edge, End, covers, in_files, module_of};
 use crate::check::Report;
 use crate::classes::{ClassKey, Classes, Lookup};
 
@@ -205,7 +205,9 @@ impl Tally<'_> {
         let to = match resolution {
             Resolution::File(to) => self.classes.file(lookup, to, &mut self.work).0,
             Resolution::Package(name) => {
-                let (class, _) = self.classes.package(architecture, name);
+                let (class, _) = self
+                    .classes
+                    .package(architecture, module_of(&import.specifier, name));
                 if here && !architecture.names_package(self.classes.key(class)) {
                     *self.packages.entry(name.clone()).or_default() += 1;
                 }

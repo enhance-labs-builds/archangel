@@ -45,6 +45,8 @@ pub enum UnresolvedReason {
     Io(String),
     /// A problem in a tsconfig or package manifest, which has its own diagnostic.
     ResolutionFile,
+    /// A template import whose pattern matches no file.
+    TemplateMatchesNothing,
     /// A failure that this version of archangel cannot describe yet.
     Unknown,
 }
@@ -81,6 +83,10 @@ impl UnresolvedReason {
             Self::ResolutionFile => format!(
                 "a tsconfig or package manifest that `{specifier}` depends on is not valid; see its \
                  own diagnostic"
+            ),
+            Self::TemplateMatchesNothing => format!(
+                "no file matches `{specifier}`, whose each `${{…}}` stands for one file or folder \
+                 name, so the import can load nothing"
             ),
             Self::Unknown => format!(
                 "the resolver could not resolve `{specifier}` for a reason archangel cannot describe \
@@ -162,6 +168,9 @@ pub(crate) struct ImportResolver {
     /// The names of each package module whose names an import needed, with the files read for
     /// them, kept for the life of the resolver.
     modules: std::sync::Mutex<HashMap<PathBuf, ModuleNames>>,
+    /// Every file the walk visited, source files and others, sorted, which a template import's
+    /// pattern is matched against.
+    listing: std::sync::RwLock<Arc<[String]>>,
     /// The Plug'n'Play file, which the resolver reads through its own loader.
     pnp: Option<PathBuf>,
     root: PathBuf,
@@ -220,6 +229,7 @@ impl ImportResolver {
             reads,
             reported: std::sync::Mutex::default(),
             modules: std::sync::Mutex::default(),
+            listing: std::sync::RwLock::new(Arc::from(Vec::new())),
             pnp: yarn_pnp.then(|| repository.join(".pnp.cjs")),
             root: root.to_path_buf(),
         }
@@ -300,6 +310,47 @@ impl ImportResolver {
         (resolution, problem)
     }
 
+    /// Resolves one import, as a type import when the compiler removes it.
+    pub(crate) fn resolve_import(
+        &self,
+        importer: &Importer<'_>,
+        (specifier, removed): (&str, bool),
+        inputs: &mut ResolutionInputs,
+    ) -> (Resolution, Option<ResolutionFileProblem>, Option<PathBuf>) {
+        if removed {
+            self.resolve_type_import(importer, specifier, inputs)
+        } else {
+            self.resolve_to_file(importer, specifier, inputs)
+        }
+    }
+
+    /// Resolves an import that the compiler removes. When its bare specifier names no installed
+    /// package, it falls back to the `@types` package, as TypeScript does: `@types/<name>`, or
+    /// `@types/<scope>__<name>` for a scoped package. The resolution keeps the name it imports.
+    pub(crate) fn resolve_type_import(
+        &self,
+        importer: &Importer<'_>,
+        specifier: &str,
+        inputs: &mut ResolutionInputs,
+    ) -> (Resolution, Option<ResolutionFileProblem>, Option<PathBuf>) {
+        let found = self.resolve_to_file(importer, specifier, inputs);
+        let not_found = found.0 == Resolution::Unresolved(UnresolvedReason::NotFound);
+        let Some(package) = bare_package(specifier).filter(|_| not_found) else {
+            return found;
+        };
+        let rest = &specifier[package.len()..];
+        let types = match package.strip_prefix('@') {
+            Some(scoped) => format!("@types/{}{rest}", scoped.replacen('/', "__", 1)),
+            None => format!("@types/{package}{rest}"),
+        };
+        match self.resolve_to_file(importer, &types, inputs) {
+            (Resolution::Package(_), problem, file) => {
+                (Resolution::Package(package.to_owned()), problem, file)
+            }
+            _ => found,
+        }
+    }
+
     /// Resolves one import from a file, with the package file it resolves to, if any.
     pub(crate) fn resolve_to_file(
         &self,
@@ -350,6 +401,50 @@ impl ImportResolver {
                 (Resolution::Unresolved(reason), problem, None)
             }
         }
+    }
+
+    /// Sets the files that template imports are matched against.
+    pub(crate) fn set_listing(&self, mut paths: Vec<String>) {
+        paths.sort();
+        paths.dedup();
+        if let Ok(mut listing) = self.listing.write() {
+            *listing = Arc::from(paths);
+        }
+    }
+
+    /// The files, relative to the config folder, that a template import's pattern reaches from
+    /// `file`: each `*` stands for one file or folder name, or for part of one.
+    pub(crate) fn template_files(&self, file: &Path, pattern: &str) -> Vec<String> {
+        let folder = file
+            .parent()
+            .map_or_else(String::new, |folder| relative(&self.root, folder));
+        let mut names: Vec<&str> = folder.split('/').filter(|name| !name.is_empty()).collect();
+        for name in pattern.split('/') {
+            match name {
+                "." | "" => {}
+                ".." => {
+                    if names.pop().is_none() {
+                        return Vec::new();
+                    }
+                }
+                _ => names.push(name),
+            }
+        }
+        let Ok(listing) = self.listing.read() else {
+            return Vec::new();
+        };
+        listing
+            .iter()
+            .filter(|path| {
+                let parts: Vec<&str> = path.split('/').collect();
+                parts.len() == names.len()
+                    && parts
+                        .iter()
+                        .zip(&names)
+                        .all(|(part, name)| wildcard(name, part))
+            })
+            .cloned()
+            .collect()
     }
 
     /// The names that a package module exports, and how many package files this call parsed to
@@ -520,6 +615,45 @@ fn own_exports(resolver: &ImportResolver, module: &Path) -> Option<(Vec<String>,
         })
         .collect::<Option<Vec<_>>>()?;
     Some((facts.exports.names, targets))
+}
+
+/// The package name of a bare specifier, `@scope/name` or `name`; `None` for a relative or
+/// absolute path, a `#` import, a URL-like specifier or an `@types` package.
+fn bare_package(specifier: &str) -> Option<&str> {
+    if is_relative(specifier)
+        || specifier.starts_with('#')
+        || specifier.contains(':')
+        || specifier.starts_with("@types/")
+    {
+        return None;
+    }
+    let end = if specifier.starts_with('@') {
+        specifier.match_indices('/').nth(1).map(|(index, _)| index)
+    } else {
+        specifier.find('/')
+    };
+    let package = &specifier[..end.unwrap_or(specifier.len())];
+    (!package.is_empty() && (!package.starts_with('@') || package.contains('/'))).then_some(package)
+}
+
+/// Whether a name matches a pattern of one name, in which each `*` stands for any text.
+fn wildcard(pattern: &str, name: &str) -> bool {
+    let mut pieces = pattern.split('*');
+    let first = pieces.next().unwrap_or("");
+    let Some(mut rest) = name.strip_prefix(first) else {
+        return false;
+    };
+    let pieces: Vec<&str> = pieces.collect();
+    let Some((last, middle)) = pieces.split_last() else {
+        return rest.is_empty();
+    };
+    for piece in middle {
+        match rest.find(piece) {
+            Some(at) => rest = &rest[at + piece.len()..],
+            None => return false,
+        }
+    }
+    rest.len() >= last.len() && rest.ends_with(last)
 }
 
 fn is_relative(specifier: &str) -> bool {
