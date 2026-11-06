@@ -75,23 +75,20 @@ fn an_externals_name_of_a_workspace_package_is_refused_once_the_workspace_is_kno
 }
 
 #[test]
-fn an_externals_name_with_a_subpath_is_refused_unless_it_is_a_built_in() {
-    let found = externals_problems(&json!({
-        "a": ["pg/lib/client"],
-        "b": ["node:fs/promises"],
-        "c": ["@acme/ui/button"],
-    }));
-    let fields: Vec<_> = found.iter().map(|p| p.field.as_deref()).collect();
-    assert_eq!(
-        fields,
-        [Some("externals.a"), Some("externals.c")],
-        "{found:?}"
-    );
-    assert!(found[0].message.contains("`pg`"), "{}", found[0].message);
+fn an_externals_name_with_a_subpath_is_accepted() {
+    let config = json!({
+        "parts": { "src": "src/**" },
+        "externals": {
+            "a": ["pg/lib/client"],
+            "b": ["node:fs/promises"],
+            "c": ["@acme/ui/button/*"],
+        },
+    });
+    let loaded = parse_json(&config.to_string());
     assert!(
-        found[1].message.contains("`@acme/ui`"),
-        "{}",
-        found[1].message
+        loaded.is_ok(),
+        "a name with a subpath names those subpaths of the package: {:?}",
+        loaded.err()
     );
 }
 

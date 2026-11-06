@@ -118,3 +118,94 @@ fn a_template_import_is_judged_against_each_file_it_reaches() {
         "the template import is followed"
     );
 }
+
+#[test]
+fn an_alias_of_a_package_is_judged_as_the_package() {
+    let repo = FixtureRepo::new()
+        .file(
+            "node_modules/utils-next/package.json",
+            r#"{ "name": "utils", "main": "index.js" }"#,
+        )
+        .file("node_modules/utils-next/index.js", "")
+        .file("node_modules/utils-next/get.js", "")
+        .file(".gitignore", "node_modules/\n")
+        .file("src/a.ts", "import get from 'utils-next/get';\n");
+    let rules = json!([{ "files": "src/**", "mayNotImport": { "packages": ["utils"] } }]);
+    assert_eq!(
+        sites(&report_with(&src_only(&rules), &repo)),
+        [site("src/a.ts", "utils-next/get")],
+        "an npm alias installs `utils` under another name, and the rule about `utils` judges it"
+    );
+}
+
+#[test]
+fn a_subpath_of_a_listed_package_is_not_empty() {
+    let repo = FixtureRepo::new()
+        .file(
+            "package.json",
+            r#"{ "dependencies": { "utils": "1.0.0" } }"#,
+        )
+        .file("src/a.ts", "");
+    let config = json!({
+        "elements": { "src": "src/**" },
+        "externals": { "deep": ["utils/*"] },
+        "rules": [
+            { "files": "src", "mayOnlyImport": ["src", "deep"] },
+            { "files": "src", "mayOnlyImport": ["src", { "packages": ["utils/*"] }] },
+        ],
+    });
+    let found = report_with(&config, &repo);
+    assert!(
+        found.diagnostics.is_empty(),
+        "a manifest lists the package, so its subpaths can be imported: {:?}",
+        found.diagnostics
+    );
+}
+
+#[test]
+fn an_empty_part_names_the_ignore_line_that_left_its_files_out() {
+    let repo = FixtureRepo::new()
+        .file("src/feature/public/index.ts", "")
+        .file("src/feature/a.ts", "");
+    let config = json!({
+        "ignore": ["public/"],
+        "elements": { "public": "src/**/public/**", "src": "src/**" },
+    });
+    let found = report_with(&config, &repo);
+    let empty: Vec<&str> = found
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == archangel_rules::Code::ElementEmpty)
+        .map(|d| d.message.as_str())
+        .collect();
+    assert_eq!(empty.len(), 1, "one empty part: {empty:?}");
+    assert!(
+        empty[0].contains("The config's ignore line \"public/\" leaves out 1 file(s)"),
+        "the message names the line: {}",
+        empty[0]
+    );
+}
+
+#[test]
+fn a_subpath_of_a_package_no_manifest_lists_is_empty() {
+    let repo = FixtureRepo::new()
+        .file(
+            "package.json",
+            r#"{ "dependencies": { "other": "1.0.0" } }"#,
+        )
+        .file("src/a.ts", "");
+    let config = json!({
+        "elements": { "src": "src/**" },
+        "externals": { "deep": ["utils/*"] },
+        "rules": [{ "files": "src", "mayOnlyImport": ["src", "deep"] }],
+    });
+    let found = report_with(&config, &repo);
+    assert!(
+        found
+            .diagnostics
+            .iter()
+            .any(|d| d.code == archangel_rules::Code::ElementEmpty),
+        "no manifest lists `utils`, so `utils/*` matches nothing: {:?}",
+        found.diagnostics
+    );
+}

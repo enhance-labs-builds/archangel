@@ -18,15 +18,11 @@ pub(super) fn resolve_file(
     file: &Path,
     facts: Option<&FileFacts>,
 ) -> Resolved {
+    let Some(facts) = facts else {
+        return Resolved::default();
+    };
     let mut problems = BTreeSet::new();
     let mut inputs = ResolutionInputs::default();
-    let Some(facts) = facts else {
-        return Resolved {
-            problems,
-            inputs,
-            ..Resolved::default()
-        };
-    };
     let (tsconfig, problem) = resolver.tsconfig(file);
     problems.extend(problem);
     // A tsconfig that appears in a folder nearer than the one in use, or the first one anywhere,
@@ -162,10 +158,8 @@ fn written_imports(imports: &[imports::Import]) -> impl Iterator<Item = &imports
         .iter()
         .enumerate()
         .filter_map(move |(index, import)| {
-            let copy = import.template.is_some()
-                && index > 0
-                && imports[index - 1].template.is_some()
-                && imports[index - 1].span == import.span;
+            let copy =
+                import.template.is_some() && index > 0 && imports[index - 1].span == import.span;
             (!copy).then_some(import)
         })
 }

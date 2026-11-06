@@ -330,6 +330,9 @@ pub fn package_matches(pattern: &Pattern, module: &str) -> bool {
 /// more than the one name of a package, or the two of a scoped one.
 #[must_use]
 pub fn names_a_subpath(source: &str) -> bool {
+    if source.starts_with("node:") {
+        return false;
+    }
     let names = if source.starts_with('@') { 2 } else { 1 };
     source.split('/').count() > names
 }
@@ -337,6 +340,10 @@ pub fn names_a_subpath(source: &str) -> bool {
 /// The package of a module that an import names: `@scope/name` or `name`, without the subpath.
 #[must_use]
 pub fn package_of_module(module: &str) -> &str {
+    // A built-in module is its own package: `node:fs/promises` is not a subpath of `node:fs`.
+    if module.starts_with("node:") {
+        return module;
+    }
     let names = if module.starts_with('@') { 2 } else { 1 };
     module
         .match_indices('/')

@@ -709,3 +709,6 @@ fn extends_name(path: &Path) -> String {
     }
     format!("`{text}`")
 }
+
+#[cfg(test)]
+mod tests;

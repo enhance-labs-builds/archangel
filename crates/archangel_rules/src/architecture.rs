@@ -761,7 +761,7 @@ impl SentenceAbout {
 /// the subpath that the specifier writes after it, such as `lodash-es/get`.
 pub(crate) fn module_of<'a>(specifier: &'a str, package: &'a str) -> &'a str {
     match specifier.strip_prefix(package) {
-        Some(rest) if rest.len() > 1 && rest.starts_with('/') => specifier,
+        Some(rest) if rest.starts_with('/') => specifier,
         _ => package,
     }
 }

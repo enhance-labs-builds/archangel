@@ -530,7 +530,7 @@ The config MUST accept the key `externals`, an object of named lists of package 
 
 ### Requirement: An import counts as the package it resolves to
 
-An import of a subpath MUST count as an import of its package, because archangel records the package that an import resolves to. An import of a built-in module MUST count under its `node:` name, written with or without the prefix.
+An import of a subpath MUST count as an import of its package for a name without a subpath, such as `pg`; a name with a subpath names only the subpaths that it matches. An import of a built-in module MUST count under its `node:` name, written with or without the prefix.
 
 #### Scenario: A package and its subpaths
 
@@ -590,16 +590,23 @@ A name that starts with `node:`, has no wildcard, and names no built-in module M
 - **THEN** the config loads
 - **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "node_names_that_exist_and_wildcards_are_accepted"
 
-### Requirement: An externals name with a subpath is refused
+### Requirement: An externals name can name a subpath
 
-A name with a subpath, such as `pg/lib/client`, MUST be refused with `config-invalid` and the fix `pg`, because archangel records the package that an import resolves to. A `node:` name with a subpath is a built-in module and MUST be accepted.
+A name with a subpath, such as `pg/lib/client` or `@acme/ui/button/*`, MUST be accepted, and MUST name only the subpaths that it matches, as a package pattern on a rule side does. A `node:` name with a subpath is a built-in module of its own.
 
 #### Scenario: A subpath of a package, and of a built-in
 
-- **GIVEN** the externals sets `a` as `['pg/lib/client']` and `b` as `['node:fs/promises']`
+- **GIVEN** the externals sets `a` as `['pg/lib/client']`, `b` as `['node:fs/promises']` and `c` as `['@acme/ui/button/*']`
 - **WHEN** archangel loads the config
-- **THEN** archangel gives `config-invalid` for `pg/lib/client` with the fix `pg`, and accepts `node:fs/promises`
-- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_externals_name_with_a_subpath_is_refused_unless_it_is_a_built_in"
+- **THEN** the config loads
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_externals_name_with_a_subpath_is_accepted"
+
+#### Scenario: A subpath of a listed package
+
+- **GIVEN** a manifest that lists `utils`, the externals set `deep` as `['utils/*']`, and rules that "src" may import only "src" and `deep`, and only "src" and `{ packages: ['utils/*'] }`
+- **WHEN** archangel makes a check with no import of `utils`
+- **THEN** archangel gives no `element-empty`, because a manifest lists packages, not their subpaths
+- **TEST** `crates/archangel_rules/tests/subpaths_and_templates.rs` › "a_subpath_of_a_listed_package_is_not_empty"
 
 ### Requirement: A part holds no packages
 

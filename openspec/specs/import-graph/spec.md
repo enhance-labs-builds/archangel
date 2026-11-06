@@ -498,7 +498,7 @@ When a type import's bare specifier names no installed package, archangel MUST r
 - **AND** a file with `import type { Point } from 'geo'`, `import type { Map } from '@acme/maps'` and `import { Point as P } from 'geo'`
 - **WHEN** archangel builds the import graph
 - **THEN** the type imports resolve to the packages `geo` and `@acme/maps`, and the runtime import is unresolved
-- **TEST** `crates/archangel_graph/tests/resolve.rs` › "a_type_import_of_a_types_only_package_resolves_to_the_package"
+- **TEST** `crates/archangel_graph/tests/templates_and_types.rs` › "a_type_import_of_a_types_only_package_resolves_to_the_package"
 
 ### Requirement: A template import is one import of each file it can load
 
@@ -509,8 +509,8 @@ An `import()` of a template literal whose static text starts with `./` or `../`,
 - **GIVEN** `import(\`../locales/${name}.json\`)` with `en.json`, `fr.json` and `nested/de.json` below `locales`, `import(\`./pages/${p}/index.ts\`)`, `import(\`./missing/${x}.ts\`)` and `import(url)`
 - **WHEN** archangel builds the import graph
 - **THEN** the first is an import of `en.json` and `fr.json`, the second of each page, the third is unresolved, and only `import(url)` is unfollowed
-- **TEST** `crates/archangel_graph/tests/resolve.rs` › "a_template_import_resolves_to_each_file_that_its_static_parts_match"
-- **TEST** `crates/archangel_graph/tests/resolve.rs` › "a_template_that_matches_no_file_is_unresolved_and_a_computed_specifier_unfollowed"
+- **TEST** `crates/archangel_graph/tests/templates_and_types.rs` › "a_template_import_resolves_to_each_file_that_its_static_parts_match"
+- **TEST** `crates/archangel_graph/tests/templates_and_types.rs` › "a_template_that_matches_no_file_is_unresolved_and_a_computed_specifier_unfollowed"
 
 #### Scenario: A template that reaches past an entry
 

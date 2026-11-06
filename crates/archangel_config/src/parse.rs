@@ -423,14 +423,7 @@ fn never_matches(name: &str) -> Option<String> {
              names `{name}`"
         ));
     }
-    let folders = if name.starts_with('@') { 2 } else { 1 };
-    let package = name.split('/').take(folders).collect::<Vec<_>>().join("/");
-    (package.len() < name.len()).then(|| {
-        format!(
-            "archangel records the package that an import resolves to, not its subpath, so write \
-             `{package}`, which also counts every subpath"
-        )
-    })
+    None
 }
 
 fn declared_selectors<'v>(

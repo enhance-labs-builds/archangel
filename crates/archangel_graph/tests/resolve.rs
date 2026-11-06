@@ -2,28 +2,16 @@
 //! archangel says when it cannot.
 #![cfg(test)]
 
+#[path = "support/resolutions.rs"]
+mod resolutions;
+
+use resolutions::{build, resolution};
+
 use archangel_graph::{
     GraphOptions, GraphProblem, ImportGraph, Resolution, UnresolvedReason, Work,
     describe_resolve_error,
 };
 use archangel_testkit::FixtureRepo;
-
-fn build(repo: &FixtureRepo) -> ImportGraph {
-    ImportGraph::build(repo.path(), &GraphOptions::default(), &mut Work::default())
-}
-
-fn resolution(graph: &ImportGraph, file: &str, specifier: &str) -> Resolution {
-    let facts = graph
-        .file(file)
-        .and_then(|f| f.facts.as_ref())
-        .expect("the file has facts");
-    let index = facts
-        .imports
-        .iter()
-        .position(|i| i.specifier == specifier)
-        .expect("the import");
-    graph.resolutions(file).expect("the file has resolutions")[index].clone()
-}
 
 fn package(name: &str, main: &str) -> String {
     format!(r#"{{ "name": "{name}", "version": "1.0.0", "main": "{main}" }}"#)
@@ -930,107 +918,5 @@ fn a_package_module_is_parsed_once() {
         names("src/c.ts"),
         None,
         "a named import names what it brings in"
-    );
-}
-
-#[test]
-fn a_type_import_of_a_types_only_package_resolves_to_the_package() {
-    let repo = FixtureRepo::new()
-        .file(
-            "node_modules/@types/geo/package.json",
-            r#"{ "name": "@types/geo", "version": "1.0.0", "types": "index.d.ts" }"#,
-        )
-        .file("node_modules/@types/geo/index.d.ts", "export interface Point { x: number }\n")
-        .file(
-            "node_modules/@types/acme__maps/package.json",
-            r#"{ "name": "@types/acme__maps", "version": "1.0.0", "types": "index.d.ts" }"#,
-        )
-        .file("node_modules/@types/acme__maps/index.d.ts", "export interface Map { z: number }\n")
-        .file(".gitignore", "node_modules/\n")
-        .file(
-            "src/a.ts",
-            "import type { Point } from 'geo';\nimport type { Map } from '@acme/maps';\nimport { Point as P } from 'geo';\n",
-        );
-    let graph = build(&repo);
-    let resolutions = graph.resolutions("src/a.ts").expect("resolutions");
-    assert_eq!(
-        resolutions[..2],
-        [
-            Resolution::Package("geo".to_owned()),
-            Resolution::Package("@acme/maps".to_owned())
-        ],
-        "a type import falls back to @types, as TypeScript does, under the name it imports"
-    );
-    assert_eq!(
-        resolutions[2],
-        Resolution::Unresolved(UnresolvedReason::NotFound),
-        "a runtime import of a package that is not installed stays unresolved"
-    );
-}
-
-/// Each import of a file and its resolution, as (specifier, resolution).
-fn imports_of(graph: &ImportGraph, file: &str) -> Vec<(String, Resolution)> {
-    let facts = graph
-        .file(file)
-        .and_then(|f| f.facts.as_ref())
-        .expect("facts");
-    facts
-        .imports
-        .iter()
-        .zip(graph.resolutions(file).expect("resolutions"))
-        .map(|(import, resolution)| (import.specifier.clone(), resolution.clone()))
-        .collect()
-}
-
-#[test]
-fn a_template_import_resolves_to_each_file_that_its_static_parts_match() {
-    let repo = FixtureRepo::new()
-        .file(
-            "src/app/load.ts",
-            "export const load = (name: string) => import(`../locales/${name}.json`);\nexport const page = (p: string) => import(`./pages/${p}/index.ts`);\n",
-        )
-        .file("src/locales/en.json", "{}")
-        .file("src/locales/fr.json", "{}")
-        .file("src/locales/nested/de.json", "{}")
-        .file("src/app/pages/home/index.ts", "")
-        .file("src/app/pages/about/index.ts", "");
-    let file = |path: &str| Resolution::File(path.to_owned());
-    let locales = "../locales/${name}.json".to_owned();
-    let pages = "./pages/${p}/index.ts".to_owned();
-    assert_eq!(
-        imports_of(&build(&repo), "src/app/load.ts"),
-        [
-            (locales.clone(), file("src/locales/en.json")),
-            (locales, file("src/locales/fr.json")),
-            (pages.clone(), file("src/app/pages/about/index.ts")),
-            (pages, file("src/app/pages/home/index.ts")),
-        ],
-        "each `${{…}}` is one file or folder name, so nested/de.json is out"
-    );
-}
-
-#[test]
-fn a_template_that_matches_no_file_is_unresolved_and_a_computed_specifier_unfollowed() {
-    let repo = FixtureRepo::new().file(
-        "src/app/load.ts",
-        "export const none = (x: string) => import(`./missing/${x}.ts`);\nexport const any = (url: string) => import(url);\n",
-    );
-    let graph = build(&repo);
-    assert_eq!(
-        imports_of(&graph, "src/app/load.ts"),
-        [(
-            "./missing/${x}.ts".to_owned(),
-            Resolution::Unresolved(UnresolvedReason::TemplateMatchesNothing)
-        )],
-        "a template that matches no file is an unresolved import"
-    );
-    let facts = graph
-        .file("src/app/load.ts")
-        .and_then(|f| f.facts.as_ref())
-        .expect("facts");
-    assert_eq!(
-        facts.unfollowed,
-        [2],
-        "import(url) has no static part, so it is unfollowed"
     );
 }

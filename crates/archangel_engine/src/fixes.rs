@@ -238,3 +238,6 @@ fn reparse_per_fix() -> bool {
     fail::fail_point!("engine::reparse_per_fix", |_| true);
     false
 }
+
+#[cfg(test)]
+mod tests;
