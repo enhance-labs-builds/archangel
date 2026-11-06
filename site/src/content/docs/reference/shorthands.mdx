@@ -25,7 +25,8 @@ layers(['app', 'feature', 'shared'], { because: 'Code depends only on code below
 The list goes from the top layer to the bottom layer. An import from a file in a layer into a
 layer earlier in the list is a problem. A layer is a part, an externals set or a group. A group
 lets a file be in a layer and in a part of its own, such as a feature whose `entry` rule needs a
-capture: list groups such as `pagesLayer: 'src/pages/**'` and `featuresLayer: 'src/features/**'`.
+capture: list groups such as `pagesLayer: 'src/pages/**'` and `featuresLayer: 'src/features/**'`
+in the order, by name, as you list parts.
 These imports pass:
 
 - imports inside one layer;
