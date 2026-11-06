@@ -708,3 +708,32 @@ fn each_sentence_about_a_file_says_what_it_judges() {
         "x.ts is in the files of the first rule, on the side of the second, and both in the third"
     );
 }
+
+#[test]
+fn an_empty_group_names_the_ignore_line_that_left_its_files_out() {
+    let repo = FixtureRepo::new()
+        .file("src/feature/public/index.ts", "export {};\n")
+        .file("src/feature/a.ts", "export {};\n");
+    let config = json!({
+        "ignore": ["public/"],
+        "parts": { "src": "src/**" },
+        "groups": { "publicApi": "src/**/public/**" },
+    });
+    let found = report(&config, &repo);
+    let messages: Vec<&str> = found
+        .diagnostics
+        .iter()
+        .filter(|d| d.code == Code::SelectorEmpty)
+        .map(|d| d.message.as_str())
+        .collect();
+    assert_eq!(
+        messages,
+        [
+            "the group \"publicApi\" matches no file (src/**/public/**), so no rule about it can \
+          fire; fix its definition or remove it. The config's ignore line \"public/\" leaves out \
+          1 file(s) that it would match, such as src/feature/public/index.ts; a line with no `/` \
+          but at its end matches at any depth, so write \"/public/\" for the top folder only"
+        ],
+        "the message names the line that emptied the group"
+    );
+}

@@ -267,13 +267,46 @@ fn two_parts_that_match_one_file_are_an_error() {
         "src/features/login/session.model.ts",
         "\"model\"",
         "\"feature\"",
-        "`not`",
+        "a `!` pattern",
         "group",
         "baseline",
     ] {
         assert!(found[0].contains(word), "{word} in: {}", found[0]);
     }
     assert!(!Code::PartOverlap.is_rule(), "a baseline never holds it");
+}
+
+#[test]
+fn a_bang_pattern_leaves_a_nested_part_out_of_its_part() {
+    let repo = FixtureRepo::new()
+        .file("src/shared/ui/public/index.ts", "")
+        .file("src/shared/widgets/w1/index.ts", "")
+        .file("src/shared/widgets/w1/inner.ts", "");
+    let config = json!({
+        "parts": {
+            "pack": ["src/shared/{pack}/**", "!src/shared/widgets/**"],
+            "widget": "src/shared/widgets/{widget}/**",
+        },
+        "rules": [{ "kind": "entry", "element": "widget", "files": ["index.ts"] }],
+    });
+    let (report, _) = support::check(&config, &repo, None);
+    assert!(
+        report.diagnostics.is_empty(),
+        "the widgets are in the part widget alone: {:?}",
+        report.diagnostics
+    );
+}
+
+#[test]
+fn a_part_of_only_bang_patterns_is_refused() {
+    let problems = archangel_config::parse_json(
+        &json!({ "parts": { "pack": ["!src/shared/widgets/**"] } }).to_string(),
+    )
+    .expect_err("a part needs a pattern of its files");
+    assert!(
+        problems[0].message.contains("only `!` patterns"),
+        "the message says what is missing: {problems:?}"
+    );
 }
 
 #[test]

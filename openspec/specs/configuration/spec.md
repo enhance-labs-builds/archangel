@@ -301,14 +301,14 @@ With `elements`, archangel MUST put each repository file in the first file eleme
 
 ### Requirement: Two parts that match one file fail the check
 
-With `parts`, a file that two of the config's own parts match MUST give one `part-overlap` diagnostic, which names the file and both parts, and the check MUST fail. The message MUST say to narrow one of the two patterns with `not` or to make one of them a group, and that every overlap is fixed in the config because the baseline does not hold it.
+With `parts`, a file that two of the config's own parts match MUST give one `part-overlap` diagnostic, which names the file and both parts, and the check MUST fail. The message MUST say to leave the file out of one part with a `!` pattern in its list or to make one of them a group, and that every overlap is fixed in the config because the baseline does not hold it.
 
 #### Scenario: Two parts match the same file
 
 - **GIVEN** the parts "model" with `src/**/*.model.ts` and "feature" with `src/features/{feature}/**`
 - **WHEN** archangel makes a check on a repository with `src/features/login/session.model.ts`
 - **THEN** archangel gives one `part-overlap` diagnostic that names the file, "model" and "feature"
-- **AND** the message says to narrow one of the two patterns with `not` or to make one of them a group, and that the baseline does not hold it
+- **AND** the message says to leave the file out of one part with a `!` pattern or to make one of them a group, and that the baseline does not hold it
 - **AND** archangel exits with status 1
 - **TEST** `crates/archangel_rules/tests/elements.rs` › "two_parts_that_match_one_file_are_an_error"
 
@@ -530,7 +530,7 @@ The config MUST accept the key `externals`, an object of named lists of package 
 
 ### Requirement: An import counts as the package it resolves to
 
-An import of a subpath MUST count as an import of its package, because archangel records the package that an import resolves to. An import of a built-in module MUST count under its `node:` name, written with or without the prefix.
+An import of a subpath MUST count as an import of its package for a name without a subpath, such as `pg`; a name with a subpath names only the subpaths that it matches. An import of a built-in module MUST count under its `node:` name, written with or without the prefix.
 
 #### Scenario: A package and its subpaths
 
@@ -590,16 +590,23 @@ A name that starts with `node:`, has no wildcard, and names no built-in module M
 - **THEN** the config loads
 - **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "node_names_that_exist_and_wildcards_are_accepted"
 
-### Requirement: An externals name with a subpath is refused
+### Requirement: An externals name can name a subpath
 
-A name with a subpath, such as `pg/lib/client`, MUST be refused with `config-invalid` and the fix `pg`, because archangel records the package that an import resolves to. A `node:` name with a subpath is a built-in module and MUST be accepted.
+A name with a subpath, such as `pg/lib/client` or `@acme/ui/button/*`, MUST be accepted, and MUST name only the subpaths that it matches, as a package pattern on a rule side does. A `node:` name with a subpath is a built-in module of its own.
 
 #### Scenario: A subpath of a package, and of a built-in
 
-- **GIVEN** the externals sets `a` as `['pg/lib/client']` and `b` as `['node:fs/promises']`
+- **GIVEN** the externals sets `a` as `['pg/lib/client']`, `b` as `['node:fs/promises']` and `c` as `['@acme/ui/button/*']`
 - **WHEN** archangel loads the config
-- **THEN** archangel gives `config-invalid` for `pg/lib/client` with the fix `pg`, and accepts `node:fs/promises`
-- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_externals_name_with_a_subpath_is_refused_unless_it_is_a_built_in"
+- **THEN** the config loads
+- **TEST** `crates/archangel_config/tests/externals_and_areas.rs` › "an_externals_name_with_a_subpath_is_accepted"
+
+#### Scenario: A subpath of a listed package
+
+- **GIVEN** a manifest that lists `utils`, the externals set `deep` as `['utils/*']`, and rules that "src" may import only "src" and `deep`, and only "src" and `{ packages: ['utils/*'] }`
+- **WHEN** archangel makes a check with no import of `utils`
+- **THEN** archangel gives no `element-empty`, because a manifest lists packages, not their subpaths
+- **TEST** `crates/archangel_rules/tests/subpaths_and_templates.rs` › "a_subpath_of_a_listed_package_is_not_empty"
 
 ### Requirement: A part holds no packages
 
@@ -641,3 +648,57 @@ A brace without a comma MUST be a capture, also when its name looks like an exte
 - **WHEN** the developer runs `archangel explain src/a.ts`
 - **THEN** the output shows the part `code` with the capture `ts` and the value `ts`, because the capture matches the text after the dot
 - **TEST** `crates/archangel/tests/cli.rs` › "explain_shows_a_one_word_brace_as_a_capture"
+
+### Requirement: A part can leave files out with a `!` pattern
+
+A pattern that starts with `!` in a part's list MUST leave the files it matches out of the part. A list of only `!` patterns MUST be `config-invalid`.
+
+#### Scenario: A nested part
+
+- **GIVEN** a part "pack" with `["src/shared/{pack}/**", "!src/shared/widgets/**"]` and a part "widget" with `src/shared/widgets/{widget}/**`
+- **WHEN** archangel makes a check
+- **THEN** the files below `src/shared/widgets` are in "widget" only, and there is no `part-overlap`
+- **TEST** `crates/archangel_rules/tests/elements.rs` › "a_bang_pattern_leaves_a_nested_part_out_of_its_part"
+
+#### Scenario: Only `!` patterns
+
+- **GIVEN** a part with `["!src/shared/widgets/**"]`
+- **WHEN** archangel loads the config
+- **THEN** archangel gives `config-invalid`, whose message says that the list has only `!` patterns
+- **TEST** `crates/archangel_rules/tests/elements.rs` › "a_part_of_only_bang_patterns_is_refused"
+
+### Requirement: `./` names a file at the root
+
+A pattern that starts with `./` MUST name the path after it, from the config folder. A name that is not declared and ends in an extension MUST give `rule-unknown-element`, whose message suggests the same text after `./`.
+
+#### Scenario: A root file in a group
+
+- **GIVEN** a group with `["./app.config.ts", "./src/**"]`
+- **WHEN** archangel loads the config
+- **THEN** the group's patterns are `app.config.ts` and `src/**`
+- **TEST** `crates/archangel_config/tests/selectors.rs` › "a_root_file_is_named_with_dot_slash"
+
+#### Scenario: A bare file name
+
+- **GIVEN** a group with `["app.config.ts"]`
+- **WHEN** archangel loads the config
+- **THEN** the message ends with `, so a file at the root is written './app.config.ts'`
+- **TEST** `crates/archangel_config/tests/selectors.rs` › "a_bare_file_name_suggests_dot_slash"
+
+### Requirement: A rule can warn
+
+A rule MUST accept `severity`, `'error'` (the default) or `'warn'`. A violation of a rule that warns MUST be reported as a warning in every format, and MUST NOT fail `check`. `check --max-warnings <count>` MUST fail the check when more warnings than the count are shown.
+
+#### Scenario: A deprecation
+
+- **GIVEN** a rule with `severity: 'warn'` and one file that breaks it
+- **WHEN** the developer runs `archangel check`
+- **THEN** the text shows `warning[may-not-import]`, the summary says `1 warning`, the JSON gives `"severity": "warning"` and `summary.warnings` 1, GitHub output uses `::warning`, and the exit status is 0
+- **TEST** `crates/archangel/tests/cli.rs` › "a_rule_that_warns_reports_and_passes"
+
+#### Scenario: A limit on warnings
+
+- **GIVEN** the same rule and file
+- **WHEN** the developer runs `archangel check --max-warnings 1`, then `--max-warnings 0`
+- **THEN** the first exits with status 0, and the second with status 1
+- **TEST** `crates/archangel/tests/cli.rs` › "max_warnings_fails_the_check_past_its_count"

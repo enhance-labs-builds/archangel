@@ -44,12 +44,15 @@ fn config_dir(options: &Options, start: &Path) -> PathBuf {
 }
 
 fn stop_answer(options: &Options, stop: &Stop, dir: &Path) -> Answer {
-    Answer::stopped(match options.format {
-        Format::Json => json::stopped_document(&stop.diagnostics),
-        Format::Github => github::annotations(dir, &stop.diagnostics),
-        Format::Sarif => sarif::log(dir, &stop.diagnostics.iter().collect::<Vec<_>>()),
-        Format::Text => text::diagnostics(dir, &stop.diagnostics, false),
-    })
+    match options.format {
+        Format::Json => Answer::stopped_document(json::stopped_document(&stop.diagnostics)),
+        Format::Sarif => Answer::stopped_document(sarif::log(
+            dir,
+            &stop.diagnostics.iter().collect::<Vec<_>>(),
+        )),
+        Format::Github => Answer::stopped(github::annotations(dir, &stop.diagnostics)),
+        Format::Text => Answer::stopped(text::diagnostics(dir, &stop.diagnostics, false)),
+    }
 }
 
 /// The answer for a format the command cannot print, or `None` when it can.
@@ -74,7 +77,11 @@ pub(crate) fn not_a_source_file(reason: &str) -> Answer {
 }
 
 /// `archangel check`.
-pub(crate) fn run_check(options: &Options, files: &[PathBuf]) -> Answer {
+pub(crate) fn run_check(
+    options: &Options,
+    files: &[PathBuf],
+    max_warnings: Option<usize>,
+) -> Answer {
     let mut session = match open_session(options) {
         Ok(session) => session,
         Err(answer) => return answer,
@@ -93,10 +100,12 @@ pub(crate) fn run_check(options: &Options, files: &[PathBuf]) -> Answer {
         .iter()
         .filter(|d| chosen.is_empty() || concerns(d, &chosen))
         .collect();
-    let outcome = if shown.is_empty() {
-        Outcome::Clean
-    } else {
+    let warnings = shown.iter().filter(|d| d.warning).count();
+    let fails = shown.len() > warnings || max_warnings.is_some_and(|most| warnings > most);
+    let outcome = if fails {
         Outcome::Found
+    } else {
+        Outcome::Clean
     };
     let timings = options.stats.then(|| session.timings());
     let dir = session.config_dir();
@@ -106,13 +115,13 @@ pub(crate) fn run_check(options: &Options, files: &[PathBuf]) -> Answer {
         Format::Github => {
             let owned: Vec<Diagnostic> = shown.into_iter().cloned().collect();
             let mut out = github::annotations(dir, &owned);
-            out.push_str(&text::summary(&report.summary, owned.len()));
+            out.push_str(&text::summary(&report.summary, &owned));
             out
         }
         Format::Text => {
             let owned: Vec<Diagnostic> = shown.into_iter().cloned().collect();
             let mut out = text::diagnostics(dir, &owned, render::color(options.color));
-            out.push_str(&text::summary(&report.summary, owned.len()));
+            out.push_str(&text::summary(&report.summary, &owned));
             if options.stats {
                 out.push_str(&text::stats(session.work(), timings));
             }

@@ -78,3 +78,39 @@ fn a_new_source_file_is_not_another_file() {
         "the graph has it as a source file only"
     );
 }
+
+#[test]
+fn a_new_file_that_a_template_import_reaches_is_judged() {
+    let repo = FixtureRepo::new()
+        .file(
+            "src/app/load.ts",
+            "export const load = (n: string) => import(`../locales/${n}.json`);\n",
+        )
+        .file("src/locales/en.json", "{}")
+        .json_config(&json!({
+            "elements": { "app": "src/app/**", "locales": "src/locales/**" },
+            "rules": [{ "name": "no-locales", "files": "app", "mayNotImport": "locales" }],
+        }));
+    let mut session = open(&repo);
+    let count = |session: &Session| {
+        session
+            .report()
+            .diagnostics
+            .iter()
+            .filter(|d| d.rule.as_deref() == Some("no-locales"))
+            .count()
+    };
+    assert_eq!(count(&session), 1, "the template reaches en.json");
+    repo.write("src/locales/fr.json", "{}");
+    apply(
+        &repo,
+        &mut session,
+        PathEvent::Created,
+        "src/locales/fr.json",
+    );
+    assert_eq!(
+        count(&session),
+        2,
+        "the new locale is a file that the template reaches, without a walk"
+    );
+}

@@ -14,10 +14,12 @@ status: 0
   "summary": {
     "files": 2,
     "imports": 0,
+    "warnings": 0,
     "exceptions": {},
     "baselined": {},
     "permittedUnresolved": 0,
     "unfollowed": 0,
+    "unfollowedImports": [],
     "linksNotFollowed": [],
     "nestedRepositories": [],
     "presetNamesMatchingNothing": [],
@@ -55,6 +57,27 @@ $ archangel test --format json
 status: 1
 {
   "schemaVersion": 1,
+  "diagnostics": [
+    {
+      "code": "example-failed",
+      "severity": "error",
+      "rule": "layers",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "no rule rejected the example, and \"layers\" should have; fix the rule or the example",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
   "examples": [
     {
       "rule": "layers",
@@ -66,6 +89,7 @@ status: 1
       "passed": false,
       "failure": {
         "code": "example-failed",
+        "severity": "error",
         "rule": "layers",
         "file": null,
         "line": 0,

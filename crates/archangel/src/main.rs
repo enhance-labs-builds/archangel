@@ -81,6 +81,10 @@ enum Command {
     Check {
         /// Source files whose diagnostics to print; the whole repository is still checked.
         files: Vec<PathBuf>,
+        /// Fail the check when there are more warnings than this. Without it, warnings never fail
+        /// the check.
+        #[arg(long, value_name = "COUNT")]
+        max_warnings: Option<usize>,
     },
     /// Check every example of every rule.
     Test,
@@ -174,6 +178,16 @@ impl Answer {
             outcome: Outcome::Stopped,
         }
     }
+
+    /// A stop that a machine reads: the document goes to standard output, where the document of
+    /// every other run goes, so one parser reads both.
+    pub(crate) fn stopped_document(stdout: String) -> Self {
+        Self {
+            stdout,
+            stderr: String::new(),
+            outcome: Outcome::Stopped,
+        }
+    }
 }
 
 fn main() -> ExitCode {
@@ -220,7 +234,10 @@ fn run(cli: Cli) -> Answer {
         return refused;
     }
     match cli.command {
-        Command::Check { files } => commands::run_check(&options, &files),
+        Command::Check {
+            files,
+            max_warnings,
+        } => commands::run_check(&options, &files, max_warnings),
         Command::Test => commands::run_test(&options),
         Command::Explain { file } => commands::run_explain(&options, &file),
         Command::Rules { path } => commands::run_rules(&options, path.as_deref()),

@@ -397,6 +397,8 @@ pub struct Diagnostic {
     pub chain: Vec<String>,
     /// An edit that removes the violation, checked before it is offered.
     pub fix: Option<Fix>,
+    /// Whether it breaks a rule whose severity is `'warn'`, so it does not fail the check.
+    pub warning: bool,
 }
 
 /// A checked edit to one specifier.
@@ -431,6 +433,7 @@ impl Diagnostic {
             group: Vec::new(),
             chain: Vec::new(),
             fix: None,
+            warning: false,
         }
     }
 

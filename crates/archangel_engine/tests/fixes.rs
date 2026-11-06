@@ -265,3 +265,52 @@ fn entry_fix_never_imports_a_folder_that_holds_the_importing_file() {
          classic way into a cycle"
     );
 }
+
+#[test]
+fn entry_fix_reaches_an_entry_file_in_a_sibling_folder() {
+    let repo = FixtureRepo::new()
+        .file("tsconfig.json", TSCONFIG)
+        .file(
+            "src/shared/ui/public/index.ts",
+            "export { Button } from '../components/Button';\n",
+        )
+        .file("src/shared/ui/components/Button.tsx", "export const Button = 1;\n")
+        .file(
+            "src/features/login/a.ts",
+            "import { Button } from '@/shared/ui/components/Button';\n",
+        )
+        .json_config(&json!({
+            "elements": {
+                "pack": "src/shared/{pack}/**",
+                "feature": "src/features/{feature}/**",
+            },
+            "rules": [{ "kind": "entry", "name": "entry(pack)", "element": "pack", "files": ["public/**"] }],
+        }));
+    let session = Session::open(repo.path(), None).expect("the session opens");
+    let found = session
+        .report()
+        .diagnostics
+        .iter()
+        .find(|d| d.code == Code::Entry)
+        .expect("an entry violation");
+    assert_eq!(
+        found.fix.as_ref().map(|fix| fix.specifier.as_str()),
+        Some("@/shared/ui/public"),
+        "the fix keeps the alias and points it at the pack's public entry: {:?}",
+        found.help
+    );
+}
+
+#[test]
+fn entry_fix_is_not_offered_for_a_template_import() {
+    let repo = repo(
+        "export { store } from './model/store';\n",
+        "export const load = (n: string) => import(`../../entities/ledger/model/${n}.ts`);\n",
+    );
+    let (fix, help) = fix_of(&repo);
+    assert_eq!(fix, None, "one specifier cannot replace a template");
+    assert!(
+        help.contains("one specifier cannot replace it"),
+        "the help says why: {help}"
+    );
+}

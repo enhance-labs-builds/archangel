@@ -28,6 +28,7 @@ On the other side of an import condition, you can also write packages:
 | --- | --- |
 | `{ packages: ['react', 'react-dom'] }` | these packages and their subpaths |
 | `{ packages: ['@radix-ui/*'] }` | each package in the scope |
+| `{ packages: ['lodash-es/*'] }` | the subpaths of the package, such as `lodash-es/get`, and not its root |
 | `{ packages: ['*'] }` | each package |
 | `'driver'` | the packages of the externals set `driver` |
 
@@ -78,6 +79,15 @@ rule('client-has-no-db', {
   },
 })
 ```
+
+## Root files and `!` patterns
+
+A pattern that starts with `./` names a path from the config folder. Write `'./app.config.ts'` for
+a file at the root, because `'app.config.ts'` reads as the name of a part or a group.
+
+In a part's list, a pattern that starts with `!` leaves those files out of the part. Write
+`pack: ['src/shared/{pack}/**', '!src/shared/widgets/**']` beside
+`widget: 'src/shared/widgets/{widget}/**'`, so that each widget is in the part `widget` only.
 
 ## Tags
 

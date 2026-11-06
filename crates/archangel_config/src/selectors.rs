@@ -155,7 +155,9 @@ impl<'a> Names<'a> {
             )));
         }
         if text.contains('/') || text.contains('*') {
-            return match Pattern::parse(&self.scope.path(text)) {
+            // `./` names the config folder, so `./app.config.ts` is the file at its root.
+            let path = text.strip_prefix("./").unwrap_or(text);
+            return match Pattern::parse(&self.scope.path(path)) {
                 Ok(pattern) => Some(Named::Pattern(self.intern(pattern))),
                 Err(error) => {
                     problems.push(
@@ -179,7 +181,7 @@ impl<'a> Names<'a> {
         ConfigProblem::new(
             ProblemCode::RuleUnknownElement,
             format!(
-                "the config declares no {} \"{text}\"; {}{}; {}a path pattern has a `/` or a `*`",
+                "the config declares no {} \"{text}\"; {}{}; {}a path pattern has a `/` or a `*`{}",
                 if self.says_parts {
                     "part or group"
                 } else {
@@ -197,6 +199,11 @@ impl<'a> Names<'a> {
                     "a kind has a meaning only in its table, and ".to_owned()
                 } else {
                     format!("a package is written {{ packages: ['{text}'] }}, and ")
+                },
+                if looks_like_a_file(text) {
+                    format!(", so a file at the root is written './{text}'")
+                } else {
+                    String::new()
                 },
             ),
         )
@@ -573,6 +580,13 @@ fn tag_term(value: &Value, field: &str, problems: &mut Vec<ConfigProblem>) -> Op
         &format!("must be a docblock tag that starts with @, {fix}"),
     ));
     None
+}
+
+/// Whether a name ends in an extension, as a file at the root does.
+fn looks_like_a_file(text: &str) -> bool {
+    text.rsplit_once('.').is_some_and(|(stem, extension)| {
+        !stem.is_empty() && extension.chars().all(char::is_alphanumeric) && !extension.is_empty()
+    })
 }
 
 fn invalid(field: &str, message: &str) -> ConfigProblem {

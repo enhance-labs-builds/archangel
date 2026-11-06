@@ -14,10 +14,12 @@ status: 0
   "summary": {
     "files": 2,
     "imports": 0,
+    "warnings": 0,
     "exceptions": {},
     "baselined": {},
     "permittedUnresolved": 0,
     "unfollowed": 0,
+    "unfollowedImports": [],
     "linksNotFollowed": [],
     "nestedRepositories": [],
     "presetNamesMatchingNothing": [],
@@ -65,6 +67,65 @@ $ archangel test --format json
 status: 1
 {
   "schemaVersion": 1,
+  "diagnostics": [
+    {
+      "code": "example-failed",
+      "severity": "error",
+      "rule": "layers",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "no rule rejected the example, and \"layers\" should have; fix the rule or the example",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "rule-unproven",
+      "severity": "error",
+      "rule": "forbid",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"forbid\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "rule-unproven",
+      "severity": "error",
+      "rule": "forbid2",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"forbid2\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
   "examples": [
     {
       "rule": "layers",
@@ -89,6 +150,7 @@ status: 1
       "diagnostics": [
         {
           "code": "may-not-import",
+          "severity": "error",
           "rule": "forbid2",
           "file": "src/shared/x.ts",
           "line": 1,
@@ -115,6 +177,7 @@ status: 1
         },
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/x.ts",
           "line": 1,
@@ -151,6 +214,7 @@ status: 1
       "passed": false,
       "failure": {
         "code": "example-failed",
+        "severity": "error",
         "rule": "layers",
         "file": null,
         "line": 0,
@@ -173,6 +237,7 @@ status: 1
   "unproven": [
     {
       "code": "rule-unproven",
+      "severity": "error",
       "rule": "forbid",
       "file": null,
       "line": 0,
@@ -191,6 +256,7 @@ status: 1
     },
     {
       "code": "rule-unproven",
+      "severity": "error",
       "rule": "forbid2",
       "file": null,
       "line": 0,

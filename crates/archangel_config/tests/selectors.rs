@@ -257,3 +257,126 @@ fn isolate_still_refuses_a_group() {
         "isolate needs a part with a capture, so a group is refused: {problem:?}"
     );
 }
+
+#[test]
+fn a_root_file_is_named_with_dot_slash() {
+    let config = valid(&json!({
+        "elements": declared_elements(),
+        "selectors": { "configs": ["./app.config.ts", "./src/**"] },
+    }));
+    let sources: Vec<&str> = config
+        .patterns
+        .iter()
+        .map(archangel_config::Pattern::source)
+        .collect();
+    assert_eq!(
+        sources,
+        ["app.config.ts", "src/**"],
+        "`./` names the config folder, so the pattern is the root file"
+    );
+}
+
+#[test]
+fn a_bare_file_name_suggests_dot_slash() {
+    let problem = only_problem(&json!({
+        "elements": declared_elements(),
+        "selectors": { "configs": ["app.config.ts"] },
+    }));
+    assert!(
+        problem
+            .message
+            .ends_with(", so a file at the root is written './app.config.ts'"),
+        "the message says how to name the file: {}",
+        problem.message
+    );
+}
+
+#[test]
+fn a_transitive_rule_refuses_a_package_subpath() {
+    let problem = only_problem(&json!({
+        "elements": declared_elements(),
+        "rules": [{ "files": "shared", "mayNotImport": { "packages": ["lodash-es/*"] }, "transitively": true }],
+    }));
+    assert!(
+        problem.message.contains("`lodash-es/*` cannot end a chain"),
+        "a chain ends at a package, so the subpath is refused: {}",
+        problem.message
+    );
+}
+
+#[test]
+fn a_rule_warns_only_with_severity_warn() {
+    let warns = |severity: Value| {
+        let mut rule = json!({ "files": "shared", "mayNotImport": "entity" });
+        if !severity.is_null() {
+            rule["severity"] = severity;
+        }
+        valid(&json!({ "elements": declared_elements(), "rules": [rule] })).rules[0].warns
+    };
+    assert_eq!(
+        [
+            warns(json!("warn")),
+            warns(json!("error")),
+            warns(Value::Null)
+        ],
+        [true, false, false],
+        "'warn' warns; 'error' and no severity fail the check"
+    );
+    let problem = only_problem(&json!({
+        "elements": declared_elements(),
+        "rules": [{ "files": "shared", "mayNotImport": "entity", "severity": "info" }],
+    }));
+    assert_eq!(
+        problem.field.as_deref(),
+        Some("rules[0].severity"),
+        "another value is refused at the field: {problem:?}"
+    );
+}
+
+#[test]
+fn a_name_suggests_dot_slash_only_when_it_ends_in_an_extension() {
+    for name in ["configs", ".eslintrc", "notes.", "a.b-c"] {
+        let problem = only_problem(&json!({
+            "elements": declared_elements(),
+            "selectors": { "s": [name] },
+        }));
+        assert!(
+            !problem.message.contains("is written './"),
+            "{name} has no extension after a name, so the message suggests no path: {}",
+            problem.message
+        );
+    }
+}
+
+#[test]
+fn a_module_is_its_package_and_the_subpath_after_it() {
+    use archangel_config::{names_a_subpath, package_of_module};
+    assert_eq!(
+        [
+            package_of_module("lodash-es"),
+            package_of_module("lodash-es/fp/get"),
+            package_of_module("@scope/tokens/core/a"),
+            package_of_module("@scope/tokens"),
+            package_of_module("node:fs/promises"),
+        ],
+        [
+            "lodash-es",
+            "lodash-es",
+            "@scope/tokens",
+            "@scope/tokens",
+            "node:fs/promises"
+        ],
+        "the package is one name, or two for a scope; a built-in module is its own"
+    );
+    assert_eq!(
+        [
+            names_a_subpath("lodash-es/*"),
+            names_a_subpath("lodash-es"),
+            names_a_subpath("@scope/*"),
+            names_a_subpath("@scope/tokens/core/*"),
+            names_a_subpath("node:fs/promises"),
+        ],
+        [true, false, false, true, false],
+        "a pattern names a subpath when it has more names than a package"
+    );
+}

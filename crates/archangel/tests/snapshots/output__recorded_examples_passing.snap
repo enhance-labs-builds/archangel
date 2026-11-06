@@ -14,10 +14,12 @@ status: 0
   "summary": {
     "files": 2,
     "imports": 0,
+    "warnings": 0,
     "exceptions": {},
     "baselined": {},
     "permittedUnresolved": 0,
     "unfollowed": 0,
+    "unfollowedImports": [],
     "linksNotFollowed": [],
     "nestedRepositories": [],
     "presetNamesMatchingNothing": [],
@@ -57,6 +59,7 @@ $ archangel test --format json
 status: 0
 {
   "schemaVersion": 1,
+  "diagnostics": [],
   "examples": [
     {
       "rule": "layers",
@@ -81,6 +84,7 @@ status: 0
       "diagnostics": [
         {
           "code": "layers",
+          "severity": "error",
           "rule": "layers",
           "file": "src/shared/x.ts",
           "line": 1,
@@ -130,6 +134,7 @@ status: 0
       "diagnostics": [
         {
           "code": "may-not-import",
+          "severity": "error",
           "rule": "forbid",
           "file": "src/app/y.ts",
           "line": 1,

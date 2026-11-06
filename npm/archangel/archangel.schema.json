@@ -128,6 +128,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "imports": {
                 "enum": [
                   "all",
@@ -179,6 +186,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "imports": {
                 "enum": [
                   "all",
@@ -226,6 +240,13 @@
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
+              },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
               },
               "imports": {
                 "enum": [
@@ -321,6 +342,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "imports": {
                 "enum": [
                   "all",
@@ -394,6 +422,13 @@
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
+              },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
               },
               "imports": {
                 "enum": [
@@ -519,6 +554,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "imports": {
                 "enum": [
                   "all",
@@ -610,6 +652,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "imports": {
                 "enum": [
                   "all",
@@ -693,6 +742,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "examples": {
                 "$ref": "#/definitions/examples"
               },
@@ -754,6 +810,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "examples": {
                 "$ref": "#/definitions/examples"
               },
@@ -801,6 +864,13 @@
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
+              },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -866,6 +936,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "examples": {
                 "$ref": "#/definitions/examples"
               },
@@ -916,6 +993,13 @@
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
+              },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -968,6 +1052,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "examples": {
                 "$ref": "#/definitions/examples"
               },
@@ -1006,6 +1097,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "examples": {
                 "$ref": "#/definitions/examples"
               },
@@ -1043,6 +1141,13 @@
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
+              },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
               },
               "examples": {
                 "$ref": "#/definitions/examples"
@@ -1092,6 +1197,13 @@
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
               },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
+              },
               "examples": {
                 "$ref": "#/definitions/examples"
               },
@@ -1129,6 +1241,13 @@
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
+              },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
               },
               "imports": {
                 "enum": [
@@ -1172,6 +1291,13 @@
               "link": {
                 "type": "string",
                 "description": "Where to read more, shown with each violation."
+              },
+              "severity": {
+                "enum": [
+                  "error",
+                  "warn"
+                ],
+                "description": "'error', the default, fails the check; 'warn' reports each violation and passes."
               },
               "imports": {
                 "enum": [

@@ -98,6 +98,7 @@ const good = defineConfig({
     isolate('feature'),
     entry('feature', 'index.ts'),
     rule({ files: 'shared', mayNotImport: 'react', imports: 'runtime' }),
+    rule({ name: 'no-legacy', files: 'shared', mayNotImport: 'feature', severity: 'warn' }),
     layers(['production', 'shared'], { name: 'layers-of-groups' }),
     rule({ files: 'pure', mayOnlyImport: 'pure' }),
     rule({ files: 'feature', mayNotImport: { packages: ['react'] }, transitively: true, imports: 'static' }),

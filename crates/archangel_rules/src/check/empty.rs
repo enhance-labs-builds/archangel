@@ -3,7 +3,11 @@
 
 use std::collections::BTreeSet;
 
-use archangel_config::{Condition, ElementId, ElementKind, Pattern, RuleKind};
+use archangel_config::{
+    Condition, ElementId, ElementKind, Pattern, RuleKind, names_a_subpath, package_of_module,
+};
+
+use archangel_graph::ImportGraph;
 
 use super::Run;
 use crate::architecture::Origin;
@@ -14,6 +18,7 @@ impl Run<'_> {
     /// A declared selector, or an inline pattern of a rule, that matches no file the walk visited.
     /// What a preset declared is listed in the summary instead.
     pub(super) fn empty_selectors(&mut self) {
+        let mut left_out = LeftOut::default();
         for (set, origin) in &self.architecture.reported {
             if self.classes.files_of_set(*set) > 0 {
                 continue;
@@ -40,7 +45,12 @@ impl Run<'_> {
                     "the rule \"{rule}\" names the pattern {definition}, which matches no file, so \
                      the rule cannot fire there; fix the pattern"
                 ),
-            };
+            } + &left_out.note(self.graph, |path| {
+                self.architecture
+                    .bits_of(self.graph, path)
+                    .get(*set)
+                    .is_some_and(|&holds| holds)
+            });
             let mut diagnostic = Diagnostic::new(Code::SelectorEmpty, message);
             if let Origin::Inline(rule) = origin {
                 diagnostic.rule = Some(rule.clone());
@@ -60,6 +70,7 @@ impl Run<'_> {
             .flatten()
             .copied()
             .collect();
+        let mut left_out = LeftOut::default();
         for (index, element) in self.architecture.config.elements.iter().enumerate() {
             let id = ElementId(u32::try_from(index).unwrap_or(u32::MAX));
             if self.used_elements.contains(&id) {
@@ -73,6 +84,9 @@ impl Run<'_> {
                 ElementKind::Packages(patterns) => (
                     // Node's built-in modules are always installed, though no manifest lists them.
                     patterns.iter().any(|p| p.source().starts_with("node:"))
+                        || patterns
+                            .iter()
+                            .any(|p| listed_package_of_subpath(p, dependencies))
                         || dependencies.iter().any(|name| {
                             self.architecture
                                 .matcher
@@ -92,7 +106,12 @@ impl Run<'_> {
                     "the {word} \"{}\" matches nothing ({what}), so no rule about it can fire; fix the \
                      pattern or remove the {word}",
                     element.name
-                );
+                ) + &left_out.note(self.graph, |path| {
+                    self.architecture
+                        .matcher
+                        .classify_file(path)
+                        .is_some_and(|place| place.all().any(|found| found.element == id))
+                });
                 self.other
                     .push(Diagnostic::new(Code::ElementEmpty, message));
             }
@@ -184,6 +203,7 @@ impl Run<'_> {
                 let pattern = &self.architecture.package_names[name];
                 let always = pattern.source() == "*" || pattern.source().starts_with("node:");
                 let listed = always
+                    || listed_package_of_subpath(pattern, dependencies)
                     || self.used_names.contains(&name)
                     || dependencies
                         .iter()
@@ -202,5 +222,49 @@ impl Run<'_> {
                 self.other.push(diagnostic);
             }
         }
+    }
+}
+
+/// Whether a pattern of a subpath, such as `lodash-es/*`, is of a package that a manifest lists.
+/// A manifest lists packages, not their subpaths.
+fn listed_package_of_subpath(pattern: &Pattern, dependencies: &BTreeSet<String>) -> bool {
+    names_a_subpath(pattern.source()) && dependencies.contains(package_of_module(pattern.source()))
+}
+
+/// The files that the config's ignore list leaves out, found once, when a set first matches
+/// nothing.
+#[derive(Default)]
+struct LeftOut {
+    files: Option<Vec<(String, String)>>,
+}
+
+impl LeftOut {
+    /// What to add to the message of a set that matches nothing, when the ignore list left out
+    /// files that it would match: the line, how many files, and the first of them.
+    fn note(&mut self, graph: &ImportGraph, holds: impl Fn(&str) -> bool) -> String {
+        let files = self.files.get_or_insert_with(|| graph.left_out_by_ignore());
+        let matched: Vec<&(String, String)> =
+            files.iter().filter(|(path, _)| holds(path)).collect();
+        let Some((first, line)) = matched.first() else {
+            return String::new();
+        };
+        let count = matched.iter().filter(|(_, other)| other == line).count();
+        let anywhere = if line.trim_end_matches('/').contains('/') {
+            ""
+        } else {
+            "; a line with no `/` but at its end matches at any depth, so write \"/"
+        };
+        let anchored = if anywhere.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "{anywhere}{}\" for the top folder only",
+                line.trim_start_matches('/')
+            )
+        };
+        format!(
+            ". The config's ignore line \"{line}\" leaves out {count} file(s) that it would match, \
+             such as {first}{anchored}"
+        )
     }
 }

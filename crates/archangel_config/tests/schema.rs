@@ -68,6 +68,7 @@ fn refuses_option(condition: &str, option: &str) -> bool {
     rule[condition] = condition_value(condition);
     let value = match option {
         "imports" => json!("all"),
+        "severity" => json!("warn"),
         "names" => json!(["x"]),
         "specifier" => json!("relative"),
         "instance" => json!("different"),
@@ -134,7 +135,7 @@ fn sentence_fields(condition: &str, scope: &str) -> Vec<String> {
     let fields = known_fields(Some(
         json!({ "files": "app", "noCycles": true, "unknownField": 1 }),
     ));
-    let common = ["name", "reason", "because", "link", "examples"];
+    let common = ["name", "reason", "because", "link", "severity", "examples"];
     fields
         .into_iter()
         .filter(|field| {

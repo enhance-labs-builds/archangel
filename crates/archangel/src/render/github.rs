@@ -42,7 +42,12 @@ fn annotation(dir: &Path, diagnostic: &Diagnostic) -> String {
             let _ = write!(message, "\n{label}: {text}");
         }
     }
-    format!("::error {}::{}\n", properties.join(","), data(&message))
+    let command = if diagnostic.warning {
+        "warning"
+    } else {
+        "error"
+    };
+    format!("::{command} {}::{}\n", properties.join(","), data(&message))
 }
 
 /// The escaping GitHub's runner undoes in a command's message.

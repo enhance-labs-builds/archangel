@@ -4,12 +4,15 @@
 
 #[path = "support/layered.rs"]
 mod layered;
+#[path = "support/sites.rs"]
+mod sites;
 #[path = "support/check.rs"]
 mod support;
 #[path = "support/violations.rs"]
 mod violations;
 
 use layered::report;
+use sites::{site, sites};
 use violations::rule_violations;
 
 use archangel_rules::{Code, Report, ViolationId};
@@ -18,23 +21,6 @@ use serde_json::{Value, json};
 
 fn report_with(config: &Value, repo: &FixtureRepo) -> Report {
     support::check(config, repo, None).0
-}
-
-/// The violations, as (importing file, specifier), in report order.
-fn sites(report: &Report) -> Vec<(String, String)> {
-    rule_violations(report)
-        .into_iter()
-        .map(|d| {
-            (
-                d.file.clone().unwrap_or_default(),
-                d.specifier.clone().unwrap_or_default(),
-            )
-        })
-        .collect()
-}
-
-fn site(file: &str, specifier: &str) -> (String, String) {
-    (file.to_owned(), specifier.to_owned())
 }
 
 fn installed(repo: FixtureRepo, name: &str) -> FixtureRepo {

@@ -2,28 +2,16 @@
 //! archangel says when it cannot.
 #![cfg(test)]
 
+#[path = "support/resolutions.rs"]
+mod resolutions;
+
+use resolutions::{build, resolution};
+
 use archangel_graph::{
     GraphOptions, GraphProblem, ImportGraph, Resolution, UnresolvedReason, Work,
     describe_resolve_error,
 };
 use archangel_testkit::FixtureRepo;
-
-fn build(repo: &FixtureRepo) -> ImportGraph {
-    ImportGraph::build(repo.path(), &GraphOptions::default(), &mut Work::default())
-}
-
-fn resolution(graph: &ImportGraph, file: &str, specifier: &str) -> Resolution {
-    let facts = graph
-        .file(file)
-        .and_then(|f| f.facts.as_ref())
-        .expect("the file has facts");
-    let index = facts
-        .imports
-        .iter()
-        .position(|i| i.specifier == specifier)
-        .expect("the import");
-    graph.resolutions(file).expect("the file has resolutions")[index].clone()
-}
 
 fn package(name: &str, main: &str) -> String {
     format!(r#"{{ "name": "{name}", "version": "1.0.0", "main": "{main}" }}"#)

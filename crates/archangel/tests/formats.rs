@@ -285,18 +285,19 @@ fn json_format_prints_the_config_that_stops_a_command_as_one_document() {
     let expected = json!({
         "schemaVersion": 1,
         "diagnostics": [{
-            "code": "config-invalid", "rule": null, "file": "archangel.config.json", "line": 5,
+            "code": "config-invalid", "severity": "error", "rule": null, "file": "archangel.config.json", "line": 5,
             "column": 3, "span": null, "specifier": null, "message": RULEZ, "help": null,
             "reason": null, "link": null, "id": null, "cycle": [], "group": [], "chain": [], "fix": null,
         }],
     });
     assert_eq!(
-        (found.stdout.as_str(), found.stderr),
+        (found.stdout, found.stderr.as_str()),
         (
-            "",
-            format!("{}\n", serde_json::to_string_pretty(&expected).unwrap())
+            format!("{}\n", serde_json::to_string_pretty(&expected).unwrap()),
+            ""
         ),
-        "the document of the diagnostics that stopped it, as check's own document has them"
+        "the document of the diagnostics that stopped it, on standard output as check's own \
+         document is, so one parser reads both"
     );
 }
 
@@ -355,7 +356,7 @@ fn sarif_base_uri_of_a_stopped_command_is_the_config_folder() {
         .unwrap()
         .into();
     assert_eq!(found.status, 2, "a bad config exits 2");
-    let log = document(&found.stderr);
+    let log = document(&found.stdout);
     let run = &log["runs"][0];
     assert_eq!(
         (
@@ -535,5 +536,31 @@ fn assert_verdicts_of_the_small_app(import: &Value) {
             .unwrap()
             .contains("not in shared"),
         "the reason says why the rule skips"
+    );
+}
+
+#[test]
+fn test_as_json_lists_its_problems_as_diagnostics() {
+    let repo = FixtureRepo::new().file("src/a.ts", "").json_config(&json!({
+        "elements": { "src": "src/**" },
+        "rules": [
+            { "name": "no-b", "files": "src", "mayNotImport": "src/b.ts",
+              "examples": { "rejected": ["src/a.ts imports src/c.ts"] } },
+            { "name": "unproven", "files": "src", "mayNotImport": "src/z.ts" },
+        ],
+    }));
+    let found = run(&repo, &["test", "--format", "json"]);
+    let tested = document(&found.stdout);
+    let codes: Vec<&str> = tested["diagnostics"]
+        .as_array()
+        .expect("a list of diagnostics")
+        .iter()
+        .filter_map(|d| d["code"].as_str())
+        .collect();
+    assert_eq!(
+        codes,
+        ["example-failed", "rule-unproven"],
+        "the failed example and the unproven rule, under the key check uses: {}",
+        found.stdout
     );
 }

@@ -38,6 +38,7 @@ status: 1
   "diagnostics": [
     {
       "code": "layers",
+      "severity": "error",
       "rule": "layers",
       "file": "src/shared/a.ts",
       "line": 2,
@@ -64,6 +65,7 @@ status: 1
     },
     {
       "code": "layers",
+      "severity": "error",
       "rule": "layers",
       "file": "src/shared/a.ts",
       "line": 9,
@@ -90,6 +92,7 @@ status: 1
     },
     {
       "code": "layers",
+      "severity": "error",
       "rule": "layers",
       "file": "src/shared/b.ts",
       "line": 2,
@@ -118,10 +121,12 @@ status: 1
   "summary": {
     "files": 7,
     "imports": 4,
+    "warnings": 0,
     "exceptions": {},
     "baselined": {},
     "permittedUnresolved": 0,
     "unfollowed": 0,
+    "unfollowedImports": [],
     "linksNotFollowed": [],
     "nestedRepositories": [],
     "presetNamesMatchingNothing": [],
@@ -165,10 +170,10 @@ $ archangel test --format json
 status: 1
 {
   "schemaVersion": 1,
-  "examples": [],
-  "unproven": [
+  "diagnostics": [
     {
       "code": "rule-unproven",
+      "severity": "error",
       "rule": "layers",
       "file": null,
       "line": 0,
@@ -187,6 +192,48 @@ status: 1
     },
     {
       "code": "rule-unproven",
+      "severity": "error",
+      "rule": "entry(entity)",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"entry(entity)\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    }
+  ],
+  "examples": [],
+  "unproven": [
+    {
+      "code": "rule-unproven",
+      "severity": "error",
+      "rule": "layers",
+      "file": null,
+      "line": 0,
+      "column": 0,
+      "span": null,
+      "specifier": null,
+      "message": "the rule \"layers\" has no rejected example, so nothing shows that it can find a violation; add one under examples.rejected",
+      "help": null,
+      "reason": null,
+      "link": null,
+      "id": null,
+      "cycle": [],
+      "group": [],
+      "chain": [],
+      "fix": null
+    },
+    {
+      "code": "rule-unproven",
+      "severity": "error",
       "rule": "entry(entity)",
       "file": null,
       "line": 0,

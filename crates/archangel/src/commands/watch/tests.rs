@@ -149,19 +149,19 @@ fn text_puts_the_polling_note_on_the_summary_line() {
 /// The JSON of each diagnostic the fixed repository no longer has, in the order they were shown.
 fn gone_json() -> [serde_json::Value; 3] {
     let empty = json!({
-        "code": "element-empty", "rule": null, "file": null, "line": 0, "column": 0, "span": null,
+        "code": "element-empty", "severity": "error", "rule": null, "file": null, "line": 0, "column": 0, "span": null,
         "specifier": null, "message": EMPTY, "help": null, "reason": null, "link": null,
         "id": null, "cycle": [], "group": [], "chain": [], "fix": null,
     });
     let layers = json!({
-        "code": "layers", "rule": "layers", "file": "src/shared/bad.ts", "line": 1, "column": 8,
+        "code": "layers", "severity": "error", "rule": "layers", "file": "src/shared/bad.ts", "line": 1, "column": 8,
         "span": [7, 20], "specifier": "../app/main", "message": LAYERS,
         "help": "\"shared\" may import only \"shared\"", "reason": null, "link": null,
         "id": { "rule": "layers", "file": "src/shared/bad.ts", "specifier": "../app/main", "occurrence": 0 },
         "cycle": [], "group": [], "chain": [], "fix": null,
     });
     let tsconfig = json!({
-        "code": "resolution-file-invalid", "rule": null, "file": "tsconfig.json", "line": 0,
+        "code": "resolution-file-invalid", "severity": "error", "rule": null, "file": "tsconfig.json", "line": 0,
         "column": 0, "span": null, "specifier": null, "message": TSCONFIG, "help": null,
         "reason": null, "link": null, "id": null, "cycle": [], "group": [], "chain": [], "fix": null,
     });

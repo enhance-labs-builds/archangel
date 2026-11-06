@@ -10,7 +10,7 @@ use archangel_graph::{
     GraphProblem, Import, ImportGraph, Manifests, Resolution, SourceFile, UnresolvedReason, Work,
 };
 
-use crate::architecture::{Architecture, Edge, End, Origin, covers};
+use crate::architecture::{Architecture, Edge, End, Origin, covers, module_of};
 use crate::baseline::{Baseline, Key};
 use crate::classes::{ClassKey, Classes, Lookup};
 use crate::cycles::CycleGraph;
@@ -45,8 +45,8 @@ pub struct Summary {
     pub baselined: BTreeMap<String, u64>,
     /// Unresolved imports that the config permits.
     pub permitted_unresolved: u64,
-    /// Dynamic imports and require calls whose specifier is computed.
-    pub unfollowed: u64,
+    /// Dynamic imports and require calls whose specifier is computed, by file and line, sorted.
+    pub unfollowed: Vec<Unfollowed>,
     /// Symbolic links that the walk did not follow.
     pub links_not_followed: Vec<String>,
     /// Folders below the config folder that are repositories of their own.
@@ -61,6 +61,28 @@ pub struct Summary {
     pub preset_tables_matching_nothing: BTreeMap<String, String>,
 }
 
+/// A violation of a template import names the file that it reaches, because the import reaches
+/// several and gives one violation for each.
+fn reached_through_template(
+    mut diagnostic: Diagnostic,
+    site: &Site<'_>,
+    path: Option<&str>,
+) -> Diagnostic {
+    if let (Some(_), Some(path)) = (&site.import.template, path) {
+        diagnostic.message = format!("{}; the template can load {path}", diagnostic.message);
+    }
+    diagnostic
+}
+
+/// An import whose specifier is computed, so archangel cannot follow it.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Unfollowed {
+    /// The file, relative to the config folder.
+    pub file: String,
+    /// The line, from 1.
+    pub line: u32,
+}
+
 /// What the rules found in one file's imports. A session keeps one per file, so that an edit to a
 /// file checks that file's imports again and no other.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -69,7 +91,7 @@ pub struct FileCheck {
     unresolved: Vec<Diagnostic>,
     parsed: bool,
     imports: u64,
-    unfollowed: u64,
+    unfollowed: Vec<Unfollowed>,
     permitted_unresolved: u64,
     elements: BTreeSet<ElementId>,
     /// The inline package names of rule sides that the file's imports reach, by index.
@@ -312,7 +334,14 @@ impl<'a> Run<'a> {
         let mut check = FileCheck::default();
         if let Some(facts) = &file.facts {
             check.parsed = true;
-            check.unfollowed = facts.unfollowed.len() as u64;
+            check.unfollowed = facts
+                .unfollowed
+                .iter()
+                .map(|&line| Unfollowed {
+                    file: file.path.clone(),
+                    line,
+                })
+                .collect();
             check.imports = facts.imports.len() as u64;
             let mut occurrences: HashMap<&str, u32> = HashMap::new();
             for (import, resolution) in facts.imports.iter().zip(resolutions) {
@@ -341,7 +370,9 @@ impl<'a> Run<'a> {
             self.other.extend(check.unresolved.iter().cloned());
             self.summary.files += u64::from(check.parsed);
             self.summary.imports += check.imports;
-            self.summary.unfollowed += check.unfollowed;
+            self.summary
+                .unfollowed
+                .extend(check.unfollowed.iter().cloned());
             self.summary.permitted_unresolved += check.permitted_unresolved;
             self.used_elements.extend(check.elements.iter().copied());
             self.used_names.extend(check.package_names.iter().copied());
@@ -361,7 +392,8 @@ impl<'a> Run<'a> {
                 (class, classification, Some(path.as_str()), None)
             }
             Resolution::Package(name) => {
-                let (class, classification) = self.package_target(name);
+                let (class, classification) =
+                    self.package_target(module_of(&site.import.specifier, name));
                 (class, classification, None, Some(name.as_str()))
             }
             Resolution::Unresolved(reason) => {
@@ -485,7 +517,11 @@ impl<'a> Run<'a> {
                 package: ends.1,
             }
             .describe(site.import.specifier.as_str());
-            return import_diagnostic(rule, site, described);
+            return reached_through_template(
+                import_diagnostic(rule, site, described),
+                site,
+                ends.0,
+            );
         }
         let texts = Texts {
             architecture: self.architecture,
@@ -499,7 +535,7 @@ impl<'a> Run<'a> {
             file: site.file,
         };
         let described = texts.describe(rule, &rule.sentences[compiled.sentence], &parties);
-        import_diagnostic(rule, site, described)
+        reached_through_template(import_diagnostic(rule, site, described), site, ends.0)
     }
 
     pub(crate) fn cycles(&mut self, work: &mut Work) {
@@ -589,9 +625,9 @@ impl<'a> Run<'a> {
                 .map(|part| format!("\"{}\"", elements[part.index()].name))
                 .collect();
             let message = format!(
-                "{path} is in the parts {}, and a file is in one part at most; narrow one of the \
-                 patterns with `not`, or make one of them a group. The baseline does not hold this \
-                 problem, so fix it in the config",
+                "{path} is in the parts {}, and a file is in one part at most; leave the file out of \
+                 one part with a `!` pattern in its list, or make one of them a group. The baseline \
+                 does not hold this problem, so fix it in the config",
                 names.join(" and ")
             );
             self.other
@@ -939,16 +975,32 @@ impl<'a> Run<'a> {
     }
 
     pub(crate) fn finish(self) -> Report {
+        let warns: BTreeSet<&str> = self
+            .architecture
+            .config
+            .rules
+            .iter()
+            .filter(|rule| rule.warns)
+            .map(|rule| rule.name.as_str())
+            .collect();
         let mut diagnostics = self.violations;
+        for violation in &mut diagnostics {
+            violation.warning = violation
+                .rule
+                .as_deref()
+                .is_some_and(|rule| warns.contains(rule));
+        }
         diagnostics.extend(self.other);
         diagnostics.sort_by(|a, b| {
             a.sort_key()
                 .cmp(&b.sort_key())
                 .then_with(|| a.message.cmp(&b.message))
         });
+        let mut summary = self.summary;
+        summary.unfollowed.sort();
         Report {
             diagnostics,
-            summary: self.summary,
+            summary,
         }
     }
 }

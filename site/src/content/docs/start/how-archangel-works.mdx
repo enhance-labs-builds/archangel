@@ -27,6 +27,11 @@ The map has no gaps. A file that archangel cannot parse is an error. An import t
 resolve is an error, unless the config permits it with `allowUnresolved`. Archangel never skips a
 file or an import without a word.
 
+An `import()` of a template literal, such as `` import(`./locales/${code}.json`) ``, is an import of
+each file that it can load, as bundlers treat it: each `${…}` is one file or folder name. It must
+start with `./` or `../` and end in a written extension, as Vite asks. Archangel cannot follow any
+other computed specifier, such as `import(url)`, and the summary lists each one by file and line.
+
 ## 2. Names on the map
 
 The config gives names to sets of files:

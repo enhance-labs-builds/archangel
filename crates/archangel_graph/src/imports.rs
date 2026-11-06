@@ -81,6 +81,10 @@ pub struct Import {
     /// The names of the package module that an import of every name brings in, when archangel
     /// sees all of them; `None` when it does not, or when the import names what it brings in.
     pub module_names: Option<Arc<[String]>>,
+    /// For an `import()` of a template literal with a static relative prefix, the pattern of the
+    /// files it can load: each `${…}` is `*`, one file or folder name. The import stands for one
+    /// import of each file that the pattern matches, which resolution makes.
+    pub template: Option<String>,
 }
 
 impl Import {
@@ -104,14 +108,19 @@ impl Import {
 }
 
 impl FileFacts {
-    /// Sets what resolution decides about each import: the mark that the file's tsconfig decides,
+    /// Sets what resolution decides about each import: the imports that a template import stands
+    /// for, the mark that the file's tsconfig decides,
     /// because `verbatimModuleSyntax` makes TypeScript keep a statement whose names all have the
     /// `type` modifier, and the names of the package module that each import resolves to.
     pub(crate) fn mark_imports(
         &mut self,
         verbatim_module_syntax: bool,
         module_names: &[Option<Arc<[String]>>],
+        expanded: Option<Vec<Import>>,
     ) {
+        if let Some(expanded) = expanded {
+            self.imports = expanded;
+        }
         for (index, import) in self.imports.iter_mut().enumerate() {
             if import.names_typed {
                 import.kind = if verbatim_module_syntax {
@@ -304,6 +313,7 @@ impl Source<'_> {
             names: Vec::new(),
             names_typed: false,
             module_names: None,
+            template: None,
         }
     }
 
@@ -372,7 +382,17 @@ impl Source<'_> {
                     import.statement_end_line = self.position(dynamic.span.end).0;
                     facts.imports.push(import);
                 }
-                None => facts.unfollowed.push(self.position(dynamic.span.start).0),
+                None => match template(self.slice(dynamic.module_request)) {
+                    Some((written, pattern)) => {
+                        let mut import =
+                            self.import(&written, dynamic.module_request, ImportForm::Dynamic);
+                        import.statement_line = self.position(dynamic.span.start).0;
+                        import.statement_end_line = self.position(dynamic.span.end).0;
+                        import.template = Some(pattern);
+                        facts.imports.push(import);
+                    }
+                    None => facts.unfollowed.push(self.position(dynamic.span.start).0),
+                },
             }
         }
     }
@@ -482,6 +502,38 @@ impl StatementNames {
 }
 
 /// The value of a string literal, or of a template literal without substitutions.
+/// A template literal whose static text starts with `./` or `../`, as written and as the pattern
+/// of the files it can name, each `${…}` one `*`. Bundlers treat this form as a glob.
+fn template(expression: &str) -> Option<(String, String)> {
+    let inner = expression.trim().strip_prefix('`')?.strip_suffix('`')?;
+    if inner.contains(['`', '\\']) || !inner.contains("${") {
+        return None;
+    }
+    let mut pattern = String::new();
+    let mut rest = inner;
+    while let Some(start) = rest.find("${") {
+        pattern.push_str(&rest[..start]);
+        let end = rest[start..].find('}')? + start;
+        if !pattern.ends_with('*') {
+            pattern.push('*');
+        }
+        rest = &rest[end + 1..];
+    }
+    pattern.push_str(rest);
+    // Vite's rules for such an import: a relative start, a written extension at the end, and in
+    // the importing file's own folder a written part of the file name, so that `./${name}` does
+    // not load every file beside it.
+    let relative = pattern.starts_with("./") || pattern.starts_with("../");
+    let last = pattern.rsplit('/').next().unwrap_or("");
+    let extension = last
+        .rsplit_once('*')
+        .map_or(last, |(_, after)| after)
+        .rsplit_once('.')
+        .is_some_and(|(_, extension)| !extension.is_empty());
+    let own_folder_unnamed = pattern.starts_with("./*");
+    (relative && extension && !own_folder_unnamed).then(|| (inner.to_owned(), pattern))
+}
+
 fn literal(expression: &str) -> Option<String> {
     let trimmed = expression.trim();
     let quote = trimmed.chars().next()?;

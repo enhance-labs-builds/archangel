@@ -112,7 +112,7 @@ impl<W: Write> Screen<'_, W> {
                 for diagnostic in &gone {
                     out.push_str(&text::gone(diagnostic));
                 }
-                let mut summary = text::summary(&report.summary, report.diagnostics.len());
+                let mut summary = text::summary(&report.summary, &report.diagnostics);
                 if let Some(note) = polling {
                     let first_line = summary.find('\n').unwrap_or(summary.len());
                     summary.insert_str(first_line, &format!("; {note}"));

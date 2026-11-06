@@ -353,7 +353,7 @@ fn a_field_after_a_number_or_a_boolean_has_its_own_line_and_column() {
                 "rules[2].reasn",
                 (6, 44),
                 "archangel does not know this field; did you mean `reason`? The known fields are \
-                 files, folders, name, reason, because, link, imports, examples, mayNotImport, \
+                 files, folders, name, reason, because, link, severity, imports, examples, mayNotImport, \
                  mayOnlyImport, mayOnlyBeImportedBy, mustBeNamed, mustContain, mustNotExist, \
                  mustExport, mayNotExport, mustOnlyReExport, noCycles, names, specifier, \
                  instance, dependency, transitively, stopAt, within"
@@ -762,7 +762,7 @@ fn a_problem_displays_as_its_code_its_field_and_its_message() {
         [with_field.to_string(), without_field.to_string()],
         [
             "config-invalid: rules[0].colour: archangel does not know this field; the known fields \
-             are files, folders, name, reason, because, link, imports, examples, mayNotImport, \
+             are files, folders, name, reason, because, link, severity, imports, examples, mayNotImport, \
              mayOnlyImport, mayOnlyBeImportedBy, mustBeNamed, mustContain, mustNotExist, \
              mustExport, mayNotExport, mustOnlyReExport, noCycles, names, specifier, instance, \
              dependency, transitively, stopAt, within"
