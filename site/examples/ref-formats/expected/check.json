@@ -3,6 +3,7 @@
   "diagnostics": [
     {
       "code": "may-import",
+      "severity": "error",
       "rule": "app.shared",
       "file": "src/shared/label.ts",
       "line": 1,
@@ -31,10 +32,12 @@
   "summary": {
     "files": 2,
     "imports": 1,
+    "warnings": 0,
     "exceptions": {},
     "baselined": {},
     "permittedUnresolved": 0,
     "unfollowed": 0,
+    "unfollowedImports": [],
     "linksNotFollowed": [],
     "nestedRepositories": [],
     "presetNamesMatchingNothing": [],
@@ -56,7 +59,8 @@
       "examplesChecked": 0,
       "filesWritten": 0,
       "pluginRecordsSent": 0,
-      "pluginChecks": 0
+      "pluginChecks": 0,
+      "packageModulesParsed": 0
     },
     "rowsWithNoFile": []
   }

@@ -15,6 +15,17 @@ table, which is its first argument.
 | `imports` | `'all'`, `'runtime'`, `'static'`, `'types'` | `'all'` | The imports that the rule counts. `'runtime'` for `noCycles` and a transitive rule. |
 | `examples` | `{ accepted, rejected }` | none | Code that the rule must accept, and code that it must reject. |
 
+## `severity`
+
+A rule with `severity: 'warn'` reports each violation as a warning, and the check passes. Use it
+for a deprecation, while the code that uses the old module moves:
+
+```ts
+rule('no-moment', { files: 'feature', mayNotImport: { packages: ['moment'] }, severity: 'warn' })
+```
+
+`archangel check --max-warnings 0` fails on any warning, for a CI job that keeps the count at zero.
+
 ## `name`
 
 Write the name first, or as an option. These two rules are the same:
