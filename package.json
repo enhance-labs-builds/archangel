@@ -6,7 +6,7 @@
     "node": ">=24"
   },
   "devDependencies": {
-    "@feature-sliced/steiger-plugin": "0.8.1",
+    "@feature-sliced/steiger-plugin": "0.8.2",
     "@fission-ai/openspec": "1.14.3",
     "ajv": "8.20.0",
     "pluralize": "8.0.0",
