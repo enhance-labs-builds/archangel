@@ -10,7 +10,7 @@
     "@fission-ai/openspec": "1.14.3",
     "ajv": "8.20.0",
     "pluralize": "8.0.0",
-    "steiger": "0.8.1",
+    "steiger": "0.9.0",
     "tsd": "0.33.0",
     "typescript": "5.9.3"
   }
